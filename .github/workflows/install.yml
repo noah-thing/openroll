@@ -1,0 +1,32 @@
+# Manual only: runs the one line installers against the latest release on each system.
+name: install
+
+on:
+  workflow_dispatch:
+
+jobs:
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh install.sh </dev/null
+      - if: runner.os == 'Linux'
+        run: dpkg -s openroll | head -3 && ls -la "$(readlink -f "$(command -v openroll)")"
+      - if: runner.os == 'macOS'
+        run: ls -d /Applications/OpenRoll.app && /Applications/OpenRoll.app/Contents/MacOS/OpenRoll --version || true
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: Get-Content -Raw install.ps1 | Invoke-Expression
+      - shell: powershell
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\OpenRoll\OpenRoll.exe'
+          if (-not (Test-Path $exe)) { throw "not installed at $exe" }
+          Get-Item $exe | Select-Object FullName, Length
