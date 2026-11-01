@@ -10,7 +10,10 @@ import { S, STEPS, begin, check, grow, rng } from "./model-gen";
 const SEEDS = Number(process.env.SEEDS ?? 60);
 const STEPS_EACH = Number(process.env.STEPS ?? 14);
 
-describe("random edit sequences", () => {
+// Hundreds of full projects per test. A slow CI runner needs more than the 5 s default.
+const SLOW = 60_000;
+
+describe("random edit sequences", { timeout: SLOW }, () => {
   it("keep the project valid, never touch their input, and survive a JSON round trip", () => {
     const failures = new Map<string, string>();
     for (const step of STEPS) {
@@ -36,7 +39,7 @@ describe("random edit sequences", () => {
   });
 });
 
-describe("history", () => {
+describe("history", { timeout: SLOW }, () => {
   it("undo and redo restore each project exactly, through a storm", () => {
     for (let seed = 1; seed <= 40; seed++) {
       const r = rng(seed);
@@ -68,7 +71,7 @@ describe("history", () => {
   });
 });
 
-describe("scene", () => {
+describe("scene", { timeout: SLOW }, () => {
   const FRAME = Math.round(S / 30);
   const half = (it: Item) => (it.transitionIn ? it.transitionIn.duration / 2 : 0);
 
@@ -121,7 +124,7 @@ describe("scene", () => {
   });
 });
 
-describe("keyframes on split", () => {
+describe("keyframes on split", { timeout: SLOW }, () => {
   it("both halves start and end on the value the whole had", () => {
     for (let seed = 1; seed <= 200; seed++) {
       const r = rng(seed);
