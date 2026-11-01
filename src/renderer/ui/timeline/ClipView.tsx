@@ -5,7 +5,7 @@ import { itemBeats } from "../../../core/audio-edit";
 import { keyTimes } from "../../../core/look/keyframes";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
-import type { MediaCache } from "../../state/media-cache";
+import { framePlace, type MediaCache } from "../../state/media-cache";
 import { labelHex } from "../../state/timeline-actions";
 import { usePreparing } from "../../state/ai";
 import { BADGE_TEXT, derived, useDerivedVersion } from "../../state/derived-media";
@@ -123,7 +123,8 @@ function drawFilm(g: CanvasRenderingContext2D, cache: MediaCache, media: MediaRe
   for (let x = first; x < x0 + w; x += tileW) {
     const src = freeze ? srcAt(0) : srcAt(x + tileW / 2);
     const idx = Math.min(strip.count - 1, Math.max(0, Math.round(src / 1e6 / strip.step)));
-    g.drawImage(strip.sheet, idx * strip.frameWidth * 2, 0, strip.frameWidth * 2, strip.frameHeight * 2, x - x0, 0, tileW, h);
+    const f = framePlace(strip, idx);
+    g.drawImage(strip.sheet, f.x, f.y, f.w, f.h, x - x0, 0, tileW, h);
   }
 }
 

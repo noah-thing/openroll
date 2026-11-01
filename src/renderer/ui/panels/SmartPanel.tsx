@@ -6,7 +6,7 @@ import { shortTime, span } from "../../lib/format";
 import { useEditor } from "../../lib/hooks";
 import { captionService } from "../../state/captions";
 import type { Editor } from "../../state/editor";
-import type { MediaCache } from "../../state/media-cache";
+import { framePlace, type MediaCache } from "../../state/media-cache";
 import { findShorts, makeShort, pickSource, type FoundShorts, type ShortsSource } from "../../state/shorts";
 import { Icon } from "../kit/Icon";
 import { Segmented, Toggle } from "../kit/Field";
@@ -138,11 +138,10 @@ function ShortCard({ h, source, cache, busy, disabled, onMake, onShow }: { h: Hi
   useEffect(() => {
     const c = canvas.current;
     if (!c || !strip) return;
-    const per = strip.sheet.width / strip.count;
-    const i = Math.min(strip.count - 1, Math.max(0, Math.round(srcFrom / strip.step)));
+    const f = framePlace(strip, Math.min(strip.count - 1, Math.max(0, Math.round(srcFrom / strip.step))));
     const g = c.getContext("2d")!;
     g.clearRect(0, 0, c.width, c.height);
-    g.drawImage(strip.sheet, i * per, 0, per, strip.sheet.height, 0, 0, c.width, c.height);
+    g.drawImage(strip.sheet, f.x, f.y, f.w, f.h, 0, 0, c.width, c.height);
   }, [strip, srcFrom]);
 
   useEffect(() => {
