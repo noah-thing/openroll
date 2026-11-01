@@ -162,11 +162,11 @@ export class Player {
     }, Math.max(16, left));
   }
 
-  snapshot(t: Micros, bare?: string): Promise<ImageData> {
+  snapshot(t: Micros, bare?: string, opts: { settle?: boolean; width?: number } = {}): Promise<ImageData> {
     const id = this.nextSnapshot++;
     return new Promise(resolve => {
       this.snapshots.set(id, resolve);
-      this.send({ type: "snapshot", id, t, bare });
+      this.send({ type: "snapshot", id, t, bare, ...opts });
     });
   }
 

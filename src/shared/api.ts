@@ -195,6 +195,10 @@ export interface OpenRollApi {
     onClients(handler: (clients: AgentClient[]) => void): () => void;
     disconnect(id: number): Promise<void>;
     connectInfo(): Promise<{ executable: string; args: string[] }>;
+    /** Allow files an AI tool names by absolute path; returns the ones that exist. */
+    allow(paths: string[]): Promise<FileInfo[]>;
+    /** A writer for a path the AI chose, or the Videos folder; no dialog. */
+    writerAt(path: string | null, fallbackName: string): Promise<{ id: number; path: string }>;
   };
 
   news: {

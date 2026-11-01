@@ -110,6 +110,8 @@ const api: OpenRollApi = {
     },
     disconnect: id => ipcRenderer.invoke("agent:disconnect", id),
     connectInfo: () => ipcRenderer.invoke("agent:connect-info"),
+    allow: paths => ipcRenderer.invoke("agent:allow", paths),
+    writerAt: (path, name) => ipcRenderer.invoke("writer:create-at", path, name),
   },
 
   news: {

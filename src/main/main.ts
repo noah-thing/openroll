@@ -3,7 +3,7 @@ import { arch, release, type } from "node:os";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
-import { basename, dirname, extname, join, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
 import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
@@ -275,6 +275,34 @@ function registerIpc(): void {
     const id = nextWriter++;
     writers.set(id, { handle, path: r.filePath, tmp });
     return { id, path: r.filePath };
+  });
+
+  // For AI tools, which name the file themselves. Same temp file and rename as above; no dialog.
+  ipcMain.handle("writer:create-at", async (_e, target: unknown, fallbackName: unknown) => {
+    const ok = /\.(mp4|mov|webm|gif|m4a|wav|srt|vtt|png|jpg)$/i;
+    let path = typeof target === "string" && target ? target : "";
+    if (!path) path = join(app.getPath("videos"), `${String(fallbackName || "Export").replace(/[\\/:*?"<>|]/g, "_")}.mp4`);
+    if (!isAbsolute(path) || !ok.test(path)) throw new Error("Give an absolute file path ending in a video, audio, image or subtitle extension.");
+    await mkdir(dirname(path), { recursive: true });
+    const tmp = path + ".openroll-part";
+    const handle = await open(tmp, "w");
+    const id = nextWriter++;
+    writers.set(id, { handle, path, tmp });
+    return { id, path };
+  });
+
+  ipcMain.handle("agent:allow", async (_e, paths: unknown) => {
+    if (!Array.isArray(paths)) return [];
+    const out: FileInfo[] = [];
+    for (const p of paths) {
+      if (typeof p !== "string" || !isAbsolute(p) || !MEDIA_EXT.includes(extname(p).slice(1).toLowerCase())) continue;
+      const i = await info(p);
+      if (i) {
+        allowPath(p);
+        out.push(i);
+      }
+    }
+    return out;
   });
 
   ipcMain.handle("writer:write", async (_e, id: number, position: number, data: Uint8Array) => {

@@ -95,12 +95,7 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
       dirty = true;
       break;
     case "snapshot":
-      if (compositor) {
-        bareItem = m.bare ?? null;
-        renderAt(m.t, false);
-        bareItem = null;
-        post({ type: "snapshot", id: m.id, image: compositor.snapshot() });
-      }
+      void snapshot(m);
       break;
   }
 };
@@ -316,13 +311,54 @@ function renderAt(t: number, live: boolean): void {
   if (live && playing) prewarm(p, t);
 }
 
+let snapshotting = false;
+
+async function snapshot(m: Extract<PreviewIn, { type: "snapshot" }>): Promise<void> {
+  if (!compositor || !project) return;
+  snapshotting = true;
+  const keepW = outW, keepH = outH;
+  try {
+    if (m.width) {
+      outW = Math.max(2, Math.round(m.width / 2) * 2);
+      outH = Math.max(2, Math.round((outW * project.settings.height) / project.settings.width / 2) * 2);
+    }
+    bareItem = m.bare ?? null;
+    for (let tries = 0; ; tries++) {
+      renderAt(m.t, false);
+      if (!m.settle || tries > 60 || settled(m.t)) break;
+      await new Promise(r => setTimeout(r, 40));
+    }
+    post({ type: "snapshot", id: m.id, image: compositor.snapshot() });
+  } finally {
+    bareItem = null;
+    outW = keepW;
+    outH = keepH;
+    snapshotting = false;
+    dirty = true;
+  }
+}
+
+/** Every clip visible at t has its exact frame decoded, and text has its fonts. */
+function settled(t: number): boolean {
+  if (!project || !fontsReady) return false;
+  for (const [id, need] of frameNeeds(buildScene(project, t))) {
+    if (need.media.kind === "image") {
+      if (!(images.get(need.media.id) instanceof ImageBitmap)) return false;
+      continue;
+    }
+    const r = readers.get(id)?.reader;
+    if (!r?.frame()?.exact) return false;
+  }
+  return true;
+}
+
 function loop(): void {
   const start = performance.now();
   if (compositor?.isLost) {
     post({ type: "error", message: "The graphics device was reset." });
     compositor = null;
   }
-  if (playing || dirty) {
+  if ((playing || dirty) && !snapshotting) {
     dirty = false;
     renderAt(currentTime(), true);
     stats.frames++;

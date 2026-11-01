@@ -10,7 +10,8 @@ export type PreviewIn =
   /** `at` is wall time in ms (timeOrigin + now) when the timeline was at `t` microseconds. */
   | { type: "clock"; playing: boolean; t: number; at: number; rate: number }
   /** `bare` names an item to draw without its filter, effects, mask and key. */
-  | { type: "snapshot"; id: number; t: number; bare?: string };
+  /** `settle` waits until every visible clip shows its exact frame; `width` renders at that size instead of the preview's. */
+  | { type: "snapshot"; id: number; t: number; bare?: string; settle?: boolean; width?: number };
 
 export type PreviewOut =
   | { type: "ready" }

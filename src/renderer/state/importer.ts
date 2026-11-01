@@ -7,6 +7,8 @@ import type { Editor } from "./editor";
 import { importViaConverter } from "./prepare-import";
 
 export interface ImportOptions {
+  /** Override the default of placing clips when the timeline is empty. */
+  place?: boolean;
   /** Place the new clips on the timeline at this time. */
   at?: Micros;
   trackId?: string;
@@ -53,7 +55,7 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   const fresh = refs.filter(r => !editor.project.media[r.id]);
   for (const r of fresh) void derived.maybeProxy(r);
   const timelineWasEmpty = projectDuration(editor.project) === 0;
-  const place = opts.at !== undefined || timelineWasEmpty;
+  const place = opts.place ?? (opts.at !== undefined || timelineWasEmpty);
 
   if (refs.length) {
     editor.apply(place ? "Import and place clips" : "Import media", p => {
