@@ -190,6 +190,7 @@ function pruneSources(): void {
 }
 
 function hexToRgb(hex: string): [number, number, number] {
+  if (!/^#?[0-9a-f]{6}/i.test(hex)) return [0, 0, 0];
   const n = parseInt(hex.replace("#", "").padEnd(6, "0").slice(0, 6), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }

@@ -298,6 +298,12 @@ function ProjectSettings({ editor, project }: { editor: Editor; project: Project
         </Section>
         <Section title="Background">
           <div className="swatches">
+            <button
+              className={"swatch swatch-none" + (s.background === "none" ? " on" : "")}
+              title="None, for exports with a transparent background"
+              aria-label="No background"
+              onClick={() => editor.apply("Background colour", p => ({ ...p, settings: { ...p.settings, background: "none" } }))}
+            />
             {["#000000", "#ffffff", "#1b1f1d", "#ece7da", "#f2c23a", "#2b5fe0"].map(c => (
               <button
                 key={c}

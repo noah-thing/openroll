@@ -6,6 +6,7 @@ import {
   CanvasSource,
   Input,
   Mp4OutputFormat,
+  WebMOutputFormat,
   Output,
   StreamTarget,
   UrlSource,
@@ -93,10 +94,11 @@ class SequentialReader {
 
 async function run(project: Project, urls: Record<string, string>, s: ExportSettings): Promise<void> {
   cancelled = false;
+  const still = s.format === "png";
   await loadFonts(self.fonts);
   const duration = projectDuration(project);
   const fps = s.fps;
-  const frameCount = Math.max(1, Math.ceil((duration / 1e6) * fps));
+  const frameCount = still ? 1 : Math.max(1, Math.ceil((duration / 1e6) * fps));
   const canvas = new OffscreenCanvas(s.width, s.height);
   const compositor = new Compositor(canvas);
   compositor.resize(s.width, s.height, project.settings.width, project.settings.height);
@@ -116,21 +118,28 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       }),
   });
 
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: false }),
-    target: new StreamTarget(writable, { chunked: true, chunkSize: 4 * 1024 * 1024 }),
-  });
-  const video = new CanvasSource(canvas, {
-    codec: s.codec,
-    bitrate: s.bitrate,
-    keyFrameInterval: 2,
-    latencyMode: "quality",
-    hardwareAcceleration: s.hardware ? "prefer-hardware" : "prefer-software",
-  });
-  output.addVideoTrack(video, { frameRate: fps });
-  const audio = s.audio ? new AudioSampleSource({ codec: "aac", bitrate: 192_000 }) : null;
-  if (audio) output.addAudioTrack(audio);
-  await output.start();
+  const piped = s.encoder === "ffmpeg";
+  const useCodecs = !piped && !still;
+  const webm = s.format === "webm";
+  const output = useCodecs
+    ? new Output({
+        format: webm ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: false }),
+        target: new StreamTarget(writable, { chunked: true, chunkSize: 4 * 1024 * 1024 }),
+      })
+    : null;
+  const video = output
+    ? new CanvasSource(canvas, {
+        codec: s.codec,
+        bitrate: s.bitrate,
+        keyFrameInterval: 2,
+        latencyMode: "quality",
+        hardwareAcceleration: s.encoder === "hardware" ? "prefer-hardware" : "prefer-software",
+      })
+    : null;
+  if (output && video) output.addVideoTrack(video, { frameRate: fps });
+  const audio = output && s.audio ? new AudioSampleSource({ codec: webm ? "opus" : "aac", bitrate: webm ? 128_000 : 192_000 }) : null;
+  if (output && audio) output.addAudioTrack(audio);
+  await output?.start();
 
   const inputs = new Map<string, Promise<InputVideoTrack | null>>();
   const readers = new Map<string, SequentialReader>();
@@ -165,12 +174,41 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
     }
   };
 
+  let inFlight: Promise<void> = Promise.resolve();
+
+  // GL rows run bottom up, and transparent frames are premultiplied; a PNG wants neither.
+  const writeStill = async (px: Uint8Array) => {
+    const w = s.width, h = s.height, row = w * 4;
+    const out = new Uint8ClampedArray(px.length);
+    for (let y = 0; y < h; y++) {
+      const from = (h - 1 - y) * row;
+      for (let x = 0; x < row; x += 4) {
+        const a = s.transparent ? px[from + x + 3] : 255;
+        const k = a > 0 && a < 255 ? 255 / a : 1;
+        out[y * row + x] = Math.min(255, px[from + x] * k);
+        out[y * row + x + 1] = Math.min(255, px[from + x + 1] * k);
+        out[y * row + x + 2] = Math.min(255, px[from + x + 2] * k);
+        out[y * row + x + 3] = a;
+      }
+    }
+    const c = new OffscreenCanvas(w, h);
+    c.getContext("2d")!.putImageData(new ImageData(out, w, h), 0, 0);
+    const blob = await c.convertToBlob({ type: "image/png" });
+    const data = new Uint8Array(await blob.arrayBuffer());
+    const req = nextReq++;
+    await new Promise<void>(resolve => {
+      writeAcks.set(req, () => (writeAcks.delete(req), resolve()));
+      written = data.byteLength;
+      post({ type: "write", req, position: 0, data }, [data.buffer]);
+    });
+  };
+
   const started = performance.now();
   try {
     for (let i = 0; i < frameCount; i++) {
       if (cancelled) throw new Error("cancelled");
-      const t = Math.round((i / fps) * 1e6);
-      if (i % Math.round(fps) === 0) await pumpAudio(t / 1e6 + 2);
+      const t = still ? s.at : Math.round((i / fps) * 1e6);
+      if (!still && i % Math.round(fps) === 0) await pumpAudio(t / 1e6 + 2);
       const scene = buildScene(project, t);
       const frames: VideoFrame[] = [];
       const layerFor = async (v: Visual): Promise<Layer | null> => {
@@ -215,19 +253,34 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
         }
       }
       compositor.render(nodes, hex(project.settings.background));
-      for (const f of frames) f.close();
-      await video.add(i / fps, 1 / fps);
+      if (video) {
+        for (const f of frames) f.close();
+        await video.add(i / fps, 1 / fps);
+      } else {
+        const px = new Uint8Array(s.width * s.height * 4);
+        compositor.readRaw(s.transparent, px);
+        for (const f of frames) f.close();
+        if (still) await writeStill(px);
+        else {
+          // One frame may be in flight while the next renders; more would pile up memory.
+          await inFlight;
+          const req = nextReq++;
+          inFlight = new Promise<void>(resolve => writeAcks.set(req, () => (writeAcks.delete(req), resolve())));
+          post({ type: "frame", req, data: px }, [px.buffer]);
+        }
+      }
 
       if (i % 5 === 0 || i === frameCount - 1) {
         const elapsed = (performance.now() - started) / 1000;
         post({ type: "progress", frame: i + 1, frames: frameCount, elapsed, bytes: written });
       }
     }
+    await inFlight;
     await pumpAudio(Infinity);
-    await output.finalize();
+    await output?.finalize();
     post({ type: "done", bytes: written, seconds: (performance.now() - started) / 1000 });
   } catch (err) {
-    await output.cancel().catch(() => {});
+    await output?.cancel().catch(() => {});
     if (cancelled) post({ type: "cancelled" });
     else throw err;
   } finally {
@@ -238,6 +291,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
 }
 
 function hex(h: string): [number, number, number] {
+  if (!/^#?[0-9a-f]{6}/i.test(h)) return [0, 0, 0];
   const n = parseInt(h.replace("#", "").padEnd(6, "0").slice(0, 6), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
