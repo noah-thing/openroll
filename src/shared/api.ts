@@ -75,6 +75,8 @@ export interface OpenRollApi {
   /** URL the renderer can fetch (with Range) to read an allowed file. */
   mediaUrl(path: string): string;
   stat(path: string): Promise<FileInfo | null>;
+  /** Native open dialog for one .cube colour table. Returns its text, or null if cancelled. */
+  pickLut(): Promise<{ name: string; text: string } | null>;
 
   /** Writes go through a handle so exports can stream large files without holding them in memory. */
   createWriter(suggestedName: string, kind: "video" | "audio" | "subtitles" | "image"): Promise<{ id: number; path: string } | null>;

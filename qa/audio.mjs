@@ -115,7 +115,7 @@ export default async function ({ page, shot }) {
   const plain = await exportNow("voice-plain");
   // B. one cleanup at a time, then all of them
   await page.evaluate(id => window.__or.editor.select([id]), ids.voice);
-  await page.click(".rail button:nth-child(5)");
+  await page.click('.rail button:has-text("Audio")');
   await page.waitForTimeout(500);
   await shot("audio-panel");
   const gap = [1.95, 2.5];

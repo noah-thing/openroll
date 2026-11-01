@@ -16,7 +16,7 @@ const page = await app.firstWindow();
 page.on("console", m => {
   if (m.type() === "error" || m.type() === "warning") console.log(`[${m.type()}]`, m.text());
 });
-page.on("pageerror", e => console.log("[pageerror]", e.message));
+page.on("pageerror", e => console.log("[pageerror]", e.stack ?? e.message));
 await page.waitForLoadState("domcontentloaded");
 try {
   const run = (await import(resolve(scenario))).default;

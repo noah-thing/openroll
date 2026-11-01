@@ -156,7 +156,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${mediaScheme.scheme}:`,
   `media-src 'self' blob: ${mediaScheme.scheme}:`,
-  `connect-src 'self' blob: data: ${mediaScheme.scheme}:`,
+  // On device models (captions, voices) download once from Hugging Face; nothing else goes out.
+  `connect-src 'self' blob: data: ${mediaScheme.scheme}: https://huggingface.co https://*.huggingface.co https://*.hf.co`,
   "font-src 'self' data:",
   "worker-src 'self' blob:",
   "object-src 'none'",
@@ -203,6 +204,15 @@ function registerIpc(): void {
     return out;
   });
 
+  ipcMain.handle("lut:pick", async () => {
+    const r = await dialog.showOpenDialog(win!, { title: "Import LUT", properties: ["openFile"], filters: [{ name: "Colour tables", extensions: ["cube"] }] });
+    const path = r.filePaths[0];
+    if (!path) return null;
+    const size = (await stat(path)).size;
+    if (size > 64 * 1024 * 1024) return null;
+    return { name: basename(path, extname(path)), text: await readFile(path, "utf8") };
+  });
+
   ipcMain.handle("media:allow-dropped", async (_e, paths: unknown) => {
     if (!Array.isArray(paths)) return [];
     const out: FileInfo[] = [];
@@ -227,7 +237,7 @@ function registerIpc(): void {
       kind === "image" ? [{ name: "Image", extensions: ["png", "jpg"] }] :
       [{ name: "Video", extensions: ["mp4", "mov", "webm"] }];
     const r = process.env.OPENROLL_QA_OUT
-      ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, name + ".mp4") }
+      ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, extname(name) ? name : `${name}.${filters[0].extensions[0]}`) }
       : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
     if (r.canceled || !r.filePath) return null;
     // Write to a temp name and rename on close, so a failed export never leaves a broken file

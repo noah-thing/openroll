@@ -8,7 +8,7 @@ export default async function ({ page, shot }) {
   const infos = await page.evaluate(p => window.openroll.qa.allow(p), [join(homedir(), "openroll-research/testmedia/h264_1080p30_60s.mp4")]);
   await page.evaluate(i => window.__or.newProject(i), infos);
   await page.waitForSelector(".clip");
-  await page.click(".rail button:nth-child(3)");
+  await page.click('.rail button:has-text("Text")');
   await page.click(".text-card >> nth=0");
   await page.waitForTimeout(400);
   await page.fill("textarea.text-input", "OpenRoll reads this sentence aloud, on your own computer.");

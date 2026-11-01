@@ -13,14 +13,14 @@ export default async function ({ page, shot }) {
   await page.evaluate(i => window.__or.newProject(i), infos);
   await page.waitForSelector(".clip");
   await page.waitForTimeout(2500);
-  await page.click('.rail button:nth-child(3)');
+  await page.click('.rail button:has-text("Text")');
   await page.waitForTimeout(300);
   await page.click(".text-card >> nth=0");
   await page.waitForTimeout(400);
   await page.evaluate(() => window.__or.editor.seek(1_500_000));
   await page.waitForTimeout(600);
   await shot("look-editor-text");
-  await page.click('.rail button:nth-child(4)');
+  await page.click('.rail button:has-text("Transitions")');
   await page.locator(".clip-video").nth(1).click();
   await page.waitForTimeout(600);
   await shot("look-editor-clip");

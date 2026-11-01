@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { setSpeed, updateItem } from "../../core/edit";
-import { findItem, IDENTITY, type CaptionItem, type Item, type MediaItem, type Project, type TextItem } from "../../core/project";
+import { findItem, type CaptionItem, type Item, type MediaItem, type Project, type TextItem } from "../../core/project";
 import { useEditor } from "../lib/hooks";
 import { span } from "../lib/format";
 import type { Editor } from "../state/editor";
@@ -8,8 +8,12 @@ import { CaptionHighlight } from "./captions/CaptionHighlight";
 import { CaptionTextField } from "./captions/CaptionTextField";
 import { Section, Segmented, Slider, Toggle } from "./kit/Field";
 import { AudioInspector, ReadAloudSection } from "./panels/AudioInspector";
+import { useAnim } from "./inspector/anim";
+import { BlendSection, CanvasSection, KeySection, MaskSection, TransformSection } from "./inspector/FrameSections";
+import { KeyframeList, KeyNav } from "./inspector/Keyframes";
+import { LookTab } from "./inspector/LookTab";
 
-type Tab = "video" | "audio" | "speed" | "animate" | "text";
+type Tab = "video" | "look" | "audio" | "speed" | "animate" | "text";
 
 export function Inspector({ editor }: { editor: Editor }) {
   const project = useEditor(editor, e => e.project);
@@ -39,10 +43,11 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
       ? [{ id: "text", label: "Text" }, { id: "video", label: "Place" }, { id: "animate", label: "Animate" }]
       : media?.kind === "audio"
         ? [{ id: "audio", label: "Audio" }, { id: "speed", label: "Speed" }]
-        : [{ id: "video", label: "Video" }, ...(media?.hasAudio ? [{ id: "audio" as Tab, label: "Audio" }] : []), ...(media?.kind === "video" ? [{ id: "speed" as Tab, label: "Speed" }] : []), { id: "animate", label: "Animate" }];
+        : [{ id: "video", label: "Video" }, { id: "look", label: "Look" }, ...(media?.hasAudio ? [{ id: "audio" as Tab, label: "Audio" }] : []), ...(media?.kind === "video" ? [{ id: "speed" as Tab, label: "Speed" }] : []), { id: "animate", label: "Animate" }];
   const [tab, setTab] = useState<Tab>(tabs[0].id);
   const active = tabs.some(t => t.id === tab) ? tab : tabs[0].id;
 
+  const anim = useAnim(editor, item);
   const set = (label: string, patch: Partial<Item>, group: string) => editor.apply(label, p => updateItem(p, item.id, patch), `${item.id}:${group}`);
   const done = () => editor.endGroup();
   const name = item.type === "text" ? item.style.text : item.type === "caption" ? item.words.map(w => w.text).join(" ") || "Caption" : item.name ?? media?.name ?? "Clip";
@@ -62,24 +67,34 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
           <span className="num">{span(item.duration)}</span>
         </div>
 
+        {(active === "video" || active === "look" || active === "animate") && <KeyNav editor={editor} item={item} anim={anim} />}
+
         {active === "video" && (
           <>
-            <Section title="Transform" onReset={() => (set("Reset transform", { transform: { ...IDENTITY, opacity: item.transform.opacity } }, "reset"), done())}>
-              <Slider label="Scale" value={item.transform.scale * 100} min={5} max={400} unit="%" reset={100} onChange={v => set("Scale", { transform: { ...item.transform, scale: v / 100 } }, "scale")} onCommit={done} />
-              <Slider label="Position X" value={item.transform.x} min={-project.settings.width} max={project.settings.width} reset={0} onChange={v => set("Move", { transform: { ...item.transform, x: v } }, "x")} onCommit={done} />
-              <Slider label="Position Y" value={item.transform.y} min={-project.settings.height} max={project.settings.height} reset={0} onChange={v => set("Move", { transform: { ...item.transform, y: v } }, "y")} onCommit={done} />
-              <Slider label="Rotate" value={item.transform.rotation} min={-180} max={180} unit="°" reset={0} onChange={v => set("Rotate", { transform: { ...item.transform, rotation: v } }, "rot")} onCommit={done} />
-              <Slider label="Opacity" value={item.transform.opacity * 100} min={0} max={100} unit="%" reset={100} onChange={v => set("Opacity", { transform: { ...item.transform, opacity: v / 100 } }, "opacity")} onCommit={done} />
-            </Section>
-            {item.type === "media" && media?.kind !== "audio" && <LookSection item={item} set={set} done={done} />}
+            <TransformSection editor={editor} item={item} anim={anim} width={project.settings.width} height={project.settings.height} />
+            {item.type === "media" && media?.kind !== "audio" && (
+              <>
+                <CanvasSection editor={editor} item={item} everyClip={() => fillEveryClip(editor, item)} />
+                <MaskSection editor={editor} item={item} />
+                <KeySection editor={editor} item={item} />
+                <BlendSection editor={editor} item={item} />
+              </>
+            )}
           </>
         )}
+
+        {active === "look" && item.type === "media" && <LookTab editor={editor} item={item} project={project} />}
 
         {active === "audio" && item.type === "media" && <AudioInspector editor={editor} item={item} project={project} />}
 
         {active === "speed" && item.type === "media" && <SpeedSection editor={editor} item={item} />}
 
-        {active === "animate" && <AnimateSection item={item} set={set} done={done} />}
+        {active === "animate" && (
+          <>
+            <AnimateSection item={item} set={set} done={done} />
+            <KeyframeList editor={editor} item={item} />
+          </>
+        )}
 
         {active === "text" && item.type === "text" && (
           <>
@@ -109,45 +124,14 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
 
 type Setter = (label: string, patch: Partial<Item>, group: string) => void;
 
-function LookSection({ item, set, done }: { item: MediaItem; set: Setter; done(): void }) {
-  const a = item.adjust ?? {};
-  const adj = (key: keyof NonNullable<MediaItem["adjust"]>, label: string) => (
-    <Slider
-      label={label}
-      value={a[key] ?? 0}
-      min={-100}
-      max={100}
-      reset={0}
-      onChange={v => set(`Adjust ${label.toLowerCase()}`, { adjust: { ...a, [key]: v } } as Partial<Item>, key)}
-      onCommit={done}
-    />
-  );
-  return (
-    <>
-      <Section title="Look" onReset={() => (set("Reset look", { adjust: {} } as Partial<Item>, "reset-look"), done())}>
-        {adj("exposure", "Exposure")}
-        {adj("contrast", "Contrast")}
-        {adj("saturation", "Saturation")}
-        {adj("temperature", "Warmth")}
-        {adj("tint", "Tint")}
-        {adj("highlights", "Highlights")}
-        {adj("shadows", "Shadows")}
-        {adj("vignette", "Vignette")}
-      </Section>
-      <Section title="Blend">
-        <Segmented
-          options={[
-            { value: "normal", label: "Normal" },
-            { value: "screen", label: "Screen" },
-            { value: "multiply", label: "Multiply" },
-            { value: "overlay", label: "Overlay" },
-          ]}
-          value={item.blend ?? "normal"}
-          onChange={v => (set("Blend mode", { blend: v } as Partial<Item>, "blend"), done())}
-        />
-      </Section>
-    </>
-  );
+/** The same canvas fill on every picture clip, so a vertical batch looks alike in a wide project. */
+function fillEveryClip(editor: Editor, from: MediaItem): void {
+  if (!from.fill) return;
+  editor.apply("Canvas fill on every clip", p => {
+    const next = structuredClone(p);
+    for (const t of next.tracks) for (const i of t.items) if (i.type === "media" && next.media[i.mediaId]?.kind !== "audio") i.fill = structuredClone(from.fill);
+    return next;
+  });
 }
 
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 3, 5];

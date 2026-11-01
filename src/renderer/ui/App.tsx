@@ -3,6 +3,7 @@ import { createProject, type Project } from "../../core/project";
 import { Editor } from "../state/editor";
 import { importFiles } from "../state/importer";
 import { startSettings } from "../state/settings";
+import { importLut } from "../state/lut-import";
 import type { FileInfo, SessionNotice } from "../../shared/api";
 import { EditorView } from "./EditorView";
 import { HistoryDialog } from "./HistoryDialog";
@@ -57,7 +58,7 @@ export function App() {
 
   useEffect(() => {
     if (!window.openroll.qa) return;
-    Object.assign(window, { __or: { editor, newProject: (files: FileInfo[]) => open(createProject(), null, files), importFiles } });
+    Object.assign(window, { __or: { editor, newProject: (files: FileInfo[]) => open(createProject(), null, files), importFiles, importLut } });
   }, [editor, open]);
 
   useEffect(() => {

@@ -11,7 +11,7 @@ export default async function ({ page, shot }) {
   await page.waitForSelector(".clip");
   await page.evaluate(() => window.__or.editor.seek(4_000_000));
 
-  await page.click(".rail button:nth-child(5)");
+  await page.click('.rail button:has-text("Audio")');
   await page.click(".aud-rec");
   await page.waitForSelector(".aud-count");
   await shot("voiceover-countin");

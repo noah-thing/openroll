@@ -102,14 +102,55 @@ export interface Adjust {
   highlights: number;
   shadows: number;
   vignette: number;
+  /** 0..100: lifts the blacks and softens the whites. */
+  fade: number;
+  /** 0..100 */
+  sharpen: number;
+  /** 0..100 */
+  grain: number;
 }
 
 export interface Effect {
   id: string;
   kind: string;
-  /** 0..1 strength; kinds read extra values from params. */
+  /** 0..1 strength; kinds read extra values from params (speed, style). */
   amount: number;
   params?: Record<string, number>;
+  /** Kept in the stack but not drawn. */
+  off?: boolean;
+}
+
+export interface CurvePoint {
+  x: number;
+  y: number;
+}
+
+/** Each curve is a few control points in 0..1; a missing curve is the identity. */
+export interface Curves {
+  master?: CurvePoint[];
+  r?: CurvePoint[];
+  g?: CurvePoint[];
+  b?: CurvePoint[];
+}
+
+export const HSL_BANDS = ["red", "orange", "yellow", "green", "aqua", "blue", "purple", "magenta"] as const;
+export type HslBand = (typeof HSL_BANDS)[number];
+/** Each value runs -100..100. */
+export type Hsl = Partial<Record<HslBand, { hue: number; sat: number; light: number }>>;
+
+/** What shows behind a clip that does not cover the frame. */
+export interface Fill {
+  mode: "blur" | "color";
+  color?: string;
+  /** 0..1 */
+  blur?: number;
+}
+
+/** A .cube LUT kept inside the project so it travels with the file. `data` is base64 of size^3 RGB bytes. */
+export interface ImportedLut {
+  name: string;
+  size: number;
+  data: string;
 }
 
 export interface Mask {
@@ -210,6 +251,9 @@ export interface MediaItem extends ItemBase {
   effects?: Effect[];
   mask?: Mask;
   chroma?: ChromaKey;
+  curves?: Curves;
+  hsl?: Hsl;
+  fill?: Fill;
   /** Remove the background with the on device matting model. */
   cutout?: boolean;
   audio?: AudioCleanup;
@@ -259,6 +303,7 @@ export interface Project {
   media: Record<string, MediaRef>;
   tracks: Track[];
   markers: Marker[];
+  luts?: Record<string, ImportedLut>;
 }
 
 export const IDENTITY: Transform = { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };

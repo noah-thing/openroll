@@ -53,6 +53,11 @@ export class Program {
     return this;
   }
 
+  v3(name: string, values: Float32Array): this {
+    this.gl.uniform3fv(this.loc(name), values);
+    return this;
+  }
+
   m3(name: string, m: Float32Array): this {
     this.gl.uniformMatrix3fv(this.loc(name), false, m);
     return this;

@@ -6,6 +6,8 @@ import { AudioPanel } from "./panels/AudioPanel";
 import { CaptionsPanel } from "./captions/CaptionsPanel";
 import { MediaPanel } from "./panels/MediaPanel";
 import { TextPanel } from "./panels/TextPanel";
+import { EffectsPanel } from "./panels/EffectsPanel";
+import { FiltersPanel } from "./panels/FiltersPanel";
 import { TransitionsPanel } from "./panels/TransitionsPanel";
 
 const TABS: { id: string; label: string; icon: IconName }[] = [
@@ -14,6 +16,8 @@ const TABS: { id: string; label: string; icon: IconName }[] = [
   { id: "text", label: "Text", icon: "text" },
   { id: "captions", label: "Captions", icon: "captions" },
   { id: "transitions", label: "Transitions", icon: "transitions" },
+  { id: "filters", label: "Filters", icon: "filters" },
+  { id: "effects", label: "Effects", icon: "effects" },
 ];
 
 export function Library({ editor, cache }: { editor: Editor; cache: MediaCache }) {
@@ -36,6 +40,8 @@ export function Library({ editor, cache }: { editor: Editor; cache: MediaCache }
         {tab === "text" && <TextPanel editor={editor} />}
         {tab === "captions" && <CaptionsPanel editor={editor} />}
         {tab === "transitions" && <TransitionsPanel editor={editor} />}
+        {tab === "filters" && <FiltersPanel editor={editor} />}
+        {tab === "effects" && <EffectsPanel editor={editor} />}
       </section>
     </>
   );

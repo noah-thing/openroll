@@ -17,7 +17,8 @@ import {
 import { Compositor, type Layer, type Node } from "./compositor";
 import { rasterText } from "./text";
 import { loadFonts } from "./fonts";
-import { buildScene, type Placement, type Visual } from "../core/scene";
+import { buildScene, type Visual } from "../core/scene";
+import { layerFields, syncLuts } from "./layer-look";
 import type { MediaRef, Project } from "../core/project";
 import { projectDuration } from "../core/project";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
@@ -99,6 +100,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
   const canvas = new OffscreenCanvas(s.width, s.height);
   const compositor = new Compositor(canvas);
   compositor.resize(s.width, s.height, project.settings.width, project.settings.height);
+  syncLuts(compositor, project);
 
   let written = 0;
   const writable = new WritableStream<StreamTargetChunk>({
@@ -172,7 +174,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       const scene = buildScene(project, t);
       const frames: VideoFrame[] = [];
       const layerFor = async (v: Visual): Promise<Layer | null> => {
-        const base = toBase(v.place);
+        const base = layerFields(v.place);
         if (v.kind === "color") return { ...base, color: hex(v.item.color) };
         if (v.kind === "text") {
           const userScale = v.place.width / project.settings.width;
@@ -233,20 +235,6 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
     for (const b of images.values()) b.close();
     compositor.dispose();
   }
-}
-
-function toBase(place: Placement): Layer {
-  return {
-    x: place.x,
-    y: place.y,
-    width: place.width * place.animScale,
-    height: place.height * place.animScale,
-    rotation: place.rotation,
-    opacity: place.opacity,
-    crop: place.crop,
-    blend: place.blend,
-    adjust: place.adjust,
-  };
 }
 
 function hex(h: string): [number, number, number] {

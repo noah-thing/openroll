@@ -4,7 +4,8 @@ import { Compositor, type Layer, type Node } from "./compositor";
 import { VideoReader } from "./video-reader";
 import { rasterText } from "./text";
 import { loadFonts } from "./fonts";
-import { buildScene, frameNeeds, type Placement, type SceneNode, type Visual } from "../core/scene";
+import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/scene";
+import { layerFields, syncLuts } from "./layer-look";
 import type { MediaRef, Project } from "../core/project";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
 
@@ -84,7 +85,9 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
       break;
     case "snapshot":
       if (compositor) {
+        bareItem = m.bare ?? null;
         renderAt(m.t, false);
+        bareItem = null;
         post({ type: "snapshot", id: m.id, image: compositor.snapshot() });
       }
       break;
@@ -173,7 +176,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 function toLayer(v: Visual, p: Project, scale: number): Layer | null {
   const place = v.place;
-  const base = baseLayer(place);
+  const base = layerFields(place, v.kind === "media" && v.item.id === bareItem);
   if (v.kind === "color") return { ...base, color: hexToRgb(v.item.color) };
   if (v.kind === "text") {
     if (!fontsReady) return null;
@@ -213,20 +216,6 @@ function toLayer(v: Visual, p: Project, scale: number): Layer | null {
 
 const pendingClose: VideoFrame[] = [];
 
-function baseLayer(place: Placement): Layer {
-  return {
-    x: place.x,
-    y: place.y,
-    width: place.width * place.animScale,
-    height: place.height * place.animScale,
-    rotation: place.rotation,
-    opacity: place.opacity,
-    crop: place.crop,
-    blend: place.blend,
-    adjust: place.adjust,
-  };
-}
-
 function toNodes(scene: SceneNode[], p: Project, scale: number): Node[] {
   const out: Node[] = [];
   for (const n of scene) {
@@ -257,11 +246,14 @@ function prewarm(p: Project, t: number): void {
 }
 
 const onScreen = new Set<string>();
+/** While set, this item renders without its look, for picking a key colour from the raw picture. */
+let bareItem: string | null = null;
 
 function renderAt(t: number, live: boolean): void {
   if (!compositor || !project) return;
   const p = project;
   const scale = outW / p.settings.width;
+  syncLuts(compositor, p);
   compositor.resize(outW, outH, p.settings.width, p.settings.height);
   const scene = buildScene(p, t);
   onScreen.clear();

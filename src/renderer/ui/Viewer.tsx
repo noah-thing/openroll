@@ -6,6 +6,7 @@ import type { Editor } from "../state/editor";
 import { useSettings } from "../state/settings";
 import { QUALITY_SCALE } from "../../shared/settings";
 import { Icon } from "./kit/Icon";
+import { ToolBoxes } from "./ToolBoxes";
 import { TransformBox } from "./TransformBox";
 
 export function Viewer({ editor }: { editor: Editor }) {
@@ -82,6 +83,7 @@ export function Viewer({ editor }: { editor: Editor }) {
             </div>
           )}
           <TransformBox editor={editor} width={box.w} height={box.h} />
+          <ToolBoxes editor={editor} width={box.w} height={box.h} />
         </div>
       </div>
       <div className="viewer-controls">

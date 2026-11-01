@@ -153,11 +153,11 @@ export class Player {
     }, Math.max(16, left));
   }
 
-  snapshot(t: Micros): Promise<ImageData> {
+  snapshot(t: Micros, bare?: string): Promise<ImageData> {
     const id = this.nextSnapshot++;
     return new Promise(resolve => {
       this.snapshots.set(id, resolve);
-      this.send({ type: "snapshot", id, t });
+      this.send({ type: "snapshot", id, t, bare });
     });
   }
 

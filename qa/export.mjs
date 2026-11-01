@@ -31,9 +31,9 @@ export default async function ({ page, shot }) {
     const main = e.project.tracks.find(t => t.main);
     e.select([main.items[1].id]);
   });
-  await page.click('.rail button:nth-child(4)');
+  await page.click('.rail button:has-text("Transitions")');
   await page.click('.fx-card >> text=Dissolve');
-  await page.click('.rail button:nth-child(3)');
+  await page.click('.rail button:has-text("Text")');
   await page.click(".text-card >> nth=0");
   await page.waitForTimeout(300);
   const dur = await page.evaluate(() => window.__or.editor.player.duration / 1e6);

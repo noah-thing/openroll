@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
-import { updateItem } from "../../core/edit";
+import { readAt, setAnimated } from "../../core/look/animated";
 import { findItem, itemEnd, type Item, type Project } from "../../core/project";
 import { fitSize } from "../../core/scene";
 import { rasterText } from "../../engine/text";
 import { useEditor, useFrame } from "../lib/hooks";
+import { useTool } from "../state/tool";
 import type { Editor } from "../state/editor";
 
 /** Size of an item's box in project pixels at its own scale of 1. */
-function baseSize(p: Project, item: Item): { width: number; height: number } | null {
+export function baseSize(p: Project, item: Item): { width: number; height: number } | null {
   if (item.type === "media") {
     const m = p.media[item.mediaId];
     if (!m || m.kind === "audio") return null;
@@ -31,19 +32,33 @@ export function TransformBox({ editor, width, height }: { editor: Editor; width:
   const boxRef = useRef<HTMLDivElement>(null);
   const found = selection.length === 1 ? findItem(project, selection[0]) : null;
   const [onScreen, setOnScreen] = useState(false);
+  const [, tick] = useState(0);
+  const lastT = useRef(-1);
+  const tool = useTool(found?.item.id ?? null);
   useFrame(() => {
     const it = found?.item;
     const t = editor.time;
     const visible = !!it && t >= it.start && t < itemEnd(it);
     if (visible !== onScreen) setOnScreen(visible);
+    // Keyframed clips move on their own, so the box has to follow the playhead.
+    else if (visible && it.keyframes && lastT.current !== editor.time) {
+      lastT.current = editor.time;
+      tick(n => n + 1);
+    }
   });
-  if (!found || !width || !onScreen) return null;
+  if (!found || !width || !onScreen || tool) return null;
   const item = found.item;
   const size = baseSize(project, item);
   if (!size) return null;
 
   const k = width / project.settings.width;
-  const t = item.transform;
+  const local = Math.min(item.duration, Math.max(0, editor.time - item.start));
+  const t = {
+    x: readAt(item, "transform.x", local),
+    y: readAt(item, "transform.y", local),
+    scale: readAt(item, "transform.scale", local),
+    rotation: readAt(item, "transform.rotation", local),
+  };
   const w = size.width * t.scale * k;
   const h = size.height * t.scale * k;
   const cx = width / 2 + t.x * k;
@@ -61,8 +76,8 @@ export function TransformBox({ editor, width, height }: { editor: Editor; width:
     const group = `${item.id}:canvas-${mode}`;
 
     const move = (ev: PointerEvent) => {
-      const current = findItem(editor.project, item.id)?.item;
-      if (!current) return;
+      if (!findItem(editor.project, item.id)) return;
+      const now = Math.min(item.duration, Math.max(0, editor.time - item.start));
       if (mode === "move") {
         let x = start.tx + (ev.clientX - start.x) / k;
         let y = start.ty + (ev.clientY - start.y) / k;
@@ -71,11 +86,11 @@ export function TransformBox({ editor, width, height }: { editor: Editor; width:
         if (sx) x = 0;
         if (sy) y = 0;
         setGuides({ x: sx, y: sy });
-        editor.apply("Move on canvas", p => updateItem(p, item.id, { transform: { ...current.transform, x: Math.round(x), y: Math.round(y) } }), group);
+        editor.apply("Move on canvas", p => setAnimated(setAnimated(p, item.id, "transform.x", now, Math.round(x)), item.id, "transform.y", now, Math.round(y)), group);
       } else {
         const d = Math.hypot(ev.clientX - centre.x, ev.clientY - centre.y);
         const scale = Math.max(0.05, Math.min(8, start.scale * (d / d0)));
-        editor.apply("Scale on canvas", p => updateItem(p, item.id, { transform: { ...current.transform, scale: Math.round(scale * 1000) / 1000 } }), group);
+        editor.apply("Scale on canvas", p => setAnimated(p, item.id, "transform.scale", now, Math.round(scale * 1000) / 1000), group);
       }
     };
     const up = () => {

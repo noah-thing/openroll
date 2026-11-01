@@ -2,10 +2,10 @@
 // Local text to speech with Kokoro (Apache 2.0). The model is fetched from Hugging Face
 // the first time it is needed and kept by the browser cache after that.
 
-import { env } from "@huggingface/transformers";
+import { env } from "kokoro-transformers";
 import { KokoroTTS } from "kokoro-js";
-import wasmUrl from "../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.wasm?url";
-import loaderUrl from "../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs?url";
+import wasmUrl from "kokoro-transformers/dist/ort-wasm-simd-threaded.jsep.wasm?url";
+import loaderUrl from "kokoro-transformers/dist/ort-wasm-simd-threaded.jsep.mjs?url";
 import type { TtsIn, TtsOut } from "./tts-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
