@@ -69,6 +69,8 @@ export class Exporter {
   }
 
   private attempt(s: ExportSettings, h: ExportHandlers): Promise<Result> {
+    // A stop that lands between two encoders has no worker to receive it yet.
+    if (this.cancelled) return Promise.reject(new Error("cancelled"));
     if (s.format === "m4a" || s.format === "wav") return this.audioOnly(s, h);
     if (s.encoder === "ffmpeg") return this.piped(s, h);
     return this.render(s, h, async () => {});
@@ -92,11 +94,9 @@ export class Exporter {
               this.send({ type: "written", req: m.req });
               break;
             case "need-audio": {
-              const planes = await this.mix(m.from, m.seconds).catch(err => {
-                console.warn("audio mix failed", err);
-                return null;
-              });
-              this.send({ type: "audio", req: m.req, planes, frames: planes?.[0].length ?? 0 }, planes?.map(p => p.buffer) ?? []);
+              // A chunk that cannot be mixed fails the export; skipping it would leave a silent gap in the file.
+              const planes = await this.mix(m.from, m.seconds);
+              this.send({ type: "audio", req: m.req, planes, frames: planes[0].length }, planes.map(p => p.buffer));
               break;
             }
             case "progress":
