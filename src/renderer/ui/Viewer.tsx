@@ -3,6 +3,8 @@ import { Player } from "../../engine/player";
 import { useEditor, useFrame } from "../lib/hooks";
 import { timecode } from "../lib/format";
 import type { Editor } from "../state/editor";
+import { useSettings } from "../state/settings";
+import { QUALITY_SCALE } from "../../shared/settings";
 import { Icon } from "./kit/Icon";
 import { TransformBox } from "./TransformBox";
 
@@ -15,6 +17,7 @@ export function Viewer({ editor }: { editor: Editor }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [playing, setPlaying] = useState(false);
   const settings = useEditor(editor, e => e.project.settings);
+  const prefs = useSettings();
   const empty = useEditor(editor, e => !e.project.tracks.some(t => t.items.length));
 
   useEffect(() => {
@@ -49,11 +52,17 @@ export function Viewer({ editor }: { editor: Editor }) {
 
   useEffect(() => {
     if (!player || !box.w) return;
-    // Preview never renders more pixels than the project has or the screen can show.
+    // Auto never renders more pixels than the project has or the screen can show; the other
+    // levels are fractions of the project size.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.min(settings.width, Math.round(box.w * dpr));
+    const screen = Math.round(box.w * dpr);
+    const w = prefs.previewQuality === "auto" ? Math.min(settings.width, screen) : Math.max(64, Math.round(settings.width * QUALITY_SCALE[prefs.previewQuality]));
     player.setSize(w, Math.round((w * settings.height) / settings.width));
-  }, [player, box, settings.width, settings.height]);
+  }, [player, box, settings.width, settings.height, prefs.previewQuality]);
+
+  useEffect(() => {
+    player?.setHardwareDecoding(prefs.hardwareDecoding);
+  }, [player, prefs.hardwareDecoding]);
 
   const fps = settings.fps.num / settings.fps.den;
   useFrame(() => {

@@ -1,11 +1,16 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, shell, type MenuItemConstructorOptions } from "electron";
+import { arch, release, type } from "node:os";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
-import type { FileInfo, RecentProject, SaveResult } from "../shared/api";
+import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
+import { Journal } from "./journal";
+import { Session } from "./session";
+import { getSettings, updateSettings } from "./settings";
+import { Updater } from "./updater";
 
 const isDev = !!process.env.OPENROLL_DEV_URL;
 const APP_SCHEME = "openroll-app";
@@ -26,8 +31,19 @@ const MEDIA_EXT = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mts", "m2ts", "3g
 let win: BrowserWindow | null = null;
 
 function projectsDir(): string {
-  return process.env.OPENROLL_PROJECTS_DIR ?? join(app.getPath("videos"), "OpenRoll");
+  return process.env.OPENROLL_PROJECTS_DIR ?? getSettings().projectsDir ?? defaultProjectsDir();
 }
+
+function defaultProjectsDir(): string {
+  return join(app.getPath("videos"), "OpenRoll");
+}
+
+const journal = new Journal(join(app.getPath("userData"), "history"));
+const session = new Session(join(app.getPath("userData"), "session.json"));
+const updater = new Updater(
+  state => win?.webContents.send("updates:state", state),
+  () => getSettings().autoUpdate,
+);
 
 function cacheDir(): string {
   return join(app.getPath("userData"), "cache");
@@ -65,6 +81,7 @@ function createWindow(): void {
       nodeIntegration: false,
       spellcheck: false,
       backgroundThrottling: false,
+      additionalArguments: [`--openroll-version=${app.getVersion()}`],
     },
   });
 
@@ -80,8 +97,15 @@ function createWindow(): void {
     if (dirty && !quitting) {
       // Projects save continuously; this only fires in the moment between an edit and its save.
       e.preventDefault();
+      closeAfterFlush = true;
       win?.webContents.send("menu", "flush-and-close");
     }
+  });
+  win.webContents.on("render-process-gone", (_e, details) => {
+    if (details.reason !== "clean-exit") recoverWindow(`renderer ${details.reason}`);
+  });
+  win.on("closed", () => {
+    win = null;
   });
 
   if (isDev) void win.loadURL(process.env.OPENROLL_DEV_URL!);
@@ -90,6 +114,45 @@ function createWindow(): void {
 
 let dirty = false;
 let quitting = false;
+let closeAfterFlush = false;
+
+// A crash loop must not become a reload loop.
+const crashTimes: number[] = [];
+let reloadedAt = 0;
+
+function recoverWindow(why: string): void {
+  const now = Date.now();
+  // A renderer and a GPU process often die together; one reload covers both.
+  if (!win || now - reloadedAt < 2000) return;
+  reloadedAt = now;
+  crashTimes.push(now);
+  while (crashTimes.length && now - crashTimes[0] > 60_000) crashTimes.shift();
+  console.error(`window recovery: ${why}`);
+  if (crashTimes.length > 3) {
+    void dialog.showMessageBox(win, {
+      type: "error",
+      message: "OpenRoll keeps stopping",
+      detail: "Your project is saved. Restart OpenRoll, and if this happens again turn off hardware decoding in Settings.",
+    });
+    return;
+  }
+  session.crashed();
+  win.webContents.reload();
+}
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${mediaScheme.scheme}:`,
+  `media-src 'self' blob: ${mediaScheme.scheme}:`,
+  `connect-src 'self' blob: data: ${mediaScheme.scheme}:`,
+  "font-src 'self' data:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-src 'none'",
+].join("; ");
 
 function serveApp(): void {
   const root = resolve(import.meta.dirname, "../renderer");
@@ -102,6 +165,7 @@ function serveApp(): void {
     // Cross origin isolation lets workers share memory with the page (SharedArrayBuffer).
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+    headers.set("Content-Security-Policy", CSP);
     return new Response(res.body, { status: res.status, headers });
   });
 }
@@ -210,6 +274,9 @@ function registerIpc(): void {
     if (typeof path !== "string" || !path.endsWith(".openroll")) return null;
     const text = await readFile(path, "utf8").catch(() => null);
     if (text) {
+      session.setProject(path);
+      // The state the project had when this session began, so any session can be rolled back whole.
+      void journal.record(text, { path, name: basename(path, ".openroll") }, { force: true }).catch(() => {});
       // Media referenced by a project the user opened is theirs to read.
       try {
         const doc = JSON.parse(text);
@@ -230,6 +297,8 @@ function registerIpc(): void {
       await writeFile(tmp, json, "utf8");
       if (existsSync(target)) await copyFile(target, target + ".bak").catch(() => {});
       await rename(tmp, target);
+      session.setProject(target);
+      void journal.record(json, { path: target, name: basename(target, ".openroll") }).catch(() => {});
       return { ok: true, path: target };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
@@ -243,7 +312,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("projects:remove", async (_e, path: unknown) => {
-    if (typeof path !== "string" || !path.endsWith(".openroll") || !path.startsWith(projectsDir())) return;
+    if (typeof path !== "string" || !path.endsWith(".openroll") || !(path.startsWith(projectsDir()) || path.startsWith(defaultProjectsDir()))) return;
     // Removing goes to the system trash, never straight to deletion.
     await shell.trashItem(path).catch(() => {});
   });
@@ -259,6 +328,51 @@ function registerIpc(): void {
     await writeFile(join(cacheDir(), key), data);
   });
 
+  ipcMain.handle("settings:get", () => getSettings());
+  ipcMain.handle("settings:set", async (_e, patch: unknown) => {
+    const next = await updateSettings(patch);
+    win?.webContents.send("settings:changed", next);
+    return next;
+  });
+  ipcMain.handle("settings:pick-projects-dir", async () => {
+    const r = await dialog.showOpenDialog(win!, { title: "Projects folder", properties: ["openDirectory", "createDirectory"], defaultPath: projectsDir() });
+    return r.canceled ? null : (r.filePaths[0] ?? null);
+  });
+
+  ipcMain.handle("cache:info", async (): Promise<CacheInfo> => ({ dir: cacheDir(), bytes: await folderSize(cacheDir()) }));
+  ipcMain.handle("cache:clear", async () => {
+    await rm(cacheDir(), { recursive: true, force: true });
+  });
+
+  ipcMain.handle("updates:state", () => updater.getState());
+  ipcMain.handle("updates:check", () => updater.check(true));
+  ipcMain.handle("updates:install-now", () => updater.installNow());
+
+  ipcMain.handle("history:list", (_e, path: unknown) => (typeof path === "string" ? journal.list(path) : []));
+  ipcMain.handle("history:restore", (_e, path: unknown, file: unknown) =>
+    typeof path === "string" && typeof file === "string" && path.endsWith(".openroll") ? journal.restore(path, file) : false,
+  );
+
+  ipcMain.handle("session:take", () => session.take());
+  ipcMain.on("session:project-closed", () => session.setProject(null));
+
+  ipcMain.handle("system:info", async (): Promise<SystemInfo> => {
+    const gpu = await app.getGPUInfo("basic").catch(() => null);
+    const devices = ((gpu as { gpuDevice?: { vendorString?: string; deviceString?: string; driverVersion?: string; active?: boolean }[] } | null)?.gpuDevice ?? []);
+    const renderer = (gpu as { auxAttributes?: { glRenderer?: string } } | null)?.auxAttributes?.glRenderer;
+    return {
+      app: app.getVersion(),
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      os: `${type()} ${release()}`,
+      arch: arch(),
+      gpu: [
+        ...(renderer ? [renderer] : []),
+        ...devices.map(d => [d.vendorString, d.deviceString, d.driverVersion && `driver ${d.driverVersion}`].filter(Boolean).join(" ")).filter(Boolean),
+      ],
+    };
+  });
+
   if (process.env.OPENROLL_QA) {
     ipcMain.handle("qa:allow", async (_e, paths: string[]) => Promise.all(paths.map(async p => (allowPath(p), info(p)))));
   }
@@ -269,6 +383,11 @@ function registerIpc(): void {
   ipcMain.on("window:dirty", (_e, d: unknown) => {
     dirty = !!d;
     win?.setDocumentEdited(dirty);
+    if (!dirty && closeAfterFlush) {
+      closeAfterFlush = false;
+      quitting = true;
+      win?.close();
+    }
   });
   ipcMain.on("window:close-now", () => {
     quitting = true;
@@ -278,6 +397,16 @@ function registerIpc(): void {
 
 function hash(s: string): string {
   return createHash("sha1").update(s).digest("hex").slice(0, 16);
+}
+
+async function folderSize(dir: string): Promise<number> {
+  let total = 0;
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) total += await folderSize(p);
+    else total += (await stat(p).catch(() => null))?.size ?? 0;
+  }
+  return total;
 }
 
 async function freshProjectPath(name: string): Promise<string> {
@@ -302,8 +431,29 @@ function buildMenu(): void {
     click: send(cmd),
   });
   const mac = process.platform === "darwin";
+  const checkUpdates: MenuItemConstructorOptions = { label: "Check for Updates…", click: () => void updater.check(true) };
   const template: MenuItemConstructorOptions[] = [
-    ...(mac ? [{ role: "appMenu" as const }] : []),
+    ...(mac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              item("About OpenRoll", "about"),
+              checkUpdates,
+              { type: "separator" as const },
+              item("Settings…", "settings", "Cmd+,"),
+              { type: "separator" as const },
+              { role: "services" as const },
+              { type: "separator" as const },
+              { role: "hide" as const },
+              { role: "hideOthers" as const },
+              { role: "unhide" as const },
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]
+      : []),
     {
       label: "File",
       submenu: [
@@ -313,8 +463,7 @@ function buildMenu(): void {
         { type: "separator" },
         item("Export…", "export", "CmdOrCtrl+E"),
         { type: "separator" },
-        item("Project Settings…", "settings", "CmdOrCtrl+,"),
-        ...(mac ? [] : [{ type: "separator" as const }, { role: "quit" as const }]),
+        ...(mac ? [] : [item("Settings…", "settings", "Ctrl+,"), { type: "separator" as const }, { role: "quit" as const }]),
       ],
     },
     {
@@ -347,7 +496,12 @@ function buildMenu(): void {
     { role: "windowMenu" },
     {
       label: "Help",
-      submenu: [item("Keyboard Shortcuts", "shortcuts", "CmdOrCtrl+/"), item("Report a Problem…", "report", undefined)],
+      submenu: [
+        item("Keyboard Shortcuts", "shortcuts", "CmdOrCtrl+/"),
+        { type: "separator" },
+        item("Report a Problem…", "report"),
+        ...(mac ? [] : [checkUpdates, item("About OpenRoll", "about")]),
+      ],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -355,13 +509,25 @@ function buildMenu(): void {
 
 // ---------------------------------------------------------------- lifecycle
 
+// A second launch (the updater reopening the app, a double click) focuses the window that exists.
+if (!process.env.OPENROLL_QA && !app.requestSingleInstanceLock()) app.quit();
+app.on("second-instance", () => {
+  if (win?.isMinimized()) win.restore();
+  win?.focus();
+});
+
 app.whenReady().then(() => {
   nativeTheme.themeSource = "dark";
+  session.begin();
+  updater.start();
   handleMediaProtocol();
   serveApp();
   registerIpc();
   buildMenu();
   createWindow();
+  app.on("child-process-gone", (_e, details) => {
+    if (details.type === "GPU" && details.reason !== "clean-exit") recoverWindow(`gpu ${details.reason}`);
+  });
   app.on("activate", () => {
     if (!BrowserWindow.getAllWindows().length) createWindow();
   });
@@ -369,6 +535,11 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   quitting = !dirty;
+});
+
+app.on("will-quit", () => {
+  session.end();
+  updater.applyOnQuit();
 });
 
 app.on("window-all-closed", () => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Project } from "../../core/project";
 import type { FileInfo, RecentProject } from "../../shared/api";
+import { HistoryDialog } from "./HistoryDialog";
 import { Icon } from "./kit/Icon";
 
 interface Props {
@@ -12,10 +13,26 @@ export function Home({ onOpen, onNew }: Props) {
   const [projects, setProjects] = useState<RecentProject[] | null>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; project: RecentProject } | null>(null);
+  const [history, setHistory] = useState<RecentProject | null>(null);
 
   useEffect(() => {
     void window.openroll.projects.list().then(setProjects);
   }, []);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("blur", close);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", close);
+    };
+  }, [menu]);
 
   async function open(r: RecentProject) {
     const text = await window.openroll.projects.load(r.path);
@@ -24,7 +41,7 @@ export function Home({ onOpen, onNew }: Props) {
       if (p.format !== "openroll") throw new Error();
       onOpen(p, r.path);
     } catch {
-      setError(`${r.name} could not be opened. A backup sits next to it as ${r.name}.openroll.bak.`);
+      setError(`${r.name} could not be opened. Use Restore an earlier version from its menu, or find the backup next to it as ${r.name}.openroll.bak.`);
     }
   }
 
@@ -81,15 +98,62 @@ export function Home({ onOpen, onNew }: Props) {
           {projects && !projects.length && <p className="home-empty">Projects you make show up here. They save as you work, there is no save button.</p>}
           <div className="home-grid">
             {projects?.map(p => (
-              <button key={p.path} className="home-card" onClick={() => void open(p)}>
-                <span className="home-thumb">{p.thumb ? <img src={window.openroll.mediaUrl(p.thumb)} alt="" draggable={false} /> : null}</span>
-                <span className="home-name">{p.name}</span>
-                <span className="home-date">{relative(p.modified)}</span>
-              </button>
+              <div key={p.path} className="home-card-wrap" onContextMenu={e => (e.preventDefault(), setMenu({ x: e.clientX, y: e.clientY, project: p }))}>
+                <button className="home-card" onClick={() => void open(p)}>
+                  <span className="home-thumb">{p.thumb ? <img src={window.openroll.mediaUrl(p.thumb)} alt="" draggable={false} /> : null}</span>
+                  <span className="home-name">{p.name}</span>
+                  <span className="home-date">{relative(p.modified)}</span>
+                </button>
+                <button
+                  className="iconbtn home-more"
+                  aria-label={`More options for ${p.name}`}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setMenu({ x: r.right, y: r.bottom + 4, project: p });
+                  }}
+                >
+                  <Icon name="more" size={16} />
+                </button>
+              </div>
             ))}
           </div>
         </section>
       </main>
+      {menu && (
+        <div className="ctx-menu" role="menu" style={{ left: Math.min(menu.x, window.innerWidth - 240), top: Math.min(menu.y, window.innerHeight - 90) }} onPointerDown={e => e.stopPropagation()}>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setHistory(menu.project);
+              setMenu(null);
+            }}
+          >
+            Restore an earlier version…
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              void window.openroll.revealInFolder(menu.project.path);
+              setMenu(null);
+            }}
+          >
+            Show in folder
+          </button>
+        </div>
+      )}
+      {history && (
+        <HistoryDialog
+          path={history.path}
+          name={history.name}
+          onClose={() => setHistory(null)}
+          onRestored={() => {
+            const project = history;
+            setHistory(null);
+            void open(project);
+          }}
+        />
+      )}
       {dragging && <div className="home-drop-hint">Drop to start a new project with these clips</div>}
     </div>
   );

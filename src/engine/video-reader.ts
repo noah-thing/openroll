@@ -28,7 +28,9 @@ export class VideoReader {
   private wantedAt = 0;
   private settled = true;
 
-  private hardware = true;
+  /** Set from user settings before readers are made; a reader that finds hardware unsupported still falls back on its own. */
+  static preferHardware = true;
+  private hardware = VideoReader.preferHardware;
   private failed = false;
 
   constructor(readonly track: InputVideoTrack, private duration: number) {
@@ -36,7 +38,7 @@ export class VideoReader {
   }
 
   private makeSink(): VideoSampleSink {
-    return new VideoSampleSink(this.track, { hardwareAcceleration: this.hardware ? "prefer-hardware" : "no-preference", optimizeForLatency: true });
+    return new VideoSampleSink(this.track, { hardwareAcceleration: this.hardware ? "prefer-hardware" : VideoReader.preferHardware ? "no-preference" : "prefer-software", optimizeForLatency: true });
   }
 
   /** Source time in seconds. */

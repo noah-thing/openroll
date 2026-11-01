@@ -86,6 +86,10 @@ export class Player {
     this.send({ type: "size", width, height });
   }
 
+  setHardwareDecoding(hardware: boolean): void {
+    this.send({ type: "decode", hardware });
+  }
+
   async play(): Promise<void> {
     if (!this.project || this.playing) return;
     if (this.still >= this.duration - 1000) this.still = 0;

@@ -1,3 +1,5 @@
+import type { Settings } from "./settings";
+
 // The surface the preload script exposes as window.openroll. Keep it small: every
 // function here is something a compromised page could call, so each one does one
 // narrow thing and the main process checks its arguments.
@@ -20,6 +22,46 @@ export interface RecentProject {
   name: string;
   modified: number;
   thumb?: string;
+}
+
+export type UpdateStatus = "idle" | "checking" | "downloading" | "ready" | "manual" | "current" | "unreachable";
+
+export interface UpdateState {
+  status: UpdateStatus;
+  version?: string;
+  /** 0 to 1 while downloading. */
+  progress?: number;
+  /** Release page, for builds that cannot update themselves (deb, a read only install). */
+  pageUrl?: string;
+  /** True when a person asked, so the answer deserves a visible reply. */
+  asked?: boolean;
+}
+
+export interface HistoryEntry {
+  file: string;
+  time: number;
+  bytes: number;
+}
+
+/** What main remembers about the last run when the window comes up. */
+export interface SessionNotice {
+  reason: "crash" | "unclean";
+  path: string;
+  name: string;
+}
+
+export interface SystemInfo {
+  app: string;
+  electron: string;
+  chrome: string;
+  os: string;
+  arch: string;
+  gpu: string[];
+}
+
+export interface CacheInfo {
+  dir: string;
+  bytes: number;
 }
 
 export interface OpenRollApi {
@@ -54,6 +96,37 @@ export interface OpenRollApi {
     get(key: string): Promise<Uint8Array | null>;
     put(key: string, data: Uint8Array): Promise<void>;
   };
+
+  settings: {
+    get(): Promise<Settings>;
+    set(patch: Partial<Settings>): Promise<Settings>;
+    /** Folder picker; null when cancelled. */
+    pickProjectsDir(): Promise<string | null>;
+    onChange(handler: (s: Settings) => void): () => void;
+  };
+  cacheInfo(): Promise<CacheInfo>;
+  clearCache(): Promise<void>;
+
+  updates: {
+    state(): Promise<UpdateState>;
+    check(): Promise<void>;
+    /** Quit now, apply the downloaded update and open the new version. */
+    installNow(): Promise<void>;
+    onState(handler: (s: UpdateState) => void): () => void;
+  };
+
+  history: {
+    list(projectPath: string): Promise<HistoryEntry[]>;
+    /** Puts an earlier version back. The current file is kept as a version first, so this can be undone. */
+    restore(projectPath: string, file: string): Promise<boolean>;
+  };
+  session: {
+    /** The crash or unclean exit main wants the page to deal with, once. */
+    take(): Promise<SessionNotice | null>;
+    projectClosed(): void;
+  };
+
+  systemInfo(): Promise<SystemInfo>;
 
   onMenu(handler: (command: string) => void): () => void;
   setTitle(title: string): void;
