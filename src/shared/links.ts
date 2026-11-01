@@ -1,5 +1,5 @@
-/** Flip when the repository is made public. Until then no GitHub link is shown in the interface. */
-export const REPO_PUBLIC = false;
+/** Turn off to hide every GitHub link in the interface, for a private fork. */
+export const REPO_PUBLIC = true;
 
 export const REPO = "noah-thing/openroll";
 export const REPO_URL = `https://github.com/${REPO}`;

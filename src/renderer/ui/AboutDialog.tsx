@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { REPO_PUBLIC, REPO_URL } from "../../shared/links";
 import { Logo } from "./Home";
+import { Credit } from "./Credit";
 import { Icon } from "./kit/Icon";
 
 export function AboutDialog({ onClose, onReport }: { onClose(): void; onReport(): void }) {
@@ -44,6 +45,7 @@ export function AboutDialog({ onClose, onReport }: { onClose(): void; onReport()
               </button>
             )}
           </div>
+          <Credit className="about-credit" />
         </div>
       </div>
     </div>

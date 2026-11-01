@@ -4,6 +4,7 @@ import type { Project } from "../../core/project";
 import type { FileInfo, RecentProject } from "../../shared/api";
 import { HistoryDialog } from "./HistoryDialog";
 import { Icon } from "./kit/Icon";
+import { Credit } from "./Credit";
 import { InboxButton } from "./Inbox";
 
 interface Props {
@@ -72,6 +73,7 @@ export function Home({ onOpen, onNew }: Props) {
           OpenRoll
         </div>
         <span className="spacer" />
+        <Credit />
         <InboxButton />
       </header>
       <main className="home-main">
