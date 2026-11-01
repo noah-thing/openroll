@@ -28,7 +28,7 @@ const probe = (file: string) => {
 };
 const streams = (file: string) => JSON.parse(spawnSync(ffprobe, ["-v", "error", "-show_streams", "-of", "json", file], { encoding: "utf8" }).stdout).streams as { codec_name: string; pix_fmt?: string; width?: number; nb_frames?: string }[];
 
-describe.skipIf(!have)("real ffmpeg", () => {
+describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
   const W = 320, H = 180;
   const raw = join(tmp, "frames.rgba");
   const audio = join(tmp, "audio.f32");

@@ -92,8 +92,10 @@ async function download(url, dest) {
 }
 
 function unzip(archive, into) {
-  // Windows 10 and later ship bsdtar, which reads zip; elsewhere unzip is everywhere.
-  const r = process.platform === "win32" ? spawnSync("tar", ["-xf", archive, "-C", into], { windowsHide: true }) : spawnSync("unzip", ["-oq", archive, "-d", into], { windowsHide: true });
+  // Windows 10 and later ship bsdtar, which reads zip. Call it by full path: in Git Bash a GNU tar
+  // comes first on PATH, cannot read zip, and takes "C:" for a remote host.
+  const bsdtar = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+  const r = process.platform === "win32" ? spawnSync(bsdtar, ["-xf", archive, "-C", into], { windowsHide: true }) : spawnSync("unzip", ["-oq", archive, "-d", into], { windowsHide: true });
   if (r.status !== 0) throw new Error(`could not unpack ${basename(archive)}: ${r.stderr?.toString() ?? r.error}`);
 }
 
