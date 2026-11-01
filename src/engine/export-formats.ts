@@ -27,6 +27,9 @@ export const FORMATS: FormatInfo[] = [
 
 export const formatInfo = (id: ExportFormat): FormatInfo => FORMATS.find(f => f.id === id)!;
 
+/** A file named .webm that holds MP4 data will not open, so a chosen path has to match what is written. */
+export const hasExtension = (path: string, extension: string): boolean => path.toLowerCase().endsWith(`.${extension}`);
+
 /** The project has no background colour, so the picture keeps its transparency where the format can hold it. */
 export const hasNoBackground = (background: string): boolean => background === "none";
 

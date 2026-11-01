@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateBytes, gifFrame, hasNoBackground, ladder, pipeFormat } from "../../src/engine/export-formats";
+import { estimateBytes, gifFrame, hasExtension, hasNoBackground, ladder, pipeFormat } from "../../src/engine/export-formats";
 
 describe("export retry ladder", () => {
   it("tries hardware, then software, then ffmpeg for MP4", () => {
@@ -43,5 +43,14 @@ describe("export formats", () => {
 
   it("estimates sizes", () => {
     expect(estimateBytes({ format: "wav", width: 0, height: 0, fps: 0, bitrate: 0 }, 10, false)).toBe(1_920_000);
+  });
+});
+
+describe("output path check", () => {
+  it("accepts only the extension the file will hold", () => {
+    expect(hasExtension("/Users/a/clip.MP4", "mp4")).toBe(true);
+    expect(hasExtension("/Users/a/clip.webm", "mp4")).toBe(false);
+    expect(hasExtension("/Users/a/clip.mp4.mov", "mp4")).toBe(false);
+    expect(hasExtension("/Users/a/mp4", "mp4")).toBe(false);
   });
 });
