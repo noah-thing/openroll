@@ -16,7 +16,7 @@ export default async function ({ page, userData, shot }) {
     console.log(`${ok ? "PASS" : "FAIL"} ${name} ${extra}`);
   };
   await page.waitForSelector(".home");
-  const transport = new StdioClientTransport({ command: electron, args: [resolve("."), "--mcp", `--user-data-dir=${userData}`], stderr: "ignore" });
+  const transport = new StdioClientTransport({ command: electron, args: [resolve("."), "--mcp", `--user-data-dir=${userData}`], stderr: "ignore", env: { ...process.env } });
   const client = new Client({ name: "claude-code", version: "qa" });
   await client.connect(transport);
 

@@ -43,7 +43,8 @@ export default async function ({ page, shot }) {
   await page.waitForSelector(".modal");
   await shot("export-setup");
   const t0 = Date.now();
-  await page.click(".modal .export");
+  // Clips that need converting first (HEVC where the system has no decoder) keep the button off until ready.
+  await page.click(".modal .export", { timeout: Number(process.env.QA_EXPORT_TIMEOUT ?? 300000) });
   await page.waitForSelector(".job .modal-done, .job .modal-warn", { timeout: Number(process.env.QA_EXPORT_TIMEOUT ?? 300000) });
   const secs = (Date.now() - t0) / 1000;
   await shot("export-done");

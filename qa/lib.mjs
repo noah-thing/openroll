@@ -19,7 +19,8 @@ export async function openProject(page, names = ["h264_1080p30_60s.mp4", "longgo
 /** Waits for a clip to show. If none does, prints what the timeline holds before failing. */
 export async function waitForClips(page, timeout = 20000) {
   try {
-    await page.waitForSelector(".clip", { timeout });
+    // Polls on a timer: CI windows can throttle animation frames, which Playwright's visible check waits on.
+    await page.waitForFunction(() => [...document.querySelectorAll(".clip")].some(c => c.getBoundingClientRect().width > 0), null, { timeout, polling: 200 });
   } catch (err) {
     const state = await page.evaluate(async () => {
       const p = window.__or?.editor?.project;
