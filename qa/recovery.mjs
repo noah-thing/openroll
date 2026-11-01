@@ -3,7 +3,7 @@ import { _electron as electron } from "playwright-core";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-const CLIP = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"), "h264_1080p30_60s.mp4");
+const CLIP = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"), "h264_1080p30_60s.mp4");
 
 export default async function ({ app, page, shot }) {
   await page.waitForSelector(".home");

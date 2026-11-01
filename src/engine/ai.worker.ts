@@ -62,7 +62,6 @@ async function drain(): Promise<void> {
   idleTimer = self.setTimeout(() => (["matting", "detector", "superres"] as const).forEach(dropSession), 90_000);
 }
 
-// Frames
 
 interface Source {
   input: Input;
@@ -125,7 +124,6 @@ function drawStored(ctx: OffscreenCanvasRenderingContext2D, img: OffscreenCanvas
 
 const round = (v: number, to: number) => Math.max(to, Math.round(v / to) * to);
 
-// Matte
 
 const STORE_SIDE = 384;
 
@@ -226,7 +224,6 @@ async function runMatte(req: Extract<Job, { kind: "matte" }>, check: () => void)
   }
 }
 
-// Stabilise
 
 async function runStabilize(req: Extract<Job, { kind: "stabilize" }>, check: () => void): Promise<void> {
   const t0 = performance.now();
@@ -275,7 +272,6 @@ async function runStabilize(req: Extract<Job, { kind: "stabilize" }>, check: () 
   }
 }
 
-// People
 
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
@@ -370,7 +366,6 @@ function chooseSubject(people: Person[], previous: SubjectSample | null): { x: n
   return best ? { x: best.x, y: Math.max(0, best.y - best.h * 0.12), h: best.h } : null;
 }
 
-// Enhance one frame
 
 async function runEnhance(req: Extract<Job, { kind: "enhance-frame" }>, check: () => void): Promise<void> {
   const t0 = performance.now();

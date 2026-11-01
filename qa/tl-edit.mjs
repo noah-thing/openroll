@@ -91,7 +91,6 @@ export default async function ({ page, shot }) {
   check("freeze inserts a 2 s still", main(p).length === 5 && main(p)[1].freeze === true && main(p)[1].duration === 2 * S, String(main(p).length));
   await shot("tl-04-freeze");
 
-  // J K L
   await page.evaluate(() => window.__or.editor.seek(5e6));
   await page.keyboard.press("l");
   await page.keyboard.press("l");

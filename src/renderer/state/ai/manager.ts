@@ -91,7 +91,6 @@ export class AiManager {
     this.bump();
   }
 
-  // What the project asks for
 
   private onEditor(): void {
     const player = this.editor.player;
@@ -159,7 +158,6 @@ export class AiManager {
     return `ai-${feature}-${id}.bin`;
   }
 
-  // The worker
 
   private ensureWorker(): Worker {
     if (this.worker) return this.worker;
@@ -308,7 +306,6 @@ export class AiManager {
     }
   }
 
-  // Controls
 
   cancel(feature: AiFeature, mediaId: string): void {
     this.suppressed.add(`${feature}:${mediaId}`);
@@ -386,7 +383,6 @@ export class AiManager {
     return buildCorrection(path, strength, media.width / media.height).zoom - 1;
   }
 
-  // Framing
 
   /** Find the main person in a clip and key its position and scale to fill the frame. */
   async reframe(itemId: string): Promise<{ found: boolean }> {
@@ -436,7 +432,6 @@ export class AiManager {
     return { found: !!subject?.found };
   }
 
-  // Frame shape
 
   /** Offer to reframe when the project turns from wide to tall. */
   private watchFrameShape(): void {

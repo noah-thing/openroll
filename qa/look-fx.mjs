@@ -3,8 +3,8 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
-const VIDEO = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"), "h264_1080p30_60s.mp4");
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
+const VIDEO = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"), "h264_1080p30_60s.mp4");
 
 export default async function ({ page, shot }) {
   await page.waitForSelector(".home");

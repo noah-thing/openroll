@@ -7,7 +7,7 @@ import { writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-const MEDIA = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia");
+const MEDIA = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia");
 
 export default async function ({ page, userData, shot }) {
   let failed = 0;

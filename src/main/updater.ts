@@ -55,7 +55,7 @@ export class Updater {
     this.send(s);
   }
 
-  /** Called once at startup: look soon after launch, then re-check every few hours if a day has passed. */
+  /** Called once at startup: look soon after launch, then check again every few hours if a day has passed. */
   start(): void {
     if (!app.isPackaged && !process.env.OPENROLL_UPDATE_FEED) return;
     setTimeout(() => void this.maybeCheck(), 20_000).unref();

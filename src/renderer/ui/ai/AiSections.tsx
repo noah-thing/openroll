@@ -25,7 +25,6 @@ export function AiVideoSections({ editor, item, project }: { editor: Editor; ite
   );
 }
 
-/** The AI sections of the Speed tab. */
 export function AiSpeedSections({ editor, item }: { editor: Editor; item: MediaItem }) {
   return (
     <>

@@ -29,8 +29,3 @@ export function valueAt(item: Item, path: string, local: Micros): number {
   return typeof v === "number" ? v : 0;
 }
 
-export function setKeyframe(keys: Keyframe[] | undefined, t: Micros, v: number, ease: Easing = "ease"): Keyframe[] {
-  const out = (keys ?? []).filter(k => Math.abs(k.t - t) > 500);
-  out.push({ t, v, ease });
-  return out.sort((a, b) => a.t - b.t);
-}

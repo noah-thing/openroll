@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 // usage: mkdir -p /tmp/orx && OPENROLL_QA_OUT=/tmp/orx node qa/launch.mjs qa/look-export.mjs
 import { join } from "node:path";
 
-const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
 
 export default async function ({ page }) {
   await page.waitForSelector(".home");

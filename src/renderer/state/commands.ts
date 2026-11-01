@@ -115,7 +115,6 @@ export const COMMANDS: Command[] = [
 
 export const MARKER_CYCLE = ["amber", "red", "green", "teal", "blue", "violet"];
 
-/** Opens the shortcut sheet. */
 export const shortcutEvents = new EventTarget();
 
 export function commandById(id: string): Command | undefined {

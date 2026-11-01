@@ -60,7 +60,7 @@ export function toggleKey(map: KeyframeMap | undefined, path: string, t: Micros,
   return keyIndexAt(map?.[path], t) >= 0 ? removeKey(map, path, t) : setKey(map, path, t, current);
 }
 
-/** Sorted, de-duplicated times of every key on the item, optionally limited to some paths. */
+/** Sorted times, each listed once, of every key on the item, optionally limited to some paths. */
 export function keyTimes(map: KeyframeMap | undefined, only?: (path: string) => boolean): Micros[] {
   const all: Micros[] = [];
   for (const [path, keys] of Object.entries(map ?? {})) if (!only || only(path)) for (const k of keys) all.push(k.t);

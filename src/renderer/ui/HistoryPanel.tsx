@@ -5,7 +5,6 @@ import { openSmart, smartEvents } from "../state/smart-events";
 import { Icon } from "./kit/Icon";
 import "../styles/smart.css";
 
-/** The small button beside undo and redo. */
 export function HistoryButton({ editor }: { editor: Editor }) {
   const steps = useEditor(editor, e => e.history.undoLabel);
   return (

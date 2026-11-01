@@ -8,7 +8,6 @@ export default async function ({ page, shot }) {
   await openProject(page, ["h264_1080p30_60s.mp4", "longgop_1080p60_20s.mp4", "tone_90s.mp3"]);
   const items = async () => (await project(page)).tracks.flatMap(t => t.items);
 
-  // ---- command bar
   const opened = await page.evaluate(
     () =>
       new Promise(resolve => {
@@ -60,7 +59,6 @@ export default async function ({ page, shot }) {
   const s = (await project(page)).settings;
   check("make vertical changes the frame", s.width < s.height, `${s.width}x${s.height}`);
 
-  // ---- undo history
   await page.click('[aria-label="Undo history"]');
   await page.waitForSelector(".histpanel");
   await page.waitForTimeout(260);
@@ -81,7 +79,6 @@ export default async function ({ page, shot }) {
   await page.keyboard.press("Escape");
   check("undo still works after jumping", await page.evaluate(() => window.__or.editor.history.timeline.applied > 0));
 
-  // ---- saved versions
   await page.keyboard.press(`${mod}+k`);
   await page.waitForSelector(".cmdbar");
   await page.keyboard.type("save a version");
@@ -104,7 +101,6 @@ export default async function ({ page, shot }) {
   await page.waitForTimeout(300);
   check("restoring a version brings the project back as an undoable step", (await project(page)).name !== "Changed" && (await page.evaluate(() => window.__or.editor.history.undoLabel)).startsWith("Restore"));
 
-  // ---- safe zones
   await page.click(".guides-btn button");
   await page.waitForSelector(".guides-menu");
   await page.waitForTimeout(220);
@@ -119,7 +115,6 @@ export default async function ({ page, shot }) {
   await page.locator(".guides-row", { hasText: "Hide all" }).click();
   check("hide all clears them", (await page.locator(".guides").count()) === 0);
 
-  // ---- stickers and shapes
   await page.click('.rail button:has-text("Stickers")');
   await page.waitForSelector(".sticker");
   await page.waitForTimeout(300);
@@ -135,7 +130,6 @@ export default async function ({ page, shot }) {
   await page.waitForSelector(".insp .tabs button:has-text('Shape')");
   await shot("smart-11-shape-inspector");
 
-  // ---- layouts
   const vid = (await items()).find(i => i.type === "media" && i.mediaId && i.name !== undefined && !/tone/.test(i.name));
   await page.evaluate(id => window.__or.editor.select([id]), vid.id);
   await page.waitForSelector(".layout-btn");

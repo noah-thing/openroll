@@ -31,7 +31,6 @@ export class Biquad {
 }
 
 export const dbToGain = (db: number): number => 10 ** (db / 20);
-export const gainToDb = (g: number): number => 20 * Math.log10(Math.max(g, 1e-9));
 
 export function percentile(values: ArrayLike<number>, p: number): number {
   if (!values.length) return 0;

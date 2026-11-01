@@ -3,7 +3,7 @@ import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const MEDIA = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia");
+const MEDIA = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia");
 const ok = (cond, msg) => {
   if (!cond) throw new Error("FAILED: " + msg);
   console.log("ok:", msg);

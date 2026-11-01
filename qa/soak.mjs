@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DIR = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia");
+const DIR = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia");
 const SECONDS = Number(process.env.SOAK_SECONDS ?? 30);
 const MB = n => Math.round(n / 1048576);
 const mod = process.platform === "darwin" ? "Meta" : "Control";

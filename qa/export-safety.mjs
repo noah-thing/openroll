@@ -65,7 +65,7 @@ export default async function ({ page }) {
   const doneCount = () => page.locator(".job .modal-done").count();
   const finished = async n => page.waitForFunction(n => document.querySelectorAll(".job .modal-done").length >= n || document.querySelector(".job .modal-warn"), n, { timeout: 240000 });
 
-  // 1. Sound that ends part way through the last frame must not take that frame with it.
+  // Sound that ends part way through the last frame must not take that frame with it.
   await open(1_010_000);
   await page.click('.modal .seg button:has-text("ProRes 422"), .modal [role=radio]:has-text("ProRes 422")');
   await page.click(".modal .export");
@@ -78,7 +78,7 @@ export default async function ({ page }) {
   check("the size shown is the size of the file", shown > real * 0.8 && shown < real * 1.25, `${shown} vs ${real}`);
   await closeDialog();
 
-  // 2. A normal MP4 is frame exact from first to last.
+  // A normal MP4 is frame exact from first to last.
   await open(4_000_000);
   await page.click(".modal .export");
   await finished(2);
@@ -87,7 +87,7 @@ export default async function ({ page }) {
   check("no temp files after a finished export", !listing().some(f => f.endsWith(".openroll-part")), listing().join(", "));
   await closeDialog();
 
-  // 3. Stopping an export leaves the file that was there and no temp file.
+  // Stopping an export leaves the file that was there and no temp file.
   writeFileSync(join(OUT, "Untitled.mp4"), "previous export");
   await open();
   const listed = await page.locator(".job").count();
@@ -124,7 +124,7 @@ export default async function ({ page }) {
   }
   await closeDialog();
 
-  // 4. Two exports queued to the same name each finish; the file at the end is whole.
+  // Two exports queued to the same name each finish; the file at the end is whole.
   rmSync(join(OUT, "Untitled.mp4"));
   await open(3_000_000);
   const before = await doneCount();
@@ -137,7 +137,7 @@ export default async function ({ page }) {
   check("the file they share is whole", twice.length === 90 && twice.every((n, i) => n === i), String(twice.length));
   check("no temp files after queued exports", !listing().some(f => f.endsWith(".openroll-part")), listing().join(", "));
 
-  // 5. A folder that cannot be written says so in the dialog instead of doing nothing.
+  // A folder that cannot be written says so in the dialog instead of doing nothing.
   if (process.platform !== "win32" && process.getuid?.() !== 0) {
     chmodSync(OUT, 0o555);
     try {
@@ -152,7 +152,7 @@ export default async function ({ page }) {
     }
   }
 
-  // 6. An audio export of a project without sound is refused instead of saving silence.
+  // An audio export of a project without sound is refused instead of saving silence.
   await closeDialog();
   const mute = join(media, "mute.mp4");
   const r = spawnSync(bin("ffmpeg"), ["-v", "error", "-y", "-i", clip, "-t", "2", "-an", "-c:v", "copy", mute]);

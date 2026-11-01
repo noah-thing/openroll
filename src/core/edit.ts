@@ -172,7 +172,7 @@ export interface MoveTarget {
 }
 
 /**
- * Move one item. On the main track, `start` picks a slot and the track re-packs.
+ * Move one item. On the main track, `start` picks a slot and the track packs again.
  * Elsewhere the item goes exactly where it was dropped, or onto a fresh lane if that
  * spot is taken.
  */

@@ -1,4 +1,4 @@
-import { PIPE_EXTENSION, type PipeSpec } from "../shared/ffexport";
+import type { PipeSpec } from "../shared/ffexport";
 
 const MUXER: Record<PipeSpec["format"], string> = {
   prores422: "mov",
@@ -96,6 +96,3 @@ export function pipeArgs(spec: PipeSpec, source: string, audioFile: string | nul
   }
 }
 
-export function pipeExtension(spec: PipeSpec): string {
-  return PIPE_EXTENSION[spec.format];
-}
