@@ -6,6 +6,7 @@ dist/
 design/footage/*.png
 .playwright-mcp/
 qa/shots/
+resources/ffmpeg/
 research/
 design/
 .claude/

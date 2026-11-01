@@ -18,8 +18,40 @@ const api: OpenRollApi = {
 
   createWriter: (name, kind) => ipcRenderer.invoke("writer:create", name, kind),
   write: (id, position, data) => ipcRenderer.invoke("writer:write", id, position, data),
+  resetWriter: id => ipcRenderer.invoke("writer:reset", id),
   closeWriter: (id, abort = false) => ipcRenderer.invoke("writer:close", id, abort),
   revealInFolder: path => ipcRenderer.invoke("shell:reveal", path),
+
+  convert: {
+    status: () => ipcRenderer.invoke("ff:status"),
+    inspect: path => ipcRenderer.invoke("ff:inspect", path),
+    prepare: (path, hints) => ipcRenderer.invoke("ff:prepare", path, hints),
+    proxy: (path, req) => ipcRenderer.invoke("ff:proxy", path, req),
+    existing: paths => ipcRenderer.invoke("ff:existing", paths),
+    cancel: (path, kind) => ipcRenderer.send("ff:cancel", path, kind),
+    setPlayback: active => ipcRenderer.send("ff:playback", active),
+    onState: handler => {
+      const listener = (_e: unknown, path: string, state: Parameters<typeof handler>[1]) => handler(path, state);
+      ipcRenderer.on("ff:state", listener);
+      return () => ipcRenderer.off("ff:state", listener);
+    },
+  },
+
+  ffexport: {
+    open: () => ipcRenderer.invoke("ffexport:open"),
+    audio: (id, data) => ipcRenderer.invoke("ffexport:audio", id, data),
+    begin: (id, writerId, spec) => ipcRenderer.invoke("ffexport:begin", id, writerId, spec),
+    frame: (id, data) => ipcRenderer.invoke("ffexport:frame", id, data),
+    finish: (id, spec) => ipcRenderer.invoke("ffexport:finish", id, spec),
+    cancel: id => ipcRenderer.invoke("ffexport:cancel", id),
+  },
+
+  relink: {
+    missing: paths => ipcRenderer.invoke("relink:missing", paths),
+    auto: missing => ipcRenderer.invoke("relink:auto", missing),
+    folder: missing => ipcRenderer.invoke("relink:folder", missing),
+    file: (missing, id) => ipcRenderer.invoke("relink:file", missing, id),
+  },
 
   projects: {
     dir: () => ipcRenderer.invoke("projects:dir"),
