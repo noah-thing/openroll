@@ -11,9 +11,10 @@ out vec4 outColor;
 export const GREY_FS = HEAD + /* glsl */ `
 uniform sampler2D u_tex;
 uniform vec2 u_texel; // one texel of the source
+uniform float u_reach; // taps this many texels off centre: 1 shrinks four times, 0.5 twice
 float L(vec2 uv) { return dot(texture(u_tex, uv).rgb, vec3(0.299, 0.587, 0.114)); }
 void main() {
-  vec2 o = u_texel;
+  vec2 o = u_texel * u_reach;
   float g = (L(v_uv + vec2(-o.x, -o.y)) + L(v_uv + vec2(o.x, -o.y)) + L(v_uv + vec2(-o.x, o.y)) + L(v_uv + vec2(o.x, o.y))) * 0.25;
   outColor = vec4(g, g, g, 1.0);
 }`;
@@ -27,6 +28,7 @@ uniform int u_radius;   // candidates run -radius..radius on each axis
 uniform float u_step;   // candidate spacing, in texels
 uniform float u_tap;    // patch tap spacing, in texels
 uniform int u_hasGuess;
+uniform float u_bias;   // cost of straying from the guess; steady fields beat noisy ones
 float G(sampler2D t, vec2 uv) { return texture(t, uv).r; }
 void main() {
   vec2 guess = u_hasGuess == 1 ? texture(u_guess, v_uv).rg : vec2(0.0);
@@ -44,7 +46,7 @@ void main() {
       for (int j = -1; j <= 1; j++)
         for (int i = -1; i <= 1; i++) cost += abs(ref[k++] - G(u_b, v_uv + d + vec2(float(i), float(j)) * u_tap * u_texel));
       // prefer staying near the guess when two candidates look alike
-      cost += 0.004 * length(vec2(float(cx), float(cy)));
+      cost += u_bias * length(vec2(float(cx), float(cy)));
       if (cost < best) { best = cost; bestD = d; }
     }
   }
@@ -62,7 +64,7 @@ void main() {
   for (int j = -1; j <= 1; j++)
     for (int i = -1; i <= 1; i++) {
       vec2 f = texture(u_flow, v_uv + vec2(float(i), float(j)) * u_texel).rg;
-      float k = exp(-dot(f - c, f - c) * 20000.0) * (i == 0 && j == 0 ? 2.0 : 1.0);
+      float k = exp(-dot(f - c, f - c) * 3000.0) * (i == 0 && j == 0 ? 2.0 : 1.0);
       acc += f * k;
       w += k;
     }

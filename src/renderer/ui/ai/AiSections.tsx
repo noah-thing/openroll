@@ -138,7 +138,7 @@ function ReframeSection({ editor, item, project }: { editor: Editor; item: Media
 /** Videos wider than this are left to the sharpen pass; the upscaler is meant for small sources. */
 const UPSCALE_LIMIT = 960;
 /** Measured on an M series Mac in the packaged app, seconds per 128 pixel tile. */
-const SECONDS_PER_TILE = 0.37;
+const SECONDS_PER_TILE = 0.95;
 
 function EnhanceSection({ editor, item, project }: { editor: Editor; item: MediaItem; project: Project }) {
   const media = project.media[item.mediaId];

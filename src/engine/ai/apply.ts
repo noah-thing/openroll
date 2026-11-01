@@ -81,7 +81,7 @@ export function temporalLayer(plan: TemporalPlan, a: { timestamp: number }, b: {
 // ---------------------------------------------------------------- motion blur from animation
 
 const TRAIL_MIN = 3;
-const TRAIL_MAX = 17;
+const TRAIL_MAX = 48;
 
 function visualsOf(scene: SceneNode[], id: string): Visual | null {
   for (const n of scene) {
@@ -111,7 +111,7 @@ export function motionTrail(project: Project, item: MediaItem, t: Micros): Layer
   const reach = Math.max(a.width, a.height) * 0.5;
   const travel = Math.hypot(b.x - a.x, b.y - a.y) + Math.abs(b.width - a.width) * 0.5 + Math.abs(b.height - a.height) * 0.5 + Math.abs(b.rotation - a.rotation) * (Math.PI / 180) * reach;
   if (travel < 0.8) return undefined;
-  const n = Math.min(TRAIL_MAX, Math.max(TRAIL_MIN, Math.round(travel / 1.6) + 1));
+  const n = Math.min(TRAIL_MAX, Math.max(TRAIL_MIN, Math.round(travel / 1.2) + 1));
   const out: NonNullable<Layer["trail"]> = [];
   for (let i = 0; i < n; i++) {
     const s = at((i / (n - 1) - 0.5) * shutter);

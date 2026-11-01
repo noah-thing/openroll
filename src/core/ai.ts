@@ -2,7 +2,6 @@
 // path, a subject track into framing keyframes, and the small binary format analysis
 // results are kept in. Nothing here touches a model or a frame, so it is all testable.
 
-import { sample } from "./animate";
 import type { Keyframe, MediaItem, MediaRef, Micros } from "./project";
 
 /** Camera motion measured between frames, accumulated from the first frame. */
@@ -175,11 +174,9 @@ export function planReframe(input: ReframeInput, toLocal: (sourceSeconds: number
   const tight = input.tightness ?? 0.5;
   const base = input.samples.length ? input.samples : [{ t: 0, x: 0.5, y: 0.5, h: 0.5 }];
   // follow a smoothed copy of the subject, not every twitch of the detector
-  const times = new Float32Array(base.length);
   const sx = smooth(Float32Array.from(base.map(s => s.x)), 1.5);
   const sy = smooth(Float32Array.from(base.map(s => s.y)), 1.5);
   const sh = smooth(Float32Array.from(base.map(s => s.h)), 2.5);
-  base.forEach((s, i) => (times[i] = s.t));
   const followed = followSubject(base.map((s, i) => ({ t: s.t, x: sx[i], y: sy[i], h: sh[i] })), 0.06);
   const raw: { t: Micros; x: number; y: number; scale: number }[] = followed.map(s => {
     // small subjects earn a gentle push in; large ones keep the plain fill
@@ -224,10 +221,6 @@ export function localTime(item: MediaItem, sourceSeconds: number): Micros {
   const span = item.duration * item.speed;
   const offset = item.reversed ? item.in + span - src : src - item.in;
   return Math.round(Math.max(0, Math.min(item.duration, offset / item.speed)));
-}
-
-export function sampledValue(keys: Keyframe[], t: Micros): number {
-  return sample(keys, t);
 }
 
 function clamp(v: number, lo: number, hi: number): number {
