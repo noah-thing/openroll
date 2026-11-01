@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "id": "tip-shortcuts",
+      "date": "2026-11-01",
+      "level": "quiet",
+      "title": "Every shortcut in one place",
+      "body": "Press **Cmd /** (or **Ctrl /** on Windows) to see them all, searchable."
+    },
+    {
+      "id": "captions-languages",
+      "date": "2026-11-02",
+      "level": "toast",
+      "title": "Captions now speak Swedish",
+      "body": "Auto captions detect the language by themselves.",
+      "buttons": [{ "label": "How it works", "url": "https://example.org/captions" }]
+    },
+    {
+      "id": "launch-event",
+      "date": "2026-11-03",
+      "level": "popup",
+      "title": "Edit together, live",
+      "body": "A first look at what comes next.\n\n- Invite a friend to your timeline\n- See their cursor as they cut\n\nJoin the test on **Friday**.",
+      "image": { "url": "http://127.0.0.1:4599/launch.jpg", "alt": "A ferry deck at sunset", "aspect": 1.6 },
+      "buttons": [{ "label": "Join the test", "url": "https://example.org/test" }]
+    },
+    {
+      "id": "mac-only",
+      "date": "2026-11-03",
+      "level": "quiet",
+      "title": "Only for Windows",
+      "platforms": ["win32"],
+      "body": "Should not show on this Mac."
+    }
+  ]
+}

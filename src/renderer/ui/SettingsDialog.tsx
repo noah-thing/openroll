@@ -113,10 +113,17 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             <h3>General</h3>
             <div className="set-row">
               <div>
-                <b>Check for updates automatically</b>
-                <small>Looks once a day and downloads in the background. The new version installs when you quit.</small>
+                <b>Install updates automatically</b>
+                <small>New versions download in the background and install when you quit. When off, you get a message and choose when to install.</small>
               </div>
-              <Switch label="Check for updates automatically" value={s.autoUpdate} onChange={autoUpdate => updateSettings({ autoUpdate })} />
+              <Switch label="Install updates automatically" value={s.autoUpdate} onChange={autoUpdate => updateSettings({ autoUpdate })} />
+            </div>
+            <div className="set-row">
+              <div>
+                <b>Messages from the OpenRoll team</b>
+                <small>News and tips in the bell. The app reads one public file a few times a day and sends nothing about you.</small>
+              </div>
+              <Switch label="Messages from the OpenRoll team" value={s.news} onChange={news => updateSettings({ news })} />
             </div>
             <div className="set-row">
               <div>

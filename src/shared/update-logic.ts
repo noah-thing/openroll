@@ -12,6 +12,8 @@ export interface Release {
   tag: string;
   pageUrl: string;
   assets: ReleaseAsset[];
+  /** Release notes as written on GitHub. */
+  notes: string;
 }
 
 export type Packaging = "mac-zip" | "nsis" | "portable" | "appimage" | "deb";
@@ -76,6 +78,7 @@ export function parseRelease(raw: unknown): Release | null {
     tag: r.tag_name,
     pageUrl: typeof r.html_url === "string" ? r.html_url : "",
     assets,
+    notes: typeof r.body === "string" ? r.body.slice(0, 20_000) : "",
   };
 }
 

@@ -52,6 +52,7 @@ const PATHS = {
   eyedropper: '<path d="m14.5 5.5 4 4M16.5 3.5a2.1 2.1 0 0 1 3 3L10 16l-4 1 1-4z"/><path d="m5 19 1.5-1.5"/>',
   arrowUp: '<path d="m6 14 6-6 6 6"/>',
   arrowDown: '<path d="m6 10 6 6 6-6"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
   warning: '<path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17v.2"/>',
 } as const;
 

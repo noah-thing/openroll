@@ -54,10 +54,22 @@ const api: OpenRollApi = {
     state: () => ipcRenderer.invoke("updates:state"),
     check: () => ipcRenderer.invoke("updates:check"),
     installNow: () => ipcRenderer.invoke("updates:install-now"),
+    download: () => ipcRenderer.invoke("updates:download"),
+    whatsNew: () => ipcRenderer.invoke("updates:whats-new"),
     onState: handler => {
       const listener = (_e: unknown, s: Parameters<typeof handler>[0]) => handler(s);
       ipcRenderer.on("updates:state", listener);
       return () => ipcRenderer.off("updates:state", listener);
+    },
+  },
+
+  news: {
+    list: () => ipcRenderer.invoke("news:list"),
+    markRead: ids => ipcRenderer.invoke("news:mark-read", ids),
+    onChange: handler => {
+      const listener = (_e: unknown, items: Parameters<typeof handler>[0]) => handler(items);
+      ipcRenderer.on("news:changed", listener);
+      return () => ipcRenderer.off("news:changed", listener);
     },
   },
 

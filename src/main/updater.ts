@@ -6,8 +6,8 @@ import { access, chmod, constants, mkdir, readdir, readFile, rename, rm, stat, w
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import type { UpdateState } from "../shared/api";
-import { LATEST_RELEASE_API } from "../shared/links";
+import type { UpdateState, WhatsNew } from "../shared/api";
+import { LATEST_RELEASE_API, releaseByTagApi } from "../shared/links";
 import { checksumsAsset, isNewer, packagingFor, parseChecksums, parseRelease, pickAsset, type Packaging, type Release, type ReleaseAsset } from "../shared/update-logic";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -30,6 +30,7 @@ export class Updater {
   private busy = false;
   private timer: NodeJS.Timeout | null = null;
   private relaunch = false;
+  private offered: Release | null = null;
 
   constructor(
     private send: (s: UpdateState) => void,
@@ -61,8 +62,8 @@ export class Updater {
     this.timer.unref();
   }
 
+  /** With automatic updates off we still look, but only offer; nothing downloads until asked. */
   private async maybeCheck(): Promise<void> {
-    if (!this.autoEnabled()) return;
     const last = await readFile(join(app.getPath("userData"), "update-state.json"), "utf8").then(t => Number(JSON.parse(t).lastCheck) || 0).catch(() => 0);
     if (Date.now() - last >= DAY) await this.check(false);
   }
@@ -79,6 +80,10 @@ export class Updater {
       const release = await this.latest();
       if (release === "unreachable") return this.set({ status: asked ? "unreachable" : "idle", asked });
       if (!release || !isNewer(release.version, app.getVersion())) return this.set({ status: asked ? "current" : "idle", asked });
+      if (!asked && !this.autoEnabled()) {
+        this.offered = release;
+        return this.set({ status: "available", version: release.version, notes: release.notes, pageUrl: release.pageUrl });
+      }
       await this.fetchAndStage(release, asked);
     } catch {
       this.set({ status: asked ? "unreachable" : "idle", asked });
@@ -97,6 +102,40 @@ export class Updater {
     }
     if (!res.ok) return res.status >= 500 ? "unreachable" : null;
     return parseRelease(await res.json().catch(() => null));
+  }
+
+  async downloadOffered(): Promise<void> {
+    const release = this.offered;
+    if (!release || this.busy) return;
+    this.busy = true;
+    try {
+      await this.fetchAndStage(release, true);
+    } catch {
+      this.set({ status: "unreachable", asked: true });
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /**
+   * Called once per launch. When the version changed since the last run, returns its notes:
+   * kept from the download when this app updated itself, fetched otherwise.
+   */
+  async whatsNew(): Promise<WhatsNew | null> {
+    const marker = join(app.getPath("userData"), "last-version.json");
+    const version = app.getVersion();
+    const previous = await readFile(marker, "utf8").then(t => String(JSON.parse(t).version)).catch(() => null);
+    await writeFile(marker, JSON.stringify({ version })).catch(() => {});
+    if (!previous || previous === version || !isNewer(version, previous)) return null;
+    const saved = await readFile(join(app.getPath("userData"), "release-notes.json"), "utf8").then(t => JSON.parse(t) as WhatsNew).catch(() => null);
+    if (saved?.version === version) return saved;
+    try {
+      const res = await net.fetch(releaseByTagApi(`v${version}`), { headers: { Accept: "application/vnd.github+json", "User-Agent": `OpenRoll/${version}` } });
+      const release = res.ok ? parseRelease(await res.json()) : null;
+      return { version, notes: release?.notes ?? "", pageUrl: release?.pageUrl };
+    } catch {
+      return { version, notes: "" };
+    }
   }
 
   private runtime() {
@@ -136,7 +175,9 @@ export class Updater {
       return this.set({ status: "idle" });
     }
     this.staged = staged;
-    this.set({ status: "ready", version: release.version, asked });
+    const notes: WhatsNew = { version: release.version, notes: release.notes, pageUrl: release.pageUrl };
+    await writeFile(join(app.getPath("userData"), "release-notes.json"), JSON.stringify(notes)).catch(() => {});
+    this.set({ status: "ready", version: release.version, notes: release.notes, asked });
   }
 
   private async canReplaceSelf(packaging: Packaging | null): Promise<boolean> {

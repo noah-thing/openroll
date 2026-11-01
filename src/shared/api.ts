@@ -1,3 +1,4 @@
+import type { NewsItem } from "./news";
 import type { Settings } from "./settings";
 
 // The surface the preload script exposes as window.openroll. Keep it small: every
@@ -24,7 +25,7 @@ export interface RecentProject {
   thumb?: string;
 }
 
-export type UpdateStatus = "idle" | "checking" | "downloading" | "ready" | "manual" | "current" | "unreachable";
+export type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "ready" | "manual" | "current" | "unreachable";
 
 export interface UpdateState {
   status: UpdateStatus;
@@ -35,6 +36,13 @@ export interface UpdateState {
   pageUrl?: string;
   /** True when a person asked, so the answer deserves a visible reply. */
   asked?: boolean;
+  notes?: string;
+}
+
+export interface WhatsNew {
+  version: string;
+  notes: string;
+  pageUrl?: string;
 }
 
 export interface HistoryEntry {
@@ -117,8 +125,12 @@ export interface OpenRollApi {
   updates: {
     state(): Promise<UpdateState>;
     check(): Promise<void>;
+    /** Download an update the person chose to install (automatic updates off). */
+    download(): Promise<void>;
     /** Quit now, apply the downloaded update and open the new version. */
     installNow(): Promise<void>;
+    /** Notes for the version that just installed, once; null on a normal start. */
+    whatsNew(): Promise<WhatsNew | null>;
     onState(handler: (s: UpdateState) => void): () => void;
   };
 
@@ -134,6 +146,12 @@ export interface OpenRollApi {
   };
 
   systemInfo(): Promise<SystemInfo>;
+
+  news: {
+    list(): Promise<{ items: NewsItem[]; read: string[] }>;
+    markRead(ids: string[]): Promise<void>;
+    onChange(handler: (items: NewsItem[]) => void): () => void;
+  };
 
   onMenu(handler: (command: string) => void): () => void;
   setTitle(title: string): void;

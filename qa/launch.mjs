@@ -1,13 +1,15 @@
 // Launch the built app under Playwright for scripted checks.
 // usage: node qa/launch.mjs <scenario.mjs> [--keep]
 import { _electron as electron } from "playwright-core";
-import { mkdtemp } from "node:fs/promises";
+import { cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const scenario = process.argv[2];
 const keep = process.argv.includes("--keep");
 const userData = await mkdtemp(join(tmpdir(), "openroll-qa-"));
+// QA_SEED: a folder copied into the fresh profile first, e.g. to fake the run before an update.
+if (process.env.QA_SEED) await cp(process.env.QA_SEED, userData, { recursive: true });
 const app = await electron.launch({
   args: [resolve("."), `--user-data-dir=${userData}`],
   env: { ...process.env, OPENROLL_QA: "1", OPENROLL_PROJECTS_DIR: join(userData, "projects") },

@@ -11,6 +11,7 @@ import { Journal } from "./journal";
 import { Session } from "./session";
 import { getSettings, updateSettings } from "./settings";
 import { Updater } from "./updater";
+import { News } from "./news";
 
 const isDev = !!process.env.OPENROLL_DEV_URL;
 const APP_SCHEME = "openroll-app";
@@ -49,6 +50,10 @@ const session = new Session(join(app.getPath("userData"), "session.json"));
 const updater = new Updater(
   state => win?.webContents.send("updates:state", state),
   () => getSettings().autoUpdate,
+);
+const news = new News(
+  items => win?.webContents.send("news:changed", items),
+  () => getSettings().news,
 );
 
 function cacheDir(): string {
@@ -411,6 +416,10 @@ function registerIpc(): void {
   ipcMain.handle("updates:state", () => updater.getState());
   ipcMain.handle("updates:check", () => updater.check(true));
   ipcMain.handle("updates:install-now", () => updater.installNow());
+  ipcMain.handle("updates:download", () => updater.downloadOffered());
+  ipcMain.handle("updates:whats-new", () => updater.whatsNew());
+  ipcMain.handle("news:list", () => news.list());
+  ipcMain.handle("news:mark-read", (_e, ids: unknown) => news.markRead(ids));
 
   ipcMain.handle("history:list", (_e, path: unknown) => (typeof path === "string" ? journal.list(path) : []));
   ipcMain.handle("history:restore", (_e, path: unknown, file: unknown) =>
@@ -590,6 +599,7 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = "dark";
   session.begin();
   updater.start();
+  void news.start();
   guardMicrophone();
   handleMediaProtocol();
   serveApp();

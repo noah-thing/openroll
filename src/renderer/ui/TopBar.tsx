@@ -4,6 +4,7 @@ import { useEditor } from "../lib/hooks";
 import type { Editor } from "../state/editor";
 import { Logo } from "./Home";
 import { Icon } from "./kit/Icon";
+import { InboxButton } from "./Inbox";
 import { RatioPicker } from "./RatioPicker";
 
 export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome(): void; onExport(): void }) {
@@ -44,6 +45,7 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
       </div>
       <div className="spacer" />
       <div className="top-actions no-drag">
+        <InboxButton />
         <button className="iconbtn" disabled={!undoLabel} onClick={() => editor.undo()} title={undoLabel ? `Undo ${undoLabel.toLowerCase()}` : "Nothing to undo"}>
           <Icon name="undo" />
         </button>

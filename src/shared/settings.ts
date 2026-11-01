@@ -6,6 +6,8 @@ export interface Settings {
   /** Null means the default folder inside Videos. */
   projectsDir: string | null;
   autoUpdate: boolean;
+  /** Fetch messages from the OpenRoll team for the inbox. */
+  news: boolean;
   reduceMotion: boolean;
 }
 
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hardwareDecoding: true,
   projectsDir: null,
   autoUpdate: true,
+  news: true,
   reduceMotion: false,
 };
 
@@ -31,6 +34,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     hardwareDecoding: typeof r.hardwareDecoding === "boolean" ? r.hardwareDecoding : d.hardwareDecoding,
     projectsDir: typeof r.projectsDir === "string" && r.projectsDir.length ? r.projectsDir : null,
     autoUpdate: typeof r.autoUpdate === "boolean" ? r.autoUpdate : d.autoUpdate,
+    news: typeof r.news === "boolean" ? r.news : d.news,
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
   };
 }

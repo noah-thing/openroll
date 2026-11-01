@@ -3,12 +3,15 @@ import { AboutDialog } from "./AboutDialog";
 import { ReportDialog } from "./ReportDialog";
 import { SettingsDialog } from "./SettingsDialog";
 import { UpdateNotice } from "./UpdateNotice";
+import { NewsPopup, NewsToasts, WhatsNewDialog } from "./Inbox";
+import { inbox } from "../state/inbox";
 
 type Which = "settings" | "report" | "about" | null;
 
 /** Dialogs the menu can open from any screen, and the update notice. */
 export function Overlays() {
   const [open, setOpen] = useState<Which>(null);
+  useEffect(() => inbox.start(), []);
 
   useEffect(
     () =>
@@ -35,6 +38,9 @@ export function Overlays() {
   return (
     <>
       <UpdateNotice />
+      <NewsToasts />
+      <WhatsNewDialog />
+      <NewsPopup />
       {open === "settings" && <SettingsDialog onClose={close} />}
       {open === "report" && <ReportDialog onClose={close} />}
       {open === "about" && <AboutDialog onClose={close} onReport={() => setOpen("report")} />}

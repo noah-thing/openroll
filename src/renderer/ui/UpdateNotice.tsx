@@ -39,6 +39,19 @@ export function UpdateNotice() {
         </>
       );
       break;
+    case "available":
+      body = (
+        <>
+          <span>OpenRoll {state.version} is available.</span>
+          <button className="toast-undo" onClick={() => void window.openroll.updates.download()}>
+            Install
+          </button>
+          <button className="toast-undo quiet" onClick={() => setHidden(key)}>
+            Later
+          </button>
+        </>
+      );
+      break;
     case "manual":
       body = (
         <>
