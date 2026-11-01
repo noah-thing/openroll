@@ -109,6 +109,9 @@ function createWindow(): void {
       e.preventDefault();
       closeAfterFlush = true;
       win?.webContents.send("menu", "flush-and-close");
+      // A page that is busy or gone must not keep the window open; the journal has the last save.
+      clearTimeout(flushTimer);
+      flushTimer = setTimeout(() => finishClose(), 2500);
     }
   });
   win.webContents.on("render-process-gone", (_e, details) => {
@@ -124,6 +127,16 @@ function createWindow(): void {
 
 let dirty = false;
 let quitting = false;
+let quitRequested = false;
+let flushTimer: NodeJS.Timeout | undefined;
+
+function finishClose(): void {
+  clearTimeout(flushTimer);
+  closeAfterFlush = false;
+  quitting = true;
+  win?.close();
+  if (quitRequested) app.quit();
+}
 let closeAfterFlush = false;
 
 // A crash loop must not become a reload loop.
@@ -424,11 +437,7 @@ function registerIpc(): void {
   ipcMain.on("window:dirty", (_e, d: unknown) => {
     dirty = !!d;
     win?.setDocumentEdited(dirty);
-    if (!dirty && closeAfterFlush) {
-      closeAfterFlush = false;
-      quitting = true;
-      win?.close();
-    }
+    if (!dirty && closeAfterFlush) finishClose();
   });
   ipcMain.on("window:close-now", () => {
     quitting = true;
@@ -590,6 +599,7 @@ app.whenReady().then(() => {
 });
 
 app.on("before-quit", () => {
+  quitRequested = true;
   quitting = !dirty;
 });
 

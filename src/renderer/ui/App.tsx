@@ -57,6 +57,14 @@ export function App() {
   }, [reopen]);
 
   useEffect(() => {
+    // The editor screen saves and answers this itself; without one there is nothing to save.
+    if (editor) return;
+    return window.openroll.onMenu(cmd => {
+      if (cmd === "flush-and-close") window.openroll.setDirty(false);
+    });
+  }, [editor]);
+
+  useEffect(() => {
     if (!window.openroll.qa) return;
     Object.assign(window, { __or: { editor, newProject: (files: FileInfo[]) => open(createProject(), null, files), importFiles, importLut } });
   }, [editor, open]);
