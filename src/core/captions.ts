@@ -203,8 +203,8 @@ export function retimeWords(old: CaptionWord[], text: string, duration: Micros):
   // Timing must never run backwards, whatever the edit did.
   let at = 0;
   for (const w of out) {
-    w.start = Math.max(w.start, at);
-    w.end = Math.max(w.end, w.start + 1);
+    w.start = Math.max(Math.round(w.start), at);
+    w.end = Math.max(Math.round(w.end), w.start + 1);
     at = w.end;
   }
   return out;

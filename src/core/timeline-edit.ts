@@ -214,7 +214,7 @@ export function freezeFrame(p: Project, id: string, t: Micros, opts: FreezeOptio
   if (!media || media.kind === "image" || !media.hasVideo) return p;
   const orig = found.item;
   const length = opts.duration ?? 2 * SECOND;
-  const edge = MIN_ITEM / 2;
+  const edge = MIN_ITEM;
   const at = Math.min(itemEnd(orig), Math.max(orig.start, t));
   const inside = at > orig.start + edge && at < itemEnd(orig) - edge;
   const base = inside ? split(p, at, [id]) : p;
@@ -267,10 +267,14 @@ export function replaceMedia(p: Project, id: string, ref: MediaRef): Project {
     item.in = 0;
     delete item.freeze;
   } else if (!item.freeze) {
-    item.in = Math.min(item.in, Math.max(0, ref.duration - MIN_ITEM));
+    item.speed = Math.max(0.1, Math.min(item.speed, ref.duration / MIN_ITEM));
+    item.in =Math.min(item.in, Math.max(0, ref.duration - MIN_ITEM));
     item.duration = Math.max(MIN_ITEM, Math.min(item.duration, Math.floor((ref.duration - item.in) / item.speed)));
+    // A short file at a fast speed cannot fill the minimum length from where the old in point was.
+    item.in = Math.max(0, Math.min(item.in, ref.duration - sourceSpan(item)));
   } else item.in = Math.min(item.in, Math.max(0, ref.duration - 1));
   packMain(track);
+  pruneTransitions(next);
   return next;
 }
 
@@ -444,15 +448,11 @@ export function rollTrim(p: Project, leftId: string, rightId: string, delta: Mic
   const maxBack = Math.min(l.item.duration - MIN_ITEM, r.item.type === "media" && rm ? startRoom(r.item, rm) : Infinity);
   const d = Math.round(Math.max(-maxBack, Math.min(maxForward, delta)));
   if (d === 0) return p;
-  const next = draft(p);
-  const left = findItem(next, leftId)!.item;
-  const right = findItem(next, rightId)!.item;
-  if (left.type === "media" && left.reversed && !left.freeze) left.in -= Math.round(d * left.speed);
-  left.duration += d;
-  if (right.type === "media" && !right.freeze && !right.reversed) right.in += Math.round(d * right.speed);
-  right.start += d;
-  right.duration -= d;
-  delete right.transitionIn;
+  // Each side is an ordinary trim, ordered so the one that frees room goes first.
+  let next = d > 0 ? trim(p, rightId, "start", d) : trim(p, leftId, "end", d);
+  next = d > 0 ? trim(next, leftId, "end", d) : trim(next, rightId, "start", d);
+  if (next === p) return p;
+  delete findItem(next, rightId)!.item.transitionIn;
   return next;
 }
 
