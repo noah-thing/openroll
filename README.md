@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noah-thing/openroll/releases/latest"><b>Download</b></a>
+  <a href="#quick-setup"><b>Install</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/noah-thing/openroll/releases/latest">Download</a>
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
@@ -20,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="#download"><img alt="macOS, Windows and Linux" src="https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-555?style=flat-square"></a>
+  <a href="#quick-setup"><img alt="macOS, Windows and Linux" src="https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-555?style=flat-square"></a>
   <a href="LICENSE"><img alt="GPL-3.0 licence" src="https://img.shields.io/badge/license-GPL--3.0-555?style=flat-square"></a>
   <a href="https://x.com/fsconfig"><img alt="Follow @fsconfig on X" src="https://img.shields.io/badge/follow-%40fsconfig-555?style=flat-square&logo=x&logoColor=white"></a>
 </p>
@@ -51,9 +53,25 @@ OpenRoll is built for the edits people make every day: cutting a vlog, captionin
 - **Export.** MP4 (H.264 or HEVC), WebM, ProRes 422 and 4444, GIF, M4A, WAV and stills, in the background while you keep editing.
 - **Edit with AI.** Claude Code, Codex, Cursor and other MCP tools can edit the open project with you. Every change shows live and undoes like your own. See [docs/AI.md](docs/AI.md).
 
+## Quick setup
+
+**macOS and Linux**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/noah-thing/openroll/main/install.sh | sh
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/noah-thing/openroll/main/install.ps1 | iex
+```
+
+The script picks the right build for your system from the latest release, checks it against the release's `SHA256SUMS.txt`, and installs it: the app in Applications on macOS, the `.deb` on Ubuntu and Debian (an AppImage elsewhere), the per user setup on Windows. Updates then install quietly in the background; you can turn that off in Settings.
+
 ## Download
 
-Get the latest build from [Releases](https://github.com/noah-thing/openroll/releases/latest).
+Prefer the files? Get them from [Releases](https://github.com/noah-thing/openroll/releases/latest).
 
 | System | File |
 | --- | --- |
@@ -62,11 +80,9 @@ Get the latest build from [Releases](https://github.com/noah-thing/openroll/rele
 | Windows | `OpenRoll-Setup-<version>-win-x64.exe`, or the portable `.exe` |
 | Linux | `.AppImage`, or `.deb` for Debian and Ubuntu |
 
-Updates install quietly in the background, and every download is checked against the release's `SHA256SUMS.txt` first. You can turn automatic updates off in Settings.
+If your computer shows a popup the first time you open OpenRoll, that's only because the app isn't code signed yet. The setup command above skips it. All of the code is in this repository, and every release lists the checksum of each file in `SHA256SUMS.txt`. To open it past the popup:
 
-The builds are not signed with a paid certificate yet, so the first launch needs one extra step:
-
-- **macOS:** open OpenRoll once and close the warning, then go to System Settings, Privacy and Security, and click Open Anyway.
+- **macOS:** open OpenRoll once and close the popup, then go to System Settings, Privacy and Security, and click Open Anyway.
 - **Windows:** if SmartScreen appears, click More info, then Run anyway.
 - **Linux:** make the AppImage executable (`chmod +x`) and run it.
 
