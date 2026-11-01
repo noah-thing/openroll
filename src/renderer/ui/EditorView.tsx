@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Editor } from "../state/editor";
 import { MediaCache } from "../state/media-cache";
+import { useAutoAnalysis } from "../state/auto-analyze";
 import { useShortcuts } from "../state/shortcuts";
 import { Inspector } from "./Inspector";
 import { Library } from "./Library";
@@ -14,6 +15,7 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
   const cache = useMemo(() => new MediaCache(m => window.openroll.mediaUrl(m.path)), []);
   const [exporting, setExporting] = useState(false);
   useEffect(() => () => cache.dispose(), [cache]);
+  useAutoAnalysis(editor, cache);
   useShortcuts(editor, { onExport: () => setExporting(true), onHome: onClose });
 
   return (

@@ -1,5 +1,7 @@
 import { ALL_FORMATS, AudioBufferSink, Input, UrlSource, type InputAudioTrack } from "mediabunny";
+import { audible } from "../core/audio-plan";
 import { itemEnd, type MediaItem, type Project } from "../core/project";
+import { buildChain, createBus, loadWorklet, needsWorklet } from "./audio-graph";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
 
 export interface ExportProgress {
@@ -14,6 +16,10 @@ export interface ExportHandlers {
 }
 
 const RATE = 48_000;
+/** Seconds rendered before each chunk and thrown away, so stateful effects settle. */
+const PREROLL = 1.5;
+/** Room before time zero for processors that delay their output. */
+const LATENCY_ROOM = 0.02;
 
 /**
  * Runs an export: the worker renders and encodes video, this side mixes audio in chunks
@@ -82,58 +88,57 @@ export class Exporter {
     return t;
   }
 
-  /** Mix [from, from + seconds) of the timeline into stereo planes. */
+  /**
+   * Mix [from, from + seconds) of the timeline into stereo planes. Each chunk renders in a
+   * fresh context, so it starts a little early and drops that lead in: compressors, the
+   * noise model and echo tails then arrive at the chunk edge already settled.
+   */
   private async mix(from: number, seconds: number): Promise<Float32Array[]> {
     const p = this.project;
     const total = Math.min(seconds, Math.max(0, itemsEnd(p) / 1e6 - from));
-    const frames = Math.max(1, Math.round(total * RATE));
+    const lead = from === 0 ? LATENCY_ROOM : Math.min(from, PREROLL);
+    const frames = Math.max(1, Math.round((total + lead) * RATE));
     const ctx = new OfflineAudioContext(2, frames, RATE);
-    const winStart = from * 1e6, winEnd = (from + total) * 1e6;
+    const winStart = (from - lead) * 1e6, winEnd = (from + total) * 1e6;
 
-    const jobs: Promise<void>[] = [];
+    const items: MediaItem[] = [];
     for (const track of p.tracks) {
       if (track.muted) continue;
       for (const item of track.items) {
-        if (item.type !== "media" || item.reversed || item.freeze || item.volume <= 0) continue;
-        const media = p.media[item.mediaId];
-        if (!media?.hasAudio || itemEnd(item) <= winStart || item.start >= winEnd) continue;
-        jobs.push(this.place(ctx, item, winStart, winEnd));
+        if (item.type !== "media") continue;
+        if (!audible(item, p.media[item.mediaId]) || itemEnd(item) <= winStart || item.start >= winEnd) continue;
+        items.push(item);
       }
     }
-    await Promise.all(jobs);
+    if (items.some(needsWorklet)) await loadWorklet(ctx);
+    const bus = createBus(ctx, ctx.destination);
+    await Promise.all(items.map(item => this.place(ctx, bus, item, winStart, winEnd)));
     const out = await ctx.startRendering();
-    return [out.getChannelData(0), out.getChannelData(1)];
+    const skip = Math.round(lead * RATE);
+    return [out.getChannelData(0).slice(skip), out.getChannelData(1).slice(skip)];
   }
 
-  private async place(ctx: OfflineAudioContext, item: MediaItem, winStart: number, winEnd: number): Promise<void> {
+  private async place(ctx: OfflineAudioContext, bus: AudioNode, item: MediaItem, winStart: number, winEnd: number): Promise<void> {
     const track = await this.track(item.mediaId);
     if (!track) return;
+    const media = this.project.media[item.mediaId];
+    const at = (t: number) => Math.max(0, (t - winStart) / 1e6);
+    const chain = buildChain(ctx, this.project, item, media, { from: winStart, toCtx: at, now: 0 });
+    chain.output.connect(bus);
     const from = Math.max(winStart, item.start);
     const to = Math.min(winEnd, itemEnd(item));
     const srcFrom = (item.in + (from - item.start) * item.speed) / 1e6;
     const srcTo = (item.in + (to - item.start) * item.speed) / 1e6;
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    const at = (t: number) => Math.max(0, (t - winStart) / 1e6);
-    gain.gain.setValueAtTime(item.volume, 0);
-    if (item.fadeIn > 0) {
-      gain.gain.setValueAtTime(0, at(item.start));
-      gain.gain.linearRampToValueAtTime(item.volume, at(item.start + item.fadeIn));
-    }
-    if (item.fadeOut > 0) {
-      gain.gain.setValueAtTime(item.volume, at(itemEnd(item) - item.fadeOut));
-      gain.gain.linearRampToValueAtTime(0, at(itemEnd(item)));
-    }
     const sink = new AudioBufferSink(track);
     for await (const { buffer, timestamp } of sink.buffers(srcFrom, srcTo)) {
       const node = ctx.createBufferSource();
       node.buffer = buffer;
       node.playbackRate.value = item.speed;
-      node.connect(gain);
+      node.connect(chain.input);
       const offset = Math.max(0, srcFrom - timestamp);
       const tl = item.start + ((timestamp + offset) * 1e6 - item.in) / item.speed;
       const dur = Math.min(buffer.duration - offset, srcTo - (timestamp + offset));
-      if (dur > 0) node.start(at(tl), offset, dur);
+      if (dur > 0) node.start(Math.max(0, at(tl) - chain.latency), offset, dur);
     }
   }
 }

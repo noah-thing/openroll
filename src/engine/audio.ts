@@ -1,6 +1,8 @@
 import { ALL_FORMATS, AudioBufferSink, Input, UrlSource, type InputAudioTrack } from "mediabunny";
 import type { MediaItem, MediaRef, Micros, Project } from "../core/project";
 import { itemEnd } from "../core/project";
+import { audible } from "../core/audio-plan";
+import { buildChain, createBus, loadWorklet, type ItemChain } from "./audio-graph";
 
 /** Seconds of audio scheduled ahead of what is playing. */
 const LEAD = 1.2;
@@ -10,7 +12,9 @@ const START_DELAY = 0.08;
 interface Voice {
   cancelled: boolean;
   nodes: Set<AudioBufferSourceNode>;
+  /** Fades the voice out when playback stops. */
   gain: GainNode;
+  chain: ItemChain;
 }
 
 /**
@@ -27,9 +31,12 @@ export class AudioEngine {
   private startT: Micros = 0;
   private running = false;
   private timers: number[] = [];
+  private project: Project | null = null;
+  private workletReady: Promise<void>;
 
   constructor() {
-    this.master.connect(this.ctx.destination);
+    this.master.connect(createBus(this.ctx, this.ctx.destination));
+    this.workletReady = loadWorklet(this.ctx).catch(err => console.warn("audio worklet failed to load", err));
   }
 
   get playing(): boolean {
@@ -57,15 +64,17 @@ export class AudioEngine {
   async play(p: Project, t: Micros, urls: Record<string, string>): Promise<void> {
     this.stop();
     if (this.ctx.state !== "running") await this.ctx.resume();
+    await this.workletReady;
+    this.project = p;
     this.running = true;
     this.startT = t;
     this.startCtx = this.ctx.currentTime + START_DELAY;
     for (const track of p.tracks) {
       if (track.muted) continue;
       for (const item of track.items) {
-        if (item.type !== "media" || item.reversed || item.freeze || item.volume <= 0) continue;
+        if (item.type !== "media") continue;
         const media = p.media[item.mediaId];
-        if (!media?.hasAudio || itemEnd(item) <= t || !urls[media.id]) continue;
+        if (!audible(item, media) || itemEnd(item) <= t || !urls[media.id]) continue;
         const lead = (item.start - t) / 1e6 - LEAD * 2;
         if (lead > 0) this.timers.push(window.setTimeout(() => this.running && this.startVoice(item, media, urls[media.id]), lead * 1000));
         else this.startVoice(item, media, urls[media.id]);
@@ -88,7 +97,10 @@ export class AudioEngine {
       }
       // fade the voice out over a few ms instead of cutting, which clicks
       v.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.005);
-      setTimeout(() => v.gain.disconnect(), 60);
+      setTimeout(() => {
+        v.gain.disconnect();
+        v.chain.output.disconnect();
+      }, 60);
     }
     this.voices = [];
   }
@@ -115,24 +127,17 @@ export class AudioEngine {
   private startVoice(item: MediaItem, media: MediaRef, url: string): void {
     const gain = this.ctx.createGain();
     gain.connect(this.master);
-    const voice: Voice = { cancelled: false, nodes: new Set(), gain };
+    let chain: ItemChain;
+    try {
+      chain = buildChain(this.ctx, this.project!, item, media, { from: this.startT, toCtx: t => this.ctxTimeFor(t), now: this.ctx.currentTime });
+    } catch (err) {
+      console.warn("audio chain failed", err);
+      return;
+    }
+    chain.output.connect(gain);
+    const voice: Voice = { cancelled: false, nodes: new Set(), gain, chain };
     this.voices.push(voice);
-    this.scheduleFades(item, gain);
     void this.runVoice(voice, item, media, url).catch(err => console.warn("audio voice stopped", err));
-  }
-
-  private scheduleFades(item: MediaItem, gain: GainNode): void {
-    const g = gain.gain;
-    const at = (t: Micros) => Math.max(this.ctx.currentTime, this.ctxTimeFor(t));
-    g.setValueAtTime(item.fadeIn > 0 && this.startT < item.start + item.fadeIn ? 0 : item.volume, this.ctx.currentTime);
-    if (item.fadeIn > 0 && this.startT < item.start + item.fadeIn) {
-      g.setValueAtTime(0, at(item.start));
-      g.linearRampToValueAtTime(item.volume, at(item.start + item.fadeIn));
-    }
-    if (item.fadeOut > 0) {
-      g.setValueAtTime(item.volume, at(itemEnd(item) - item.fadeOut));
-      g.linearRampToValueAtTime(0, at(itemEnd(item)));
-    }
   }
 
   private async runVoice(voice: Voice, item: MediaItem, media: MediaRef, url: string): Promise<void> {
@@ -147,11 +152,12 @@ export class AudioEngine {
       if (voice.cancelled) break;
       // timeline position of this buffer's first sample
       const tl = item.start + ((timestamp * 1e6 - item.in) / item.speed);
-      let when = this.ctxTimeFor(tl);
+      const lead = voice.chain.latency;
+      let when = this.ctxTimeFor(tl) - lead;
       let offset = 0;
       if (timestamp < srcStart) {
         offset = srcStart - timestamp;
-        when = this.ctxTimeFor(from);
+        when = this.ctxTimeFor(from) - lead;
       }
       const remaining = srcEnd - (timestamp + offset);
       const duration = Math.min(buffer.duration - offset, remaining);
@@ -166,7 +172,7 @@ export class AudioEngine {
       const node = this.ctx.createBufferSource();
       node.buffer = buffer;
       node.playbackRate.value = item.speed;
-      node.connect(voice.gain);
+      node.connect(voice.chain.input);
       node.onended = () => voice.nodes.delete(node);
       node.start(when, offset, Math.max(0, duration - (late > 0 ? late * item.speed : 0)));
       voice.nodes.add(node);

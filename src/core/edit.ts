@@ -21,7 +21,7 @@ import {
 /** Smallest item we allow after a trim, so a clip never collapses to nothing. */
 export const MIN_ITEM: Micros = 100_000;
 
-function draft(p: Project): Project {
+export function draft(p: Project): Project {
   const next = structuredClone(p);
   next.modified = Date.now();
   return next;
@@ -38,7 +38,7 @@ export function packMain(track: Track): void {
   }
 }
 
-function sortTrack(track: Track): void {
+export function sortTrack(track: Track): void {
   track.items.sort((a, b) => a.start - b.start);
 }
 
@@ -60,7 +60,7 @@ function trackKindFor(item: Item, p: Project): TrackKind {
  * for, then the nearest ones above it. Creates a new track when every lane is busy,
  * which is what people expect when they drop a clip onto something.
  */
-function freeTrack(p: Project, kind: TrackKind, start: Micros, end: Micros, preferId?: string, ignore?: string): Track {
+export function freeTrack(p: Project, kind: TrackKind, start: Micros, end: Micros, preferId?: string, ignore?: string): Track {
   const preferred = p.tracks.find(t => t.id === preferId);
   if (preferred && preferred.kind === kind && !preferred.main && !overlaps(preferred, start, end, ignore)) return preferred;
   const candidates = p.tracks.filter(t => t.kind === kind && !t.main && !t.locked);

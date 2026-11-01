@@ -1,4 +1,5 @@
 import type { Micros, Project, Track } from "../../../core/project";
+import { allBeats } from "../../../core/audio-edit";
 import { itemEnd } from "../../../core/project";
 
 export const HEAD_W = 132;
@@ -38,6 +39,7 @@ export function snapPoints(p: Project, playhead: Micros, exclude: Set<string>): 
     if (exclude.has(i.id)) continue;
     out.push(i.start, itemEnd(i));
   }
+  out.push(...allBeats(p, exclude));
   return out;
 }
 

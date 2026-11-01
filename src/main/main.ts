@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, shell, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, session, shell, type MenuItemConstructorOptions } from "electron";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
@@ -16,6 +16,12 @@ protocol.registerSchemesAsPrivileged([
   mediaScheme,
 ]);
 
+if (process.env.OPENROLL_QA) {
+  // Lets the voiceover recorder run on machines without a microphone, such as CI.
+  app.commandLine.appendSwitch("use-fake-device-for-media-stream");
+  app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+}
+
 if (process.platform === "linux") {
   // Hardware video decode on Linux is opt in for Chromium. These are harmless where VA-API is absent.
   app.commandLine.appendSwitch("enable-features", "AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiVideoDecoder");
@@ -31,6 +37,10 @@ function projectsDir(): string {
 
 function cacheDir(): string {
   return join(app.getPath("userData"), "cache");
+}
+
+function recordingsDir(): string {
+  return join(projectsDir(), "Recordings");
 }
 
 function thumbsDir(): string {
@@ -253,6 +263,27 @@ function registerIpc(): void {
     return readFile(join(cacheDir(), key)).catch(() => null);
   });
 
+  ipcMain.handle("recordings:save", async (_e, name: unknown, ext: unknown, data: unknown): Promise<FileInfo | null> => {
+    if (typeof name !== "string" || ext !== "wav" || !(data instanceof Uint8Array) || data.byteLength > 2 ** 31) return null;
+    const dir = recordingsDir();
+    await mkdir(dir, { recursive: true });
+    const clean = name.replace(/[\\/:*?"<>|]/g, "_").trim() || "Recording";
+    let path = join(dir, `${clean}.${ext}`);
+    for (let n = 2; existsSync(path); n++) path = join(dir, `${clean} ${n}.${ext}`);
+    await writeFile(path, data);
+    allowPath(path);
+    return info(path);
+  });
+
+  // Files OpenRoll made itself (generated sound effects) become readable media.
+  ipcMain.handle("cache:file", async (_e, key: unknown): Promise<FileInfo | null> => {
+    if (typeof key !== "string" || !/^[\w.-]+$/.test(key)) return null;
+    const path = join(cacheDir(), key);
+    const i = await info(path);
+    if (i) allowPath(path);
+    return i;
+  });
+
   ipcMain.handle("cache:put", async (_e, key: unknown, data: unknown) => {
     if (typeof key !== "string" || !/^[\w.-]+$/.test(key) || !(data instanceof Uint8Array)) return;
     await mkdir(cacheDir(), { recursive: true });
@@ -355,8 +386,23 @@ function buildMenu(): void {
 
 // ---------------------------------------------------------------- lifecycle
 
+/** The microphone is the only device the page may ask for, and only from our own pages. */
+function guardMicrophone(): void {
+  const ours = (url: string) => url.startsWith(`${APP_SCHEME}://app/`) || (!!process.env.OPENROLL_DEV_URL && url.startsWith(process.env.OPENROLL_DEV_URL));
+  const s = session.defaultSession;
+  s.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    const types = (details as { mediaTypes?: string[] }).mediaTypes ?? [];
+    callback(permission === "media" && ours(details.requestingUrl) && types.includes("audio") && !types.includes("video"));
+  });
+  s.setPermissionCheckHandler((_wc, permission, origin, details) => {
+    const type = (details as { mediaType?: string }).mediaType;
+    return permission === "media" && ours(origin + "/") && type !== "video";
+  });
+}
+
 app.whenReady().then(() => {
   nativeTheme.themeSource = "dark";
+  guardMicrophone();
   handleMediaProtocol();
   serveApp();
   registerIpc();

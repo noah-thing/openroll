@@ -53,7 +53,12 @@ export interface OpenRollApi {
   cache: {
     get(key: string): Promise<Uint8Array | null>;
     put(key: string, data: Uint8Array): Promise<void>;
+    /** A cached file as importable media, or null if it does not exist. */
+    file(key: string): Promise<FileInfo | null>;
   };
+
+  /** Saves a finished recording next to the projects and returns it as importable media. */
+  saveRecording(name: string, ext: "wav", data: Uint8Array): Promise<FileInfo | null>;
 
   onMenu(handler: (command: string) => void): () => void;
   setTitle(title: string): void;
