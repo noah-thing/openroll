@@ -10,7 +10,7 @@ const keep = process.argv.includes("--keep");
 const userData = await mkdtemp(join(tmpdir(), "openroll-qa-"));
 const app = await electron.launch({
   args: [resolve("."), `--user-data-dir=${userData}`],
-  env: { ...process.env, OPENROLL_QA: "1" },
+  env: { ...process.env, OPENROLL_QA: "1", OPENROLL_PROJECTS_DIR: join(userData, "projects") },
 });
 const page = await app.firstWindow();
 page.on("console", m => {

@@ -26,7 +26,7 @@ const MEDIA_EXT = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mts", "m2ts", "3g
 let win: BrowserWindow | null = null;
 
 function projectsDir(): string {
-  return join(app.getPath("videos"), "OpenRoll");
+  return process.env.OPENROLL_PROJECTS_DIR ?? join(app.getPath("videos"), "OpenRoll");
 }
 
 function cacheDir(): string {
@@ -152,7 +152,9 @@ function registerIpc(): void {
       kind === "subtitles" ? [{ name: "Subtitles", extensions: ["srt", "vtt"] }] :
       kind === "image" ? [{ name: "Image", extensions: ["png", "jpg"] }] :
       [{ name: "Video", extensions: ["mp4", "mov", "webm"] }];
-    const r = await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
+    const r = process.env.OPENROLL_QA_OUT
+      ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, name + ".mp4") }
+      : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
     if (r.canceled || !r.filePath) return null;
     // Write to a temp name and rename on close, so a failed export never leaves a broken file
     // with the real name, and never clobbers an old export until the new one is complete.
