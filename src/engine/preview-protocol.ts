@@ -6,7 +6,8 @@ export type PreviewIn =
   | { type: "size"; width: number; height: number }
   /** `at` is wall time in ms (timeOrigin + now) when the timeline was at `t` microseconds. */
   | { type: "clock"; playing: boolean; t: number; at: number; rate: number }
-  | { type: "snapshot"; id: number; t: number };
+  /** `bare` names an item to draw without its filter, effects, mask and key. */
+  | { type: "snapshot"; id: number; t: number; bare?: string };
 
 export type PreviewOut =
   | { type: "ready" }

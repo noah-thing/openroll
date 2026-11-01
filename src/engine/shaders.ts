@@ -20,42 +20,174 @@ void main() {
 }`;
 
 // Sliders are -1..1 here; the UI's -100..100 is divided down before upload.
+// Order: key, filter, adjust, curves, colour bands, vignette, grain, mask.
 export const LAYER_FS = /* glsl */ `#version 300 es
 precision highp float;
+precision highp sampler3D;
 in vec2 v_uv;
 in vec2 v_local;
 uniform sampler2D u_tex;
+uniform sampler3D u_lut;
+uniform sampler2D u_curves;
 uniform float u_opacity;
 uniform bool u_premultiplied;
-uniform float u_exposure, u_contrast, u_saturation, u_temperature, u_tint, u_highlights, u_shadows, u_vignette;
+uniform vec4 u_g0; // exposure, contrast, saturation, temperature
+uniform vec4 u_g1; // tint, highlights, shadows, fade
+uniform float u_vignette, u_grain, u_time;
+uniform vec2 u_boxPx;
 uniform vec4 u_tintColor; // solid colour layers: rgb, and a = 1 to use it instead of the texture
 uniform float u_feather;  // soft edge in local units, for picture in picture
 uniform float u_radius;   // rounded corners in local units
+
+uniform int u_fMode;      // 0 none, 1 recipe, 2 LUT
+uniform float u_fAmount;
+uniform vec4 u_f0, u_f1;  // same layout as u_g0, u_g1
+uniform vec4 u_f2;        // vignette, grain, mono, unused
+uniform vec3 u_fLow, u_fHigh;
+
+uniform bool u_curvesOn;
+uniform bool u_hslOn;
+uniform vec3 u_hsl[8];
+
+uniform bool u_keyOn;
+uniform vec3 u_keyColor;
+uniform vec3 u_keyParams; // similarity, smoothness, spill
+
+uniform int u_maskShape;  // 0 off, 1 rect, 2 ellipse, 3 linear, 4 mirror
+uniform vec4 u_maskRect;  // centre x, y, width, height as box fractions
+uniform vec3 u_maskParams; // rotation (radians), feather, invert
 out vec4 outColor;
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+vec3 grade(vec3 rgb, vec4 a, vec4 b) {
+  rgb *= exp2(a.x * 2.0);
+  rgb.r *= 1.0 + a.w * 0.18;
+  rgb.b *= 1.0 - a.w * 0.18;
+  rgb.g *= 1.0 + b.x * 0.12;
+  float l = luma(rgb);
+  rgb += b.z * 0.35 * (1.0 - smoothstep(0.0, 0.5, l)) * (1.0 - l);
+  rgb += b.y * 0.35 * smoothstep(0.5, 1.0, l) * l;
+  rgb = (rgb - 0.5) * (1.0 + a.y) + 0.5;
+  rgb = mix(vec3(luma(rgb)), rgb, 1.0 + a.z);
+  rgb = mix(rgb, rgb * 0.82 + 0.14, b.w);
+  return rgb;
+}
+
+vec3 rgb2hsv(vec3 c) {
+  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+vec3 hsv2rgb(vec3 c) {
+  vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+
+// Hue centres of the eight bands, in turns.
+const float BAND[8] = float[8](0.0, 0.0833, 0.1667, 0.3333, 0.5, 0.6667, 0.7778, 0.8889);
+
+vec3 bands(vec3 rgb) {
+  vec3 hsv = rgb2hsv(rgb);
+  float dh = 0.0, ds = 0.0, dl = 0.0;
+  for (int i = 0; i < 8; i++) {
+    float d = abs(hsv.x - BAND[i]);
+    d = min(d, 1.0 - d);
+    float w = 1.0 - smoothstep(0.0, 0.1, d);
+    w *= smoothstep(0.02, 0.2, hsv.y);
+    dh += w * u_hsl[i].x;
+    ds += w * u_hsl[i].y;
+    dl += w * u_hsl[i].z;
+  }
+  hsv.x = fract(hsv.x + dh * 0.1);
+  hsv.y = clamp(hsv.y * (1.0 + ds), 0.0, 1.0);
+  hsv.z = clamp(hsv.z * (1.0 + dl * 0.6), 0.0, 1.0);
+  return hsv2rgb(hsv);
+}
+
+vec2 cbcr(vec3 c) {
+  return vec2(-0.168736 * c.r - 0.331264 * c.g + 0.5 * c.b, 0.5 * c.r - 0.418688 * c.g - 0.081312 * c.b);
+}
+
+float maskCoverage() {
+  vec2 p = (v_local - 0.5 - u_maskRect.xy) * u_boxPx;
+  float c = cos(-u_maskParams.x), s = sin(-u_maskParams.x);
+  vec2 q = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+  vec2 h = u_maskRect.zw * u_boxPx * 0.5;
+  float d;
+  if (u_maskShape == 1) {
+    vec2 a = abs(q) - h;
+    d = length(max(a, 0.0)) + min(max(a.x, a.y), 0.0);
+  } else if (u_maskShape == 2) {
+    d = (length(q / max(h, vec2(1e-4))) - 1.0) * min(h.x, h.y);
+  } else if (u_maskShape == 3) {
+    d = -q.y;
+  } else {
+    d = abs(q.y) - h.y;
+  }
+  float f = max(u_maskParams.y * min(u_boxPx.x, u_boxPx.y) * 0.5, 1.0);
+  float inside = 1.0 - smoothstep(-f, f, d);
+  return u_maskParams.z > 0.5 ? 1.0 - inside : inside;
+}
 
 void main() {
   vec4 c = u_tintColor.a > 0.5 ? vec4(u_tintColor.rgb, 1.0) : texture(u_tex, v_uv);
   if (u_premultiplied && c.a > 0.0) c.rgb /= c.a;
-
   vec3 rgb = c.rgb;
-  rgb *= exp2(u_exposure * 2.0);
-  rgb.r *= 1.0 + u_temperature * 0.18;
-  rgb.b *= 1.0 - u_temperature * 0.18;
-  rgb.g *= 1.0 + u_tint * 0.12;
-  float l = luma(rgb);
-  rgb += u_shadows * 0.35 * (1.0 - smoothstep(0.0, 0.5, l)) * (1.0 - l);
-  rgb += u_highlights * 0.35 * smoothstep(0.5, 1.0, l) * l;
-  rgb = (rgb - 0.5) * (1.0 + u_contrast) + 0.5;
-  rgb = mix(vec3(luma(rgb)), rgb, 1.0 + u_saturation);
-  if (u_vignette != 0.0) {
+  float alpha = c.a;
+
+  if (u_keyOn) {
+    float thr = u_keyParams.x * 0.4;
+    float soft = u_keyParams.y * 0.3 + 0.0001;
+    float d = distance(cbcr(rgb), cbcr(u_keyColor));
+    alpha *= smoothstep(thr, thr + soft, d);
+    vec3 dir = u_keyColor - luma(u_keyColor);
+    dir = dir / (length(dir) + 1e-5);
+    float spill = max(0.0, dot(rgb - luma(rgb), dir));
+    rgb -= dir * spill * u_keyParams.z;
+  }
+
+  float vig = u_vignette;
+  float grain = u_grain;
+  if (u_fMode == 1) {
+    vec3 f = grade(rgb, u_f0, u_f1);
+    float l = luma(f);
+    f += u_fLow * (1.0 - smoothstep(0.0, 0.6, l)) + u_fHigh * smoothstep(0.4, 1.0, l);
+    f = mix(f, vec3(luma(f)), u_f2.z);
+    rgb = mix(rgb, f, u_fAmount);
+    vig += u_f2.x * u_fAmount;
+    grain += u_f2.y * u_fAmount;
+  } else if (u_fMode == 2) {
+    vec3 f = texture(u_lut, clamp(rgb, 0.0, 1.0) * (1.0 - 1.0 / float(textureSize(u_lut, 0).x)) + 0.5 / float(textureSize(u_lut, 0).x)).rgb;
+    rgb = mix(rgb, f, u_fAmount);
+  }
+
+  rgb = grade(rgb, u_g0, u_g1);
+  rgb = clamp(rgb, 0.0, 1.0);
+  if (u_curvesOn) {
+    rgb = vec3(texture(u_curves, vec2(rgb.r * 0.99609 + 0.00195, 0.5)).r, texture(u_curves, vec2(rgb.g * 0.99609 + 0.00195, 0.5)).g, texture(u_curves, vec2(rgb.b * 0.99609 + 0.00195, 0.5)).b);
+  }
+  if (u_hslOn) rgb = bands(rgb);
+  if (vig != 0.0) {
     float d = distance(v_local, vec2(0.5));
-    rgb *= 1.0 - u_vignette * smoothstep(0.35, 0.85, d);
+    rgb *= 1.0 - vig * smoothstep(0.35, 0.85, d);
+  }
+  if (grain > 0.0) {
+    vec2 cell = floor(v_local * u_boxPx / 2.0) + floor(u_time * 24.0) * 17.0;
+    float n = hash12(cell) - 0.5;
+    rgb += n * grain * 0.3 * (1.0 - abs(luma(rgb) - 0.5));
   }
   rgb = clamp(rgb, 0.0, 1.0);
 
-  float a = c.a * u_opacity;
+  float a = alpha * u_opacity;
+  if (u_maskShape > 0) a *= maskCoverage();
   if (u_radius > 0.0 || u_feather > 0.0) {
     vec2 q = abs(v_local - 0.5) - (0.5 - u_radius - u_feather);
     float dist = length(max(q, 0.0)) - u_radius;

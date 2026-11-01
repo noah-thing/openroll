@@ -2,8 +2,8 @@
 // visuals bottom to top, plus which source frames they need. The preview and the
 // exporter both draw from this, so they cannot disagree about a frame.
 
-import { valueAt } from "./animate";
-import type { BlendMode, CaptionItem, ColorItem, Crop, Item, MediaItem, MediaRef, Micros, Project, TextItem, Track } from "./project";
+import { sample, valueAt } from "./animate";
+import type { BlendMode, CaptionItem, ChromaKey, ColorItem, Crop, Curves, Fill, Hsl, Item, Mask, MediaItem, MediaRef, Micros, Project, TextItem, Track } from "./project";
 import { itemEnd } from "./project";
 
 export interface Placement {
@@ -18,6 +18,23 @@ export interface Placement {
   crop?: Crop;
   blend?: BlendMode;
   adjust?: Record<string, number>;
+  filter?: { id: string; amount: number };
+  curves?: Curves;
+  hsl?: Hsl;
+  effects?: PlacedEffect[];
+  mask?: Mask;
+  chroma?: ChromaKey;
+  fill?: Fill;
+  /** Seconds into the item, for effects that move. */
+  time: number;
+}
+
+export interface PlacedEffect {
+  id: string;
+  kind: string;
+  amount: number;
+  speed: number;
+  style: number;
 }
 
 export type Visual =
@@ -96,6 +113,11 @@ export function fitSize(p: Project, media: MediaRef): { width: number; height: n
   return { width: w * k, height: h * k };
 }
 
+/** Keyframe path for one numeric field of an effect. Effects are found by id, not by position. */
+export function effectKey(id: string, field: "amount"): string {
+  return `fx:${id}:${field}`;
+}
+
 function placement(p: Project, item: Item, local: Micros, media?: MediaRef): Placement {
   const base = media ? fitSize(p, media) : { width: p.settings.width, height: p.settings.height };
   const s = valueAt(item, "transform.scale", local);
@@ -107,14 +129,31 @@ function placement(p: Project, item: Item, local: Micros, media?: MediaRef): Pla
     rotation: valueAt(item, "transform.rotation", local),
     opacity: valueAt(item, "transform.opacity", local),
     animScale: 1,
+    time: local / 1e6,
   };
   if (item.type === "media") {
     place.crop = item.crop;
     place.blend = item.blend;
-    if (item.adjust) {
+    const names = new Set(Object.keys(item.adjust ?? {}));
+    for (const path of Object.keys(item.keyframes ?? {})) if (path.startsWith("adjust.")) names.add(path.slice(7));
+    if (names.size) {
       const adjust: Record<string, number> = {};
-      for (const k of Object.keys(item.adjust)) adjust[k] = valueAt(item, "adjust." + k, local);
+      for (const k of names) adjust[k] = valueAt(item, "adjust." + k, local);
       place.adjust = adjust;
+    }
+    if (item.filter) place.filter = { id: item.filter.id, amount: valueAt(item, "filter.amount", local) };
+    place.curves = item.curves;
+    place.hsl = item.hsl;
+    place.mask = item.mask;
+    place.chroma = item.chroma;
+    place.fill = item.fill;
+    if (item.effects?.length) {
+      place.effects = item.effects
+        .filter(e => !e.off)
+        .map(e => {
+          const keys = item.keyframes?.[effectKey(e.id, "amount")];
+          return { id: e.id, kind: e.kind, amount: keys?.length ? sample(keys, local) : e.amount, speed: e.params?.speed ?? 1, style: e.params?.style ?? 0 };
+        });
     }
   }
   applyAnimation(place, item, local, p);
