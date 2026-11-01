@@ -57,20 +57,20 @@ export function notes(p: Project): string[] {
   const covered = visual.filter(i => i.type === "media" || i.type === "color").map(i => [i.start, itemEnd(i)] as const).sort((a, b) => a[0] - b[0]);
   let at = 0;
   for (const [a, b] of covered) {
-    if (a - at > 200_000 && at < pictureEnd) out.push(`Nothing on screen from ${sec(at)} s to ${sec(a)} s.`);
+    if (a - at > 200_000 && at < pictureEnd) out.push(`Nothing on screen from ${sec(at)} s to ${sec(a)} s. Close it with remove_range {from: ${sec(at)}, to: ${sec(a)}} or fill it.`);
     at = Math.max(at, b);
   }
   const W = p.settings.width / 2, H = p.settings.height / 2;
   for (const i of visual) {
     if ((i.type === "text" || i.type === "caption") && (Math.abs(i.transform.x) > W * 0.9 || Math.abs(i.transform.y) > H * 0.9)) {
-      out.push(`Text ${i.id} sits at the frame edge or outside it (x ${Math.round(i.transform.x)}, y ${Math.round(i.transform.y)}).`);
+      out.push(`Text ${i.id} sits at the frame edge or outside it (x ${Math.round(i.transform.x)}, y ${Math.round(i.transform.y)}). Move it with set {x, y} toward 0.`);
     }
   }
   const texts = visual.filter(i => i.type === "text");
   const caps = visual.filter(i => i.type === "caption");
   for (const t of texts) {
     const clash = caps.find(c => c.start < itemEnd(t) && itemEnd(c) > t.start && Math.abs(c.transform.y - t.transform.y) < p.settings.height * 0.12);
-    if (clash) out.push(`Title ${t.id} and caption ${clash.id} overlap in time and sit at nearly the same height.`);
+    if (clash) out.push(`Title ${t.id} and caption ${clash.id} overlap in time and sit at nearly the same height. Move the title with set {y}.`);
   }
   return out;
 }

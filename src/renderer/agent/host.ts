@@ -20,6 +20,9 @@ export const agentContext = {
   open: null as ((p: Project, path: string | null) => void) | null,
 };
 
+/** Projects whose frame the AI chose on purpose; importing must not reshape them. */
+const framed = new WeakSet<Editor>();
+
 type Handler = (params: Record<string, unknown>, client: string) => Promise<unknown>;
 
 const sec = (us: number) => Math.round(us / 1000) / 1000;
@@ -80,6 +83,7 @@ const handlers: Record<string, Handler> = {
     const fps = typeof params.fps === "number" ? params.fps : 30;
     const p = createProject(String(params.name ?? "Untitled"), { width, height, fps: Number.isInteger(fps) ? { num: fps, den: 1 } : { num: Math.round(fps * 1001), den: 1001 } });
     const e = await openProject(p, null);
+    if (params.ratio || params.fps) framed.add(e);
     return { name: e.project.name, frame: { width, height, fps } };
   },
 
@@ -89,8 +93,14 @@ const handlers: Record<string, Handler> = {
     const files = await window.openroll.agent.allow(paths);
     const missing = paths.filter(p => !files.some(f => f.path === p));
     const append = params.place === "append";
-    const refs = await importFiles(e, files, { place: append, ...(append ? { at: projectDuration(e.project) } : {}) });
+    const before = e.project;
+    const refs = await importFiles(e, files, { place: append, keepFrame: framed.has(e), ...(append ? { at: projectDuration(e.project) } : {}) });
+    const known = new Set(before.tracks.flatMap(t => t.items.map(i => i.id)));
+    const placed = e.project.tracks.flatMap(t => t.items.filter(i => i.type === "media" && !known.has(i.id)).map(i => ({ id: i.id, media: i.type === "media" ? i.mediaId : "", start: sec(i.start), end: sec(itemEnd(i)), track: t.id })));
+    const s = e.project.settings;
     return {
+      ...(append || placed.length ? { placed } : {}),
+      ...(s.width !== before.settings.width || s.height !== before.settings.height ? { frame: `${s.width}x${s.height}`, note: "The empty project took the shape of the first clip. Use the project op to change it." } : {}),
       media: refs.map(r => ({ id: r.id, name: r.name, kind: r.kind, duration: sec(r.duration), ...(r.width ? { size: `${r.width}x${r.height}` } : {}), path: r.path })),
       ...(missing.length ? { notFound: missing } : {}),
     };
@@ -99,14 +109,17 @@ const handlers: Record<string, Handler> = {
   async "media.analyze"(params) {
     const e = editor();
     const m = e.project.media[String(params.media)];
-    if (!m) throw new Error(`No media ${params.media}.`);
+    if (!m) throw new Error(`No media ${params.media}. Media ids come from import_media or get_project.`);
     const cache = agentContext.cache;
     const analysis = m.hasAudio && cache ? await waitFor(() => cache.analysis(m), 120_000, "the audio analysis") : null;
+    // cut_to_beat reads the beats off the media; do not leave that to the effect that follows the cache.
+    if (analysis && m.loudness === undefined) e.annotateMedia(m.id, { loudness: analysis.lufs ?? -70, speech: analysis.speech, beats: analysis.beats, bpm: analysis.bpm ?? undefined });
     const speech: [number, number][] = [];
     if (analysis) for (let i = 0; i + 1 < analysis.speech.length; i += 2) speech.push([sec(analysis.speech[i]), sec(analysis.speech[i + 1])]);
     return {
       id: m.id, name: m.name, kind: m.kind, duration: sec(m.duration),
       ...(m.width ? { size: `${m.width}x${m.height}`, fps: m.fps } : {}),
+      ...(m.kind === "audio" && analysis && !analysis.beats.length ? { note: "No steady beat found, so cut_to_beat will not work on this. Cut by hand on the loudest moments or at even steps." } : {}),
       ...(analysis ? { loudness: analysis.lufs === null ? "silent" : `${analysis.lufs.toFixed(1)} LUFS`, speech, bpm: analysis.bpm, beats: analysis.beats.map(sec) } : {}),
     };
   },
@@ -116,7 +129,7 @@ const handlers: Record<string, Handler> = {
     const id = String(params.clip ?? params.media ?? "");
     const found = findItem(e.project, id);
     const target = found ? listenTargets(e.project, [found.item.id])[0] : undefined;
-    if (!target) throw new Error("Pass the id of a clip on the timeline that has sound.");
+    if (!target) throw new Error(`${id || "No id"} is not a clip with sound on the timeline. Pass a video or audio clip id from get_project.`);
     const words = await captionService(e).listen([target], { language: typeof params.language === "string" ? params.language : null, model: "base" });
     if (!words) throw new Error("Transcription stopped.");
     return { clip: target.item.id, words: (words.get(target.item.id) ?? []).map(w => [w.text, sec(w.start), sec(w.end)]), note: "Word times are on the timeline, in seconds." };
@@ -129,7 +142,7 @@ const handlers: Record<string, Handler> = {
     const paths = [...new Set(ops.flatMap(o => (o.op === "add_clip" && /[\\/]/.test(o.media) && !e.project.media[o.media] ? [o.media] : [])))];
     if (paths.length) {
       const files = await window.openroll.agent.allow(paths);
-      await importFiles(e, files, { place: false });
+      await importFiles(e, files, { place: false, keepFrame: framed.has(e) });
     }
     const before = e.project;
     let out: ReturnType<typeof applyOps>;
@@ -154,13 +167,14 @@ const handlers: Record<string, Handler> = {
       position: (["top", "middle", "lower"].includes(String(params.position)) ? params.position : "lower") as "top" | "middle" | "lower",
     });
     const after = allCaptions(e.project);
+    if (after.length === before) return { captions: after.length, added: 0, note: "No speech was found on the timeline, so nothing was added. Check that a clip with talking is on it." };
     return { captions: after.length, added: after.length - before, first: after.slice(0, 3).map(c => ({ id: c.id, at: sec(c.start), text: c.words.map(w => w.text).join(" ") })) };
   },
 
   async smartcut(params, client) {
     const e = editor();
     const found = findItem(e.project, String(params.clip));
-    if (!found || found.item.type !== "media") throw new Error("Pass a clip id from the main track.");
+    if (!found || found.item.type !== "media") throw new Error("smart_cut needs the id of a video clip with speech; get_project lists them.");
     const item = found.item;
     const service = captionService(e);
     let words = service.heard(item) ?? service.fromCaptions(item);
@@ -195,6 +209,7 @@ const handlers: Record<string, Handler> = {
   async "render.frame"(params) {
     const e = editor();
     const t = Math.round(Number(params.at ?? 0) * S);
+    if (t > projectDuration(e.project)) throw new Error(`${params.at} s is past the end of the project, which is ${sec(projectDuration(e.project))} s long.`);
     const width = Math.min(1920, Math.max(160, Number(params.width ?? 960)));
     const data = await frameJpeg(e, t, width, 0.86);
     const on = buildScene(e.project, t).flatMap(n => (n.kind === "visual" ? [n.visual] : [n.a, n.b]));
@@ -347,7 +362,7 @@ function diff(before: Project, after: Project) {
   const added = [...b.keys()].filter(id => !a.has(id));
   const removed = [...a.keys()].filter(id => !b.has(id));
   const modified = [...b.keys()].filter(id => a.has(id) && a.get(id) !== b.get(id));
-  return { added, removed, modified, ...(before.settings !== after.settings ? { frame: `${after.settings.width}x${after.settings.height}` } : {}) };
+  return { added, removed, modified, ...(before.settings.width !== after.settings.width || before.settings.height !== after.settings.height ? { frame: `${after.settings.width}x${after.settings.height}` } : {}) };
 }
 
 let started = false;

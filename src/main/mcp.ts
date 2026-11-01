@@ -140,7 +140,7 @@ export async function runMcp(): Promise<void> {
   }, run("projects.new"));
 
   server.registerTool("import_media", {
-    description: "Add video, audio or image files (absolute paths) to the project. place \"append\" also puts them at the end of the timeline in order. Returns media ids.",
+    description: "Add video, audio or image files (absolute paths) to the project. place \"append\" also puts them at the end of the timeline in order. Returns media ids, and with \"append\" the clip ids and times it placed. The first clip into an empty project sets its frame shape, unless new_project was given a ratio.",
     inputSchema: { paths: z.array(z.string()).min(1), place: z.enum(["library", "append"]).optional() },
   }, run("media.import"));
 
@@ -162,7 +162,7 @@ export async function runMcp(): Promise<void> {
   }, run("edit.apply"));
 
   server.registerTool("captions", {
-    description: "Transcribe the timeline's speech and place styled captions, replacing earlier ones in the same span.",
+    description: "Transcribe the timeline's speech and place styled captions, replacing earlier ones in the same span. Returns the caption ids and how many were added; says so when it heard no speech.",
     inputSchema: {
       style: z.string().optional().describe("caption style id from the catalog"),
       highlight: z.boolean().optional().describe("colour the word being spoken"),
@@ -177,7 +177,7 @@ export async function runMcp(): Promise<void> {
   }, run("smartcut"));
 
   server.registerTool("make_vertical", {
-    description: "Reframe a clip on its subject with keyframes so it fills the current frame shape (use after project ratio 9:16).",
+    description: "Reframe a clip on its subject with keyframes so it fills the current frame shape (use after the project is 9:16). Can take up to a minute the first time, and says when it found nobody and centred the clip.",
     inputSchema: { clip: z.string() },
   }, run("ai.reframe"));
 
@@ -210,7 +210,7 @@ export async function runMcp(): Promise<void> {
     description: "Render the finished video. Waits until done and returns the file, size and time taken.",
     inputSchema: {
       path: z.string().optional().describe("absolute .mp4 path; omit for the Videos folder"),
-      resolution: z.enum(["720", "1080", "1440", "2160"]).optional(),
+      resolution: z.enum(["720", "1080", "1440", "2160"]).optional().describe("size of the short side, so 1080 is 1080x1920 for a vertical project"),
       quality: z.enum(["small", "balanced", "best"]).optional(),
       codec: z.enum(["h264", "hevc"]).optional(),
     },
