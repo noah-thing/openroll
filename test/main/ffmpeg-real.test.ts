@@ -57,6 +57,20 @@ describe.skipIf(!have)("real ffmpeg", () => {
     expect(s.find(x => x.codec_name === "prores")?.nb_frames).toBe("30");
   });
 
+  it("keeps the last picture when the sound ends part way through it", () => {
+    const frames = join(tmp, "frames31.rgba");
+    run(["-f", "lavfi", "-i", `testsrc2=s=${W}x${H}:r=30:d=1.0333334,format=rgba`, "-f", "rawvideo", "-pix_fmt", "rgba", frames]);
+    const short = join(tmp, "audio1010.f32");
+    writeFileSync(short, Buffer.alloc(Math.round(48000 * 1.01) * 2 * 4));
+    for (const format of ["prores422", "mp4-x264", "webm-vp9"] as const) {
+      const out = join(tmp, `short-${format}.out`);
+      const a = pipeArgs(spec(format, { hasAudio: true }), frames, short, out, join(tmp, "p.png"));
+      run(a.main);
+      const read = spawnSync(ffprobe, ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", out], { encoding: "utf8" });
+      expect(read.stdout.trim(), format).toBe("31");
+    }
+  });
+
   it("writes ProRes 4444 with a real alpha channel", () => {
     const f = encode(spec("prores4444", { transparent: true }), "p4444.mov");
     expect(streams(f)[0]).toMatchObject({ codec_name: "prores", pix_fmt: "yuva444p12le" });

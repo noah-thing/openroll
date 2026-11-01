@@ -43,8 +43,9 @@ export function pipeArgs(spec: PipeSpec, source: string, audioFile: string | nul
     "-map", "0:v:0",
     ...(audio.length ? ["-map", "1:a:0"] : []),
     ...codecArgs,
-    ...(audio.length ? audioCodec : ["-an"]),
-    "-shortest", "-f", MUXER[spec.format], output,
+    // Padded so the picture decides the length: audio that ends mid frame must not take the last frame with it.
+    ...(audio.length ? ["-af", "apad", ...audioCodec, "-shortest"] : ["-an"]),
+    "-f", MUXER[spec.format], output,
   ];
 
   switch (spec.format) {
