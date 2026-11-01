@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 // Speech to text with word timing, on this computer. Whisper runs through transformers.js,
-// on WebGPU when the machine has it and WASM otherwise. The model is fetched once from
+// on WASM, or WebGPU when asked for. The model is fetched once from
 // Hugging Face and kept in the browser cache; after that nothing leaves the machine.
 //
 // A long clip is cut into pieces of under 30 seconds at its quietest moments. That gives
@@ -86,17 +86,10 @@ async function job(req: Extract<SpeechRequest, { kind: "run" }>): Promise<void> 
 
 // ---------------------------------------------------------------- model
 
-async function hasWebGpu(): Promise<boolean> {
-  try {
-    const gpu = (self.navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
-    return !!gpu && !!(await gpu.requestAdapter());
-  } catch {
-    return false;
-  }
-}
-
 async function loadModel(req: { id: number }, model: SpeechModel, wanted: SpeechDevice) {
-  const device: "webgpu" | "wasm" = wanted === "wasm" ? "wasm" : wanted === "webgpu" || (await hasWebGpu()) ? "webgpu" : "wasm";
+  // WebGPU measured the same speed as WASM with the base model (7.7 against 7.1 times real time on ten
+  // minutes) and took the renderer down with the small one, so it is opt in.
+  const device: "webgpu" | "wasm" = wanted === "webgpu" ? "webgpu" : "wasm";
   const key = `${model}:${device}`;
   if (loaded?.key === key) return loaded;
   loaded = null;
