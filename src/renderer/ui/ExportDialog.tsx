@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { canEncodeVideo } from "mediabunny";
+import { audible } from "../../core/audio-plan";
 import { projectDuration } from "../../core/project";
 import { estimateBytes, formatInfo, gifFrame, hasNoBackground, type FormatInfo } from "../../engine/export-formats";
 import type { ExportFormat, ExportSettings } from "../../engine/export-protocol";
@@ -98,7 +99,9 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
   }
 
   const active = jobs.filter(j => j.status === "queued" || j.status === "running");
-  const ready = !blocked.length && duration > 0;
+  // An audio file with nothing audible would save as silence and look like it worked.
+  const silent = kind === "audio" && !p.tracks.some(t => !t.muted && t.items.some(i => i.type === "media" && audible(i, p.media[i.mediaId])));
+  const ready = !blocked.length && duration > 0 && !silent;
 
   return (
     <div className="modal-back" onPointerDown={e => e.target === e.currentTarget && onClose()}>
@@ -121,6 +124,7 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
         <div className="modal-body">
           {problem && <p className="modal-warn">{problem}</p>}
           {!duration && <p className="modal-warn">The timeline is empty. Add a clip first.</p>}
+          {silent && duration > 0 && <p className="modal-warn">Nothing in this project makes sound. Unmute a clip or add audio first.</p>}
           {blocked.length > 0 && <p className="modal-warn">{blocked.some(m => derived.isMissing(m)) ? "Some files are missing. Find them in the media panel first." : "Some clips are still being prepared. Export is ready when they finish."}</p>}
           <label className="modal-row">
             <span>Export</span>

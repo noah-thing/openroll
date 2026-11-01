@@ -128,6 +128,20 @@ export default async function ({ page }) {
       chmodSync(OUT, 0o755);
     }
   }
+
+  // 6. An audio export of a project without sound is refused instead of saving silence.
+  await closeDialog();
+  const mute = join(media, "mute.mp4");
+  const r = spawnSync(bin("ffmpeg"), ["-v", "error", "-y", "-i", clip, "-t", "2", "-an", "-c:v", "copy", mute]);
+  if (r.status !== 0) throw new Error(String(r.stderr));
+  const [quiet] = await page.evaluate(p => window.openroll.qa.allow(p), [mute]);
+  await page.evaluate(i => window.__or.newProject([i]), quiet);
+  await page.waitForTimeout(1200);
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+e" : "Control+e");
+  await page.waitForSelector(".modal");
+  await page.click('.modal .seg button:has-text("Audio"), .modal [role=radio]:has-text("Audio")');
+  check("silent project: audio export is blocked with a reason", (await page.locator(".modal .export").isDisabled()) && (await page.locator(".modal-warn:has-text('makes sound')").count()) === 1);
+
   rmSync(media, { recursive: true, force: true });
   if (existsSync(join(OUT, "Untitled.mov"))) rmSync(join(OUT, "Untitled.mov"));
 }
