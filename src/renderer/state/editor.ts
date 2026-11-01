@@ -38,6 +38,7 @@ export class Editor {
   looping = false;
   private listeners = new Set<Listener>();
   private saveTimer = 0;
+  private writing: Promise<void> | null = null;
   private toastId = 0;
   private stopDerived: (() => void) | null = null;
 
@@ -238,13 +239,23 @@ export class Editor {
     this.saveTimer = window.setTimeout(() => void this.save(), SAVE_DELAY);
   }
 
-  async save(): Promise<void> {
+  /** Resolves once the project on screen is on disk or the write failed. Writes never overlap. */
+  save(): Promise<void> {
     clearTimeout(this.saveTimer);
+    const run = (this.writing ?? Promise.resolve()).then(() => this.write());
+    const tracked = run.finally(() => {
+      if (this.writing === tracked) this.writing = null;
+    });
+    this.writing = tracked;
+    return tracked;
+  }
+
+  private async write(): Promise<void> {
     if (this.saveState === "saved") return;
     this.saveState = "saving";
     this.emit();
     const snapshot = this.project;
-    const r = await window.openroll.projects.save(this.path, snapshot.name, JSON.stringify(snapshot));
+    const r = await window.openroll.projects.save(this.path, snapshot.name, JSON.stringify(snapshot)).catch((err: Error) => ({ ok: false as const, error: err.message, path: undefined }));
     if (!r.ok) {
       this.saveState = "error";
       this.toast(`Could not save: ${r.error}`, { tone: "error" });

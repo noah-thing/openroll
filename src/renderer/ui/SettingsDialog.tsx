@@ -2,7 +2,9 @@ import { AgentConnect } from "./AgentSettings";
 import { useEffect, useState } from "react";
 import type { CacheInfo } from "../../shared/api";
 import type { PreviewQuality } from "../../shared/settings";
+import { agentContext } from "../agent/host";
 import { bytes } from "../lib/format";
+import { derived } from "../state/derived-media";
 import { updateSettings, useSettings } from "../state/settings";
 import type { ProxyMode } from "../../engine/proxy-policy";
 import { Segmented } from "./kit/Field";
@@ -42,6 +44,12 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
   async function clear() {
     setClearing(true);
     await window.openroll.clearCache();
+    derived.reset();
+    const open = agentContext.editor;
+    if (open) {
+      open.player?.setProject(open.project, open.urls());
+      void derived.restore(Object.values(open.project.media));
+    }
     setCache(await window.openroll.cacheInfo());
     setClearing(false);
   }

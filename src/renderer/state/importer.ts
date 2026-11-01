@@ -25,6 +25,21 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   const results: (MediaRef | null)[] = new Array(files.length).fill(null);
   const failures: string[] = [];
 
+  // The same file twice in one pick is read once, so the project does not end up with two copies of its media.
+  const reading = new Map<string, Promise<MediaRef | null>>();
+  const read = async (f: FileInfo): Promise<MediaRef | null> => {
+    try {
+      return await probe({ ...f, url: window.openroll.mediaUrl(f.path) });
+    } catch (err) {
+      if (err instanceof NeedsPrepError) {
+        const ref = await importViaConverter(f, err.hints).catch(() => null);
+        if (ref) return ref;
+      }
+      failures.push(err instanceof UnsupportedMediaError ? err.message : `${f.name} could not be read.`);
+      return null;
+    }
+  };
+
   let next = 0;
   const work = async () => {
     while (next < files.length) {
@@ -35,18 +50,9 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
         results[i] = existing;
         continue;
       }
-      try {
-        results[i] = await probe({ ...f, url: window.openroll.mediaUrl(f.path) });
-      } catch (err) {
-        if (err instanceof NeedsPrepError) {
-          const ref = await importViaConverter(f, err.hints).catch(() => null);
-          if (ref) {
-            results[i] = ref;
-            continue;
-          }
-        }
-        failures.push(err instanceof UnsupportedMediaError ? err.message : `${f.name} could not be read.`);
-      }
+      let pending = reading.get(f.path);
+      if (!pending) reading.set(f.path, (pending = read(f)));
+      results[i] = await pending;
     }
   };
   await Promise.all([work(), work(), work()]);

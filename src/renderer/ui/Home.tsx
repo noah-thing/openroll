@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { readProject } from "../../core/load";
 import type { Project } from "../../core/project";
 import type { FileInfo, RecentProject } from "../../shared/api";
 import { HistoryDialog } from "./HistoryDialog";
@@ -43,14 +44,9 @@ export function Home({ onOpen, onNew }: Props) {
   }, [menu]);
 
   async function open(r: RecentProject) {
-    const text = await window.openroll.projects.load(r.path);
-    try {
-      const p = JSON.parse(text ?? "") as Project;
-      if (p.format !== "openroll") throw new Error();
-      onOpen(p, r.path);
-    } catch {
-      setError(`${r.name} could not be opened. Use Restore an earlier version from its menu, or find the backup next to it as ${r.name}.openroll.bak.`);
-    }
+    const read = readProject((await window.openroll.projects.load(r.path)) ?? "");
+    if (read.ok) onOpen(read.project, r.path);
+    else setError(`${r.name} could not be opened. ${read.error} Use Restore an earlier version from its menu, or find the backup next to it as ${r.name}.openroll.bak.`);
   }
 
   async function onDrop(e: React.DragEvent) {

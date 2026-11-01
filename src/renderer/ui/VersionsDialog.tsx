@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Project } from "../../core/project";
+import { readProject } from "../../core/load";
 import type { VersionEntry } from "../../shared/api";
 import { bytes } from "../lib/format";
 import type { Editor } from "../state/editor";
@@ -60,8 +60,9 @@ function Dialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
   async function restore(e: VersionEntry) {
     const text = await window.openroll.snapshots.read(id, e.file);
     try {
-      const parsed = JSON.parse(text ?? "") as Project;
-      if (parsed.format !== "openroll" || parsed.id !== id) throw new Error();
+      const read = readProject(text ?? "");
+      if (!read.ok || read.project.id !== id) throw new Error();
+      const parsed = read.project;
       // An ordinary edit, so Undo brings the current state back.
       editor.apply(`Restore ${e.name}`, () => ({ ...parsed, modified: Date.now() }));
       editor.toast(`Restored “${e.name}”. Undo goes back.`);

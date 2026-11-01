@@ -46,6 +46,12 @@ class DerivedStore {
     this.bump();
   }
 
+  /** The cache folder was emptied: forget copies that no longer exist so the next look rebuilds them. */
+  reset(): void {
+    this.entries.clear();
+    this.bump();
+  }
+
   setMissing(paths: string[]): void {
     this.missing = new Set(paths);
     this.bump();

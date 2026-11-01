@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { readProject } from "../../core/load";
 import { createProject, type Project } from "../../core/project";
 import { Editor } from "../state/editor";
 import { importFiles } from "../state/importer";
@@ -51,14 +52,12 @@ export function App() {
 
   const reopen = useCallback(
     async (n: SessionNotice, recovered: boolean) => {
-      const text = await window.openroll.projects.load(n.path);
-      try {
-        const p = JSON.parse(text ?? "") as Project;
-        if (p.format !== "openroll") throw new Error();
-        const e = open(p, n.path);
+      const read = readProject((await window.openroll.projects.load(n.path)) ?? "");
+      if (read.ok) {
+        const e = open(read.project, n.path);
         if (recovered) e.toast("OpenRoll hit a problem and reopened your project");
-      } catch {
-        setEarlier({ path: n.path, name: n.name, note: `${n.name} could not be opened. Pick an earlier version to go back to.` });
+      } else {
+        setEarlier({ path: n.path, name: n.name, note: `${n.name} could not be opened. ${read.error} Pick an earlier version to go back to.` });
       }
     },
     [open],
