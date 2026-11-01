@@ -54,6 +54,12 @@ export interface Track {
   name: string;
   /** The main track is magnetic: items always sit edge to edge from zero. */
   main?: boolean;
+  /** Set to false to let the main track behave like any other lane. */
+  magnetic?: boolean;
+  /** Lane height in pixels when the user has resized it. */
+  height?: number;
+  /** Made or shaped by the user, so it stays when it empties. */
+  pinned?: boolean;
   muted?: boolean;
   hidden?: boolean;
   locked?: boolean;
@@ -167,6 +173,8 @@ interface ItemBase {
   start: Micros;
   duration: Micros;
   name?: string;
+  /** Colour label shown on the clip, a key of the timeline palette. */
+  color?: string;
   transform: Transform;
   keyframes?: KeyframeMap;
   transitionIn?: Transition;
