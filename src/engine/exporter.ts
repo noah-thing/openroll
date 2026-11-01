@@ -145,13 +145,9 @@ export class Exporter {
         hasAudio: staged > 0,
       };
       await window.openroll.ffexport.begin(id, this.writerId, spec);
-      let bytes = 0;
-      const r = await this.render({ ...s, audio: false }, h, async data => {
-        bytes += data.byteLength;
-        await window.openroll.ffexport.frame(id, data);
-      });
+      const r = await this.render({ ...s, audio: false }, h, data => window.openroll.ffexport.frame(id, data));
       h.onProgress({ frame: 1, frames: 1, elapsed: r.seconds, bytes: 0, note: "Finishing the file" });
-      await window.openroll.ffexport.finish(id, spec);
+      const bytes = await window.openroll.ffexport.finish(id, spec);
       return { bytes, seconds: (performance.now() - started) / 1000 };
     } catch (err) {
       await window.openroll.ffexport.cancel(id).catch(() => {});

@@ -3,7 +3,7 @@ import { canEncodeVideo } from "mediabunny";
 import { projectDuration } from "../../core/project";
 import { estimateBytes, formatInfo, gifFrame, hasNoBackground, type FormatInfo } from "../../engine/export-formats";
 import type { ExportFormat, ExportSettings } from "../../engine/export-protocol";
-import type { ExportProgress } from "../../engine/exporter";
+import { ipcReason, type ExportProgress } from "../../engine/exporter";
 import { bytes, span } from "../lib/format";
 import { derived, useDerivedVersion } from "../state/derived-media";
 import type { Editor } from "../state/editor";
@@ -37,6 +37,7 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
   const [ffmpeg, setFfmpeg] = useState(false);
   const [transparent, setTransparent] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const duration = projectDuration(p);
   const fps = p.settings.fps.num / p.settings.fps.den;
 
@@ -71,9 +72,14 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
 
   async function start() {
     setBusy(true);
+    setProblem(null);
     const ext = info.extension;
-    const writer = await window.openroll.createWriter(`${p.name}.${ext}`, kind === "audio" ? "audio" : kind === "still" ? "image" : "video");
-    setBusy(false);
+    const writer = await window.openroll.createWriter(`${p.name}.${ext}`, kind === "audio" ? "audio" : kind === "still" ? "image" : "video")
+      .catch(err => {
+        setProblem(`The file could not be created (${ipcReason(err)}). Pick a folder you can write to.`);
+        return null;
+      })
+      .finally(() => setBusy(false));
     if (!writer) return;
     const settings: ExportSettings = {
       format,
@@ -113,6 +119,7 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
         )}
 
         <div className="modal-body">
+          {problem && <p className="modal-warn">{problem}</p>}
           {!duration && <p className="modal-warn">The timeline is empty. Add a clip first.</p>}
           {blocked.length > 0 && <p className="modal-warn">{blocked.some(m => derived.isMissing(m)) ? "Some files are missing. Find them in the media panel first." : "Some clips are still being prepared. Export is ready when they finish."}</p>}
           <label className="modal-row">
