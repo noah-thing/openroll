@@ -3,6 +3,7 @@ import { createProject, type Project } from "../../core/project";
 import { Editor } from "../state/editor";
 import { importFiles } from "../state/importer";
 import { startSettings } from "../state/settings";
+import { openEvents, type OpenRequest } from "../state/smart-events";
 import { importLut } from "../state/lut-import";
 import type { FileInfo, SessionNotice } from "../../shared/api";
 import { EditorView } from "./EditorView";
@@ -30,6 +31,21 @@ export function App() {
     editor.dispose();
     setEditor(null);
   }, [editor]);
+
+  // The shorts maker asks for the project it just saved to be opened in place of this one.
+  useEffect(() => {
+    const onOpen = (ev: Event) => {
+      const { project, path, note } = (ev as CustomEvent<OpenRequest>).detail;
+      void (async () => {
+        await editor?.save();
+        editor?.dispose();
+        const next = open(project, path);
+        if (note) next.toast(note);
+      })();
+    };
+    openEvents.addEventListener("open", onOpen);
+    return () => openEvents.removeEventListener("open", onOpen);
+  }, [editor, open]);
 
   const reopen = useCallback(
     async (n: SessionNotice, recovered: boolean) => {

@@ -16,6 +16,7 @@ import {
 } from "mediabunny";
 import { Compositor, type Layer, type Node } from "./compositor";
 import { rasterText } from "./text";
+import { rasterShape } from "./shape-raster";
 import { loadFonts } from "./fonts";
 import { buildScene, type Visual } from "../core/scene";
 import { layerFields, syncLuts } from "./layer-look";
@@ -176,6 +177,11 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       const layerFor = async (v: Visual): Promise<Layer | null> => {
         const base = layerFields(v.place);
         if (v.kind === "color") return { ...base, color: hex(v.item.color) };
+        if (v.kind === "shape") {
+          const k = s.width / project.settings.width;
+          const r = rasterShape(v.item.shape, v.item.width, v.item.height, base.width * k, base.height * k);
+          return { ...base, source: { key: v.item.id, pixels: r.canvas, version: r.key, width: r.canvas.width, height: r.canvas.height } };
+        }
         if (v.kind === "text") {
           const userScale = v.place.width / project.settings.width;
           const r = rasterText(v.item.style, v.text, v.highlight, v.item.type === "caption" ? v.item.highlight : undefined, project.settings.width * 0.86, (s.width / project.settings.width) * userScale * v.place.animScale);

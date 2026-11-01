@@ -283,7 +283,35 @@ export interface ColorItem extends ItemBase {
   color: string;
 }
 
-export type Item = MediaItem | TextItem | CaptionItem | ColorItem;
+export type ShapeKind = "rect" | "ellipse" | "line" | "sticker";
+
+export interface ShapeStyle {
+  kind: ShapeKind;
+  /** Which drawn sticker, for kind "sticker". */
+  sticker?: string;
+  /** Main colour: the fill of a rectangle or ellipse, the ink of a line or sticker. */
+  color: string;
+  /** Outline for a rectangle or ellipse, in project pixels. */
+  stroke?: { color: string; width: number };
+  /** Rectangle corner radius in project pixels. */
+  radius?: number;
+  /** Line thickness in project pixels, for kind "line". */
+  thickness?: number;
+  /** Sticker line weight, 1 is the drawn weight. */
+  weight?: number;
+  /** Rectangles and ellipses start filled; turn it off for an outline only. */
+  noFill?: boolean;
+}
+
+/** A drawn shape or sticker. Its box is width by height project pixels at scale 1. */
+export interface ShapeItem extends ItemBase {
+  type: "shape";
+  shape: ShapeStyle;
+  width: number;
+  height: number;
+}
+
+export type Item = MediaItem | TextItem | CaptionItem | ColorItem | ShapeItem;
 
 export interface Marker {
   id: string;

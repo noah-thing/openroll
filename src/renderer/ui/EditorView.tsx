@@ -11,6 +11,9 @@ import { TopBar } from "./TopBar";
 import { Viewer } from "./Viewer";
 import { ExportDialog } from "./ExportDialog";
 import { ShortcutSheet } from "./ShortcutSheet";
+import { CommandBar } from "./CommandBar";
+import { HistoryPanel } from "./HistoryPanel";
+import { VersionsDialog } from "./VersionsDialog";
 
 export function EditorView({ editor, onClose }: { editor: Editor; onClose(): void }) {
   const cache = useMemo(() => new MediaCache(m => window.openroll.mediaUrl(m.path)), []);
@@ -28,6 +31,9 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
       <Timeline editor={editor} cache={cache} />
       <Toasts editor={editor} />
       <ShortcutSheet />
+      <CommandBar editor={editor} hooks={{ onExport: () => setExporting(true) }} />
+      <HistoryPanel editor={editor} />
+      <VersionsDialog editor={editor} />
       {exporting && <ExportDialog editor={editor} onClose={() => setExporting(false)} />}
     </div>
   );

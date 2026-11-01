@@ -18,6 +18,7 @@ export function baseSize(p: Project, item: Item): { width: number; height: numbe
     const r = rasterText(item.style, item.style.text, -1, undefined, p.settings.width * 0.86, 0.25);
     return { width: r.width, height: r.height };
   }
+  if (item.type === "shape") return { width: item.width, height: item.height };
   if (item.type === "color") return { width: p.settings.width, height: p.settings.height };
   return null;
 }

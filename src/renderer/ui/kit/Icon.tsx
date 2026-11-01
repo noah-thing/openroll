@@ -52,7 +52,14 @@ const PATHS = {
   eyedropper: '<path d="m14.5 5.5 4 4M16.5 3.5a2.1 2.1 0 0 1 3 3L10 16l-4 1 1-4z"/><path d="m5 19 1.5-1.5"/>',
   arrowUp: '<path d="m6 14 6-6 6 6"/>',
   arrowDown: '<path d="m6 10 6 6 6-6"/>',
-  warning: '<path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17v.2"/>',
+  guides: '<rect x="6.5" y="3" width="11" height="18" rx="2.5"/><path d="M6.5 7.5h11M6.5 16.5h11M14.5 10.5v3"/>',
+  history: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.7"/><path d="M4 4v4.7h4.7M12 8v4.3l3 1.7"/>',
+  version: '<path d="M7 3.5h10a1 1 0 0 1 1 1V20.5l-6-3.6-6 3.6V4.5a1 1 0 0 1 1-1z"/>',
+  shapes: '<rect x="3.5" y="10.5" width="9" height="9" rx="1.5"/><circle cx="15.5" cy="8.5" r="5"/>',
+  command: '<path d="M9 9h6v6H9z"/><path d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9zM15 9V6.5A2.5 2.5 0 1 1 17.5 9zM9 15v2.5A2.5 2.5 0 1 1 6.5 15zM15 15v2.5a2.5 2.5 0 1 0 2.5-2.5z"/>',
+  layout: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M3.5 12h17"/>',
+  beat: '<path d="M3.5 12h3l2-6 3.5 12 2.5-9 1.5 3h4.5"/>',
+  warning:'<path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17v.2"/>',
 } as const;
 
 export type IconName = keyof typeof PATHS;

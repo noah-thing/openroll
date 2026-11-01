@@ -8,6 +8,7 @@ import { QUALITY_SCALE } from "../../shared/settings";
 import { Icon } from "./kit/Icon";
 import { ToolBoxes } from "./ToolBoxes";
 import { TransformBox } from "./TransformBox";
+import { GuideLabels, GuidesButton, SafeZones } from "./SafeZones";
 
 export function Viewer({ editor }: { editor: Editor }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -82,8 +83,10 @@ export function Viewer({ editor }: { editor: Editor }) {
               <p>Drop clips here or on the timeline</p>
             </div>
           )}
+          <SafeZones width={box.w} height={box.h} />
           <TransformBox editor={editor} width={box.w} height={box.h} />
           <ToolBoxes editor={editor} width={box.w} height={box.h} />
+          <GuideLabels width={box.w} height={box.h} />
         </div>
       </div>
       <div className="viewer-controls">
@@ -103,6 +106,7 @@ export function Viewer({ editor }: { editor: Editor }) {
           </button>
         </div>
         <div className="viewer-right">
+          <GuidesButton />
           <button className="iconbtn" title="Full screen preview" onClick={() => void stageRef.current?.requestFullscreen()}>
             <Icon name="fullscreen" />
           </button>

@@ -5,6 +5,7 @@ import type { Editor } from "../state/editor";
 import { Logo } from "./Home";
 import { Icon } from "./kit/Icon";
 import { RatioPicker } from "./RatioPicker";
+import { HistoryButton } from "./HistoryPanel";
 
 export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome(): void; onExport(): void }) {
   const name = useEditor(editor, e => e.project.name);
@@ -50,6 +51,7 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
         <button className="iconbtn" disabled={!redoLabel} onClick={() => editor.redo()} title={redoLabel ? `Redo ${redoLabel.toLowerCase()}` : "Nothing to redo"}>
           <Icon name="redo" />
         </button>
+        <HistoryButton editor={editor} />
         <RatioPicker editor={editor} />
         <button className="export" onClick={onExport}>
           Export

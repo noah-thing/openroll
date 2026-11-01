@@ -5,6 +5,7 @@ import { frameDuration } from "../../core/project";
 import { zoomEvents } from "./events";
 import type { Editor } from "./editor";
 import { importFiles } from "./importer";
+import { openSmart } from "./smart-events";
 import {
   addMarkerHere,
   copySelection,
@@ -105,6 +106,10 @@ export const COMMANDS: Command[] = [
 
   { id: "export", label: "Export", group: "Project", keys: ["mod+e"], run: (_e, h) => h.onExport() },
   { id: "import", label: "Import media", group: "Project", keys: ["mod+i"], run: e => void window.openroll.pickMedia().then(f => importFiles(e, f)) },
+  { id: "palette", label: "Command bar", group: "Project", keys: ["mod+k"], run: () => openSmart("palette") },
+  { id: "history", label: "Undo history", group: "Project", keys: [], run: () => openSmart("history") },
+  { id: "save-version", label: "Save a version", group: "Project", keys: [], run: () => openSmart("save-version") },
+  { id: "versions", label: "Open saved versions", group: "Project", keys: [], run: () => openSmart("versions") },
   { id: "shortcuts", label: "Keyboard shortcuts", group: "Project", keys: ["mod+/"], run: () => shortcutEvents.dispatchEvent(new Event("open")) },
 ];
 
