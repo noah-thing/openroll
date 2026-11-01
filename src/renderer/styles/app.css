@@ -594,3 +594,4 @@ a.textbtn { text-decoration: none; }
 .credit-avatar { flex: none; width: 16px; height: 16px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--line); }
 .home-bar .credit { margin-right: 16px; }
 .about-credit { justify-content: center; margin-top: 14px; }
+.logo { display: block; width: 20px; height: 20px; border-radius: 5px; }

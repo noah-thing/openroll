@@ -5,6 +5,7 @@ import type { FileInfo, RecentProject } from "../../shared/api";
 import { HistoryDialog } from "./HistoryDialog";
 import { Icon } from "./kit/Icon";
 import { Credit } from "./Credit";
+import logo from "../assets/logo.png?url";
 import { InboxButton } from "./Inbox";
 
 interface Props {
@@ -175,17 +176,7 @@ export function Home({ onOpen, onNew }: Props) {
 }
 
 export function Logo() {
-  // Same drawing as the app icon: a strip of film folded into a play button.
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        d="M5.2 4.3c0-1.1 1.2-1.8 2.2-1.2l12.7 7.6c.5.3.7.8.7 1.3H5.2V4.3Zm2 1.8v2h2.1v-2H7.2Zm0 3.2v1.7h2.1V9.3H7.2Z"
-      />
-      <path fill="#4b8bf5" d="M5.2 12h15.6c0 .5-.2 1-.7 1.3L7.4 20.9c-1 .6-2.2-.1-2.2-1.2V12Z" />
-    </svg>
-  );
+  return <img className="logo" src={logo} alt="" width="20" height="20" draggable={false} />;
 }
 
 function relative(ms: number): string {
