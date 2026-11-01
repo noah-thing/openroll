@@ -3,7 +3,7 @@ import { mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import type { DerivedKind, DerivedState, InspectResult, ProxyRequest, StreamSummary } from "../shared/derived";
 import { proxyReason, proxyShrinks } from "../engine/proxy-policy";
-import { cacheKey, parseEncoders, prepareArgs, proxyArgs, type Encoders } from "./ffmpeg-args";
+import { cacheKey, LOCAL_ONLY, parseEncoders, prepareArgs, proxyArgs, type Encoders } from "./ffmpeg-args";
 import { findBinaries } from "./ffmpeg-binaries";
 import { renameBusy } from "./fs-retry";
 import { fraction } from "./ffmpeg-progress";
@@ -60,7 +60,7 @@ export class MediaService {
   private async probe(path: string): Promise<StreamSummary | null> {
     const bins = findBinaries();
     if (!bins?.ffprobe) return null;
-    const r = await capture(bins.ffprobe, ["-v", "error", "-show_streams", "-show_format", "-of", "json", path]).catch(() => null);
+    const r = await capture(bins.ffprobe, ["-v", "error", "-show_streams", "-show_format", "-of", "json", ...LOCAL_ONLY, path]).catch(() => null);
     if (!r || r.code !== 0) return null;
     try {
       const info = parseProbe(JSON.parse(r.stdout));
@@ -83,7 +83,7 @@ export class MediaService {
   private async measureGap(path: string): Promise<number | null> {
     const bins = findBinaries();
     if (!bins?.ffprobe) return null;
-    const r = await capture(bins.ffprobe, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-read_intervals", "%+30", "-of", "json", path], 30_000).catch(() => null);
+    const r = await capture(bins.ffprobe, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-read_intervals", "%+30", "-of", "json", ...LOCAL_ONLY, path], 30_000).catch(() => null);
     if (!r || r.code !== 0) return null;
     try {
       return keyframeInterval((JSON.parse(r.stdout) as { packets?: { flags?: string; pts_time?: string }[] }).packets ?? []);
