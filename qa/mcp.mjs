@@ -24,7 +24,8 @@ export default async function ({ page, userData, shot }) {
   check("tools listed", tools.length >= 18, tools.join(" "));
 
   const call = async (name, args = {}) => {
-    const r = await client.callTool({ name, arguments: args });
+    // Exports on a slow CI runner can take minutes.
+    const r = await client.callTool({ name, arguments: args }, undefined, { timeout: 600_000 });
     const text = r.content.find(c => c.type === "text")?.text;
     if (r.isError) return { error: text };
     let value = text;

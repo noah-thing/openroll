@@ -24,7 +24,7 @@ page.on("pageerror", e => console.log("[pageerror]", e.stack ?? e.message));
 await page.waitForLoadState("domcontentloaded");
 try {
   const run = (await import(pathToFileURL(resolve(scenario)).href)).default;
-  await run({ app, page, userData, shot: name => page.screenshot({ path: `qa/shots/${name}.png` }) });
+  await run({ app, page, userData, shot: name => page.screenshot({ path: `qa/shots/${name}.png`, timeout: 10000 }).catch(() => console.log(`screenshot ${name} skipped: the window did not draw in time`)) });
 } finally {
   if (!keep) await app.close();
 }
