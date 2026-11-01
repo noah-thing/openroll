@@ -10,7 +10,7 @@ const shared = {
 };
 
 const targets = [
-  { ...shared, entryPoints: ["src/main/main.ts"], outfile: "out/main/main.js", format: "esm" },
+  { ...shared, entryPoints: ["src/main/entry.ts"], outfile: "out/main/main.js", format: "esm" },
   // Sandboxed preloads must be CommonJS.
   { ...shared, entryPoints: ["src/preload/preload.ts"], outfile: "out/preload/preload.cjs", format: "cjs" },
 ];

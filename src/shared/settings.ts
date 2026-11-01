@@ -8,6 +8,8 @@ export interface Settings {
   autoUpdate: boolean;
   /** Fetch messages from the OpenRoll team for the inbox. */
   news: boolean;
+  /** Let AI tools on this computer (Claude Code, Codex, Cursor) edit through the control socket. */
+  aiControl: boolean;
   reduceMotion: boolean;
 }
 
@@ -17,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   projectsDir: null,
   autoUpdate: true,
   news: true,
+  aiControl: true,
   reduceMotion: false,
 };
 
@@ -35,6 +38,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     projectsDir: typeof r.projectsDir === "string" && r.projectsDir.length ? r.projectsDir : null,
     autoUpdate: typeof r.autoUpdate === "boolean" ? r.autoUpdate : d.autoUpdate,
     news: typeof r.news === "boolean" ? r.news : d.news,
+    aiControl: typeof r.aiControl === "boolean" ? r.aiControl : d.aiControl,
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
   };
 }

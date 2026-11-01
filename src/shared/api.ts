@@ -1,3 +1,4 @@
+import type { AgentClient } from "./agent-protocol";
 import type { NewsItem } from "./news";
 import type { Settings } from "./settings";
 
@@ -146,6 +147,15 @@ export interface OpenRollApi {
   };
 
   systemInfo(): Promise<SystemInfo>;
+
+  agent: {
+    onCall(handler: (call: { callId: number; method: string; params: unknown; client: string }) => void): () => void;
+    reply(callId: number, reply: { id: number; result?: unknown; error?: { message: string } }): void;
+    clients(): Promise<AgentClient[]>;
+    onClients(handler: (clients: AgentClient[]) => void): () => void;
+    disconnect(id: number): Promise<void>;
+    connectInfo(): Promise<{ executable: string; args: string[] }>;
+  };
 
   news: {
     list(): Promise<{ items: NewsItem[]; read: string[] }>;

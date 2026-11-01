@@ -63,6 +63,23 @@ const api: OpenRollApi = {
     },
   },
 
+  agent: {
+    onCall: handler => {
+      const listener = (_e: unknown, call: Parameters<typeof handler>[0]) => handler(call);
+      ipcRenderer.on("agent:call", listener);
+      return () => ipcRenderer.off("agent:call", listener);
+    },
+    reply: (callId, reply) => ipcRenderer.send("agent:reply", callId, reply),
+    clients: () => ipcRenderer.invoke("agent:clients"),
+    onClients: handler => {
+      const listener = (_e: unknown, c: Parameters<typeof handler>[0]) => handler(c);
+      ipcRenderer.on("agent:clients", listener);
+      return () => ipcRenderer.off("agent:clients", listener);
+    },
+    disconnect: id => ipcRenderer.invoke("agent:disconnect", id),
+    connectInfo: () => ipcRenderer.invoke("agent:connect-info"),
+  },
+
   news: {
     list: () => ipcRenderer.invoke("news:list"),
     markRead: ids => ipcRenderer.invoke("news:mark-read", ids),

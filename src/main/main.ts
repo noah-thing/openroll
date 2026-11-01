@@ -12,6 +12,7 @@ import { Session } from "./session";
 import { getSettings, updateSettings } from "./settings";
 import { Updater } from "./updater";
 import { News } from "./news";
+import { Control } from "./control";
 
 const isDev = !!process.env.OPENROLL_DEV_URL;
 const APP_SCHEME = "openroll-app";
@@ -50,6 +51,11 @@ const session = new Session(join(app.getPath("userData"), "session.json"));
 const updater = new Updater(
   state => win?.webContents.send("updates:state", state),
   () => getSettings().autoUpdate,
+);
+const control = new Control(
+  () => win?.webContents ?? null,
+  () => getSettings().aiControl,
+  clients => win?.webContents.send("agent:clients", clients),
 );
 const news = new News(
   items => win?.webContents.send("news:changed", items),
@@ -419,6 +425,15 @@ function registerIpc(): void {
   ipcMain.handle("updates:download", () => updater.downloadOffered());
   ipcMain.handle("updates:whats-new", () => updater.whatsNew());
   ipcMain.handle("news:list", () => news.list());
+  ipcMain.on("agent:reply", (_e, callId: unknown, reply: unknown) => {
+    if (typeof callId === "number" && reply && typeof reply === "object") control.settle(callId, reply as { id: number });
+  });
+  ipcMain.handle("agent:clients", () => control.list());
+  ipcMain.handle("agent:disconnect", (_e, id: unknown) => typeof id === "number" && control.disconnect(id));
+  ipcMain.handle("agent:connect-info", () => ({
+    executable: process.execPath,
+    args: app.isPackaged ? ["--mcp"] : [app.getAppPath(), "--mcp"],
+  }));
   ipcMain.handle("news:mark-read", (_e, ids: unknown) => news.markRead(ids));
 
   ipcMain.handle("history:list", (_e, path: unknown) => (typeof path === "string" ? journal.list(path) : []));
@@ -600,6 +615,7 @@ app.whenReady().then(() => {
   session.begin();
   updater.start();
   void news.start();
+  void control.start().catch(err => console.warn("AI control is unavailable:", err.message));
   guardMicrophone();
   handleMediaProtocol();
   serveApp();
@@ -620,6 +636,7 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
+  void control.stop();
   session.end();
   updater.applyOnQuit();
 });
