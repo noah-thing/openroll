@@ -238,7 +238,7 @@ export async function runMcp(): Promise<void> {
   };
 
   // On Windows, Electron's process.stdin ends at once with nothing read, while the raw handles
-  // carry the client's pipe fine (checked on a GitHub Windows runner, qa/probe-stdin).
+  // carry the client's pipe fine (checked on a GitHub Windows runner).
   const win = process.platform === "win32";
   const input = win ? createReadStream("", { fd: 0, autoClose: false }) : process.stdin;
   const output = win ? createWriteStream("", { fd: 1, autoClose: false }) : process.stdout;

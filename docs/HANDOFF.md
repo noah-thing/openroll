@@ -5,11 +5,10 @@ Draft release v0.1.0 on GitHub (private, only Noah sees it): Mac arm64 and x64 (
 Checked: the Mac arm64 zip matches its checksum, has a valid ad hoc signature, ships ffmpeg, and starts cleanly from a fresh profile.
 
 ## Verified on Windows and Linux (GitHub Actions, verify.yml)
-Import, preview, split, all export formats (MP4, WebM, ProRes 422/4444, GIF, M4A, WAV, still), news and updates, timeline gestures on Linux, AI control (MCP) on Linux.
+Import, preview, split, all export formats (MP4, WebM, ProRes 422/4444, GIF, M4A, WAV, still), news and updates, timeline gestures on Linux, AI control (MCP) on both (Windows reads the raw stdio handles, since Electron's process.stdin ends at once there; found with a probe on a GitHub Windows runner).
 Fixed on the way: software decode fallback when a PC has no hardware decoder (black preview and failed exports before), WASM AAC encoder where Chromium has none, ffmpeg fallback for M4A.
 
 ## Not proven yet
-- AI control (MCP) on Windows: Electron's main process cannot read stdin on Windows, so the bridge closes at once. Settings, docs/AI.md and the release notes say Mac and Linux for now. Fix idea: run the bridge in a utilityProcess or talk to the control socket from a tiny helper.
 - Track height drag on Windows: did not commit on the CI runner, probably frame throttling there. Passes on Mac.
 - Long full export (qa/export.mjs) on Linux CI with software rendering is slow; it finishes within the 15 minute limit.
 - MCP exports longer than the client's tool timeout need progress notifications.

@@ -134,25 +134,14 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
 
           <section>
             <h3>AI tools</h3>
-            {window.openroll.platform === "win32" ? (
-              <div className="set-row">
-                <div>
-                  <b>Let AI tools edit with you</b>
-                  <small>Claude Code, Codex, Cursor and others can edit with you on Mac and Linux. Windows gets it in an update soon.</small>
-                </div>
+            <div className="set-row">
+              <div>
+                <b>Let AI tools edit with you</b>
+                <small>Claude Code, Codex, Cursor and others on this computer can edit the open project. You see every change and can undo it. Nothing listens on the network.</small>
               </div>
-            ) : (
-              <>
-                <div className="set-row">
-                  <div>
-                    <b>Let AI tools edit with you</b>
-                    <small>Claude Code, Codex, Cursor and others on this computer can edit the open project. You see every change and can undo it. Nothing listens on the network.</small>
-                  </div>
-                  <Switch label="Let AI tools edit with you" value={s.aiControl} onChange={aiControl => updateSettings({ aiControl })} />
-                </div>
-                {s.aiControl && <AgentConnect />}
-              </>
-            )}
+              <Switch label="Let AI tools edit with you" value={s.aiControl} onChange={aiControl => updateSettings({ aiControl })} />
+            </div>
+            {s.aiControl && <AgentConnect />}
           </section>
           <section>
             <h3>General</h3>
