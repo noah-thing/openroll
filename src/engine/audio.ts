@@ -8,9 +8,13 @@ import { buildChain, createBus, loadWorklet, type ItemChain } from "./audio-grap
 const LEAD = 1.2;
 /** Delay before the first sample plays, so the first buffers are decoded in time. */
 const START_DELAY = 0.08;
+/** How long a finished voice stays connected, so echo and reverb tails ring out. */
+const TAIL_MS = 2500;
 
 interface Voice {
   cancelled: boolean;
+  /** Every buffer of the clip has been scheduled. */
+  done: boolean;
   nodes: Set<AudioBufferSourceNode>;
   /** Fades the voice out when playback stops. */
   gain: GainNode;
@@ -135,9 +139,26 @@ export class AudioEngine {
       return;
     }
     chain.output.connect(gain);
-    const voice: Voice = { cancelled: false, nodes: new Set(), gain, chain };
+    const voice: Voice = { cancelled: false, done: false, nodes: new Set(), gain, chain };
     this.voices.push(voice);
-    void this.runVoice(voice, item, media, url).catch(err => console.warn("audio voice stopped", err));
+    void this.runVoice(voice, item, media, url)
+      .catch(err => console.warn("audio voice stopped", err))
+      .finally(() => {
+        voice.done = true;
+        this.retire(voice);
+      });
+  }
+
+  /** A clip that has played out would otherwise hold its nodes until the next stop, which a long timeline never reaches. */
+  private retire(voice: Voice): void {
+    if (!voice.done || voice.cancelled || voice.nodes.size) return;
+    setTimeout(() => {
+      if (voice.cancelled) return;
+      voice.cancelled = true;
+      voice.gain.disconnect();
+      voice.chain.output.disconnect();
+      this.voices = this.voices.filter(v => v !== voice);
+    }, TAIL_MS);
   }
 
   private async runVoice(voice: Voice, item: MediaItem, media: MediaRef, url: string): Promise<void> {
@@ -173,7 +194,10 @@ export class AudioEngine {
       node.buffer = buffer;
       node.playbackRate.value = item.speed;
       node.connect(voice.chain.input);
-      node.onended = () => voice.nodes.delete(node);
+      node.onended = () => {
+        voice.nodes.delete(node);
+        this.retire(voice);
+      };
       node.start(when, offset, Math.max(0, duration - (late > 0 ? late * item.speed : 0)));
       voice.nodes.add(node);
 
