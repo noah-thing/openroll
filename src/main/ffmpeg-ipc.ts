@@ -1,4 +1,5 @@
 import { ipcMain, type BrowserWindow } from "electron";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { DerivedKind, DerivedState, InspectResult, ProxyRequest } from "../shared/derived";
 import { PIPE_EXTENSION, type PipeSpec } from "../shared/ffexport";
@@ -73,6 +74,7 @@ export function registerFfmpegIpc(deps: Deps): MediaService {
     outputs.delete(id);
     if (!output || !validSpec(spec)) throw new Error("bad export state");
     await pipes.finish(id, spec, output);
+    return (await stat(output)).size;
   });
   ipcMain.handle("ffexport:cancel", async (_e, id: string) => {
     outputs.delete(id);

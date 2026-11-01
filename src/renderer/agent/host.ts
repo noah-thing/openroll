@@ -6,6 +6,7 @@ import { buildScene } from "../../core/scene";
 import { applyCuts, describePlan, planCuts } from "../../core/smartcut";
 import { createProject, findItem, itemEnd, projectDuration, type Project } from "../../core/project";
 import { CAPTION_PRESETS } from "../../core/caption-styles";
+import { hasExtension } from "../../engine/export-formats";
 import { aiFor } from "../state/ai";
 import { captionService, listenTargets } from "../state/captions";
 import type { Editor } from "../state/editor";
@@ -292,7 +293,9 @@ const handlers: Record<string, Handler> = {
     const fps = p.settings.fps.num / p.settings.fps.den;
     const bpp = { small: 0.06, balanced: 0.1, best: 0.16 }[String(params.quality ?? "balanced") as "small"] ?? 0.1;
     const codec = params.codec === "hevc" ? "hevc" : "avc";
-    const writer = await window.openroll.agent.writerAt(typeof params.path === "string" ? params.path : null, p.name);
+    const path = typeof params.path === "string" && params.path ? params.path : null;
+    if (path && !hasExtension(path, "mp4")) throw new Error("The export is an MP4, so the path has to end in .mp4.");
+    const writer = await window.openroll.agent.writerAt(path, p.name);
     const ai = aiFor(e);
     const id = exportQueue.add({
       name: p.name,
@@ -317,7 +320,9 @@ const handlers: Record<string, Handler> = {
     if (!caps.length) throw new Error("There are no captions. Call captions first.");
     const format = params.format === "vtt" ? "vtt" : "srt";
     const text = format === "vtt" ? toVtt(cuesFromCaptions(caps)) : toSrt(cuesFromCaptions(caps));
-    const writer = await window.openroll.agent.writerAt(typeof params.path === "string" ? params.path : null, `${e.project.name}.${format}`);
+    const path = typeof params.path === "string" && params.path ? params.path : null;
+    if (path && !hasExtension(path, format)) throw new Error(`The captions are written as ${format.toUpperCase()}, so the path has to end in .${format}.`);
+    const writer = await window.openroll.agent.writerAt(path, `${e.project.name}.${format}`);
     await window.openroll.write(writer.id, 0, new TextEncoder().encode(text));
     await window.openroll.closeWriter(writer.id);
     return { path: writer.path, cues: caps.length };

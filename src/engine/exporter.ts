@@ -27,6 +27,9 @@ const PREROLL = 1.5;
 const LATENCY_ROOM = 0.02;
 const AUDIO_CHUNK = 10;
 
+/** A failure no other encoder would get around, such as a full disk, so the ladder stops here. */
+export class FatalExportError extends Error {}
+
 interface Result {
   bytes: number;
   seconds: number;
@@ -61,6 +64,7 @@ export class Exporter {
         return await this.attempt({ ...settings, encoder: rung }, h);
       } catch (err) {
         if (this.cancelled || (err as Error).message === "cancelled") throw new Error("cancelled");
+        if (err instanceof FatalExportError) throw err;
         // No encoder can help when the picture cannot be drawn at all.
         if (/WebGL2 is not available/.test((err as Error).message)) throw new Error("exporting needs graphics acceleration, and this computer's graphics driver does not offer WebGL 2. Updating the driver usually fixes it.");
         last = err as Error;
@@ -71,6 +75,8 @@ export class Exporter {
   }
 
   private attempt(s: ExportSettings, h: ExportHandlers): Promise<Result> {
+    // A stop that lands between two encoders has no worker to receive it yet.
+    if (this.cancelled) return Promise.reject(new Error("cancelled"));
     if (s.format === "m4a" || s.format === "wav") return this.audioOnly(s, h);
     if (s.encoder === "ffmpeg") return this.piped(s, h);
     return this.render(s, h, async () => {});
@@ -86,7 +92,7 @@ export class Exporter {
         try {
           switch (m.type) {
             case "write":
-              await window.openroll.write(this.writerId, m.position, m.data);
+              await this.put(m.position, m.data);
               this.send({ type: "written", req: m.req });
               break;
             case "frame":
@@ -94,11 +100,11 @@ export class Exporter {
               this.send({ type: "written", req: m.req });
               break;
             case "need-audio": {
+              // A chunk that cannot be mixed fails the export; skipping it would leave a silent gap in the file.
               const planes = await this.mix(m.from, m.seconds).catch(err => {
-                console.warn("audio mix failed", err);
-                return null;
+                throw new FatalExportError(`the sound could not be mixed (${ipcReason(err)})`);
               });
-              this.send({ type: "audio", req: m.req, planes, frames: planes?.[0].length ?? 0 }, planes?.map(p => p.buffer) ?? []);
+              this.send({ type: "audio", req: m.req, planes, frames: planes[0].length }, planes.map(p => p.buffer));
               break;
             }
             case "progress":
@@ -143,13 +149,9 @@ export class Exporter {
         hasAudio: staged > 0,
       };
       await window.openroll.ffexport.begin(id, this.writerId, spec);
-      let bytes = 0;
-      const r = await this.render({ ...s, audio: false }, h, async data => {
-        bytes += data.byteLength;
-        await window.openroll.ffexport.frame(id, data);
-      });
+      const r = await this.render({ ...s, audio: false }, h, data => window.openroll.ffexport.frame(id, data));
       h.onProgress({ frame: 1, frames: 1, elapsed: r.seconds, bytes: 0, note: "Finishing the file" });
-      await window.openroll.ffexport.finish(id, spec);
+      const bytes = await window.openroll.ffexport.finish(id, spec);
       return { bytes, seconds: (performance.now() - started) / 1000 };
     } catch (err) {
       await window.openroll.ffexport.cancel(id).catch(() => {});
@@ -197,17 +199,17 @@ export class Exporter {
         if (this.cancelled) throw new Error("cancelled");
         progress(n);
         const pcm = pcm16(await this.mix(n * AUDIO_CHUNK, AUDIO_CHUNK));
-        await window.openroll.write(this.writerId, pos, pcm);
+        await this.put(pos, pcm);
         pos += pcm.byteLength;
       }
-      await window.openroll.write(this.writerId, 0, wavHeader(pos - 44));
+      await this.put(0, wavHeader(pos - 44));
       return { bytes: pos, seconds: (performance.now() - started) / 1000 };
     }
 
     const writable = new WritableStream<StreamTargetChunk>({
       write: async chunk => {
         written = Math.max(written, chunk.position + chunk.data.byteLength);
-        await window.openroll.write(this.writerId, chunk.position, chunk.data);
+        await this.put(chunk.position, chunk.data);
       },
     });
     const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 }) });
@@ -232,6 +234,12 @@ export class Exporter {
       throw err;
     }
     return { bytes: written, seconds: (performance.now() - started) / 1000 };
+  }
+
+  private put(position: number, data: Uint8Array): Promise<void> {
+    return window.openroll.write(this.writerId, position, data).catch(err => {
+      throw new FatalExportError(`the file could not be written (${ipcReason(err)})`);
+    });
   }
 
   cancel(): void {
@@ -311,6 +319,12 @@ export class Exporter {
       if (dur > 0) node.start(Math.max(0, at(tl) - chain.latency), offset, dur);
     }
   }
+}
+
+/** Electron wraps errors from the main process in a long prefix; keep the part a person can use. */
+export function ipcReason(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err);
+  return text.replace(/^Error invoking remote method '[^']*': (Error: )?/, "").replace(/^Error: /, "");
 }
 
 function itemsEnd(p: Project): number {

@@ -27,6 +27,8 @@ interface Pending {
   settings: ExportSettings;
   writerId: number;
   exporter: Exporter | null;
+  /** Stop was pressed before the exporter existed, for example while background removal is still running. */
+  stopped: boolean;
   prepare?: Prepare;
   finished: Array<(job: ExportJob) => void>;
 }
@@ -58,7 +60,7 @@ class ExportQueue {
 
   add(entry: { name: string; label: string; project: Project; urls: Record<string, string>; settings: ExportSettings; writer: { id: number; path: string }; prepare?: Prepare }): number {
     const job: ExportJob = { id: this.nextId++, name: entry.name, label: entry.label, status: "queued", progress: null, path: entry.writer.path, bytes: 0, seconds: 0, seen: false };
-    this.items.push({ job, project: entry.project, urls: entry.urls, settings: entry.settings, writerId: entry.writer.id, exporter: null, prepare: entry.prepare, finished: [] });
+    this.items.push({ job, project: entry.project, urls: entry.urls, settings: entry.settings, writerId: entry.writer.id, exporter: null, stopped: false, prepare: entry.prepare, finished: [] });
     this.emit();
     void this.pump();
     return job.id;
@@ -67,10 +69,13 @@ class ExportQueue {
   cancel(id: number): void {
     const p = this.items.find(i => i.job.id === id);
     if (!p) return;
-    if (p.job.status === "running") p.exporter?.cancel();
-    else if (p.job.status === "queued") {
+    if (p.job.status === "running") {
+      p.stopped = true;
+      p.exporter?.cancel();
+    } else if (p.job.status === "queued") {
       void window.openroll.closeWriter(p.writerId, true);
       this.items = this.items.filter(i => i !== p);
+      for (const fn of p.finished.splice(0)) fn(p.job);
       this.emit();
     }
   }
@@ -112,6 +117,7 @@ class ExportQueue {
             this.emit();
           })
         : [];
+      if (next.stopped) throw new Error("cancelled");
       ex = new Exporter(next.project, next.urls, next.writerId, ai);
       next.exporter = ex;
       const r = await ex.run(next.settings, {
@@ -123,7 +129,8 @@ class ExportQueue {
       await window.openroll.closeWriter(next.writerId);
       Object.assign(next.job, { status: "done", bytes: r.bytes, seconds: r.seconds });
     } catch (err) {
-      await window.openroll.closeWriter(next.writerId, true);
+      // A file that will not delete must not leave the job stuck as running.
+      await window.openroll.closeWriter(next.writerId, true).catch(() => {});
       const message = (err as Error).message;
       if (message === "cancelled") this.items = this.items.filter(i => i !== next);
       else Object.assign(next.job, { status: "error", error: message });

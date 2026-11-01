@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, 
 import { arch, release, type } from "node:os";
 import { createHash } from "node:crypto";
 import { constants, existsSync } from "node:fs";
-import { copyFile, mkdir, open, readdir, readFile, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
@@ -10,6 +10,7 @@ import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from 
 import { isInside, safeFileName, samePath } from "../shared/paths";
 import { renameBusy } from "./fs-retry";
 import { launcherPath } from "./launch-target";
+import { OutputWriters, withExtension } from "./output-writers";
 import { Journal } from "./journal";
 import { NamedVersions } from "./versions";
 import { Session } from "./session";
@@ -223,8 +224,7 @@ function serveApp(): void {
   });
 }
 
-const writers = new Map<number, { handle: FileHandle | null; path: string; tmp: string }>();
-let nextWriter = 1;
+const writers = new OutputWriters();
 
 function registerIpc(): void {
   ipcMain.handle("media:pick", async () => {
@@ -276,17 +276,15 @@ function registerIpc(): void {
       kind === "subtitles" ? [{ name: "Subtitles", extensions: ["srt", "vtt"] }] :
       kind === "image" ? [{ name: "Image", extensions: ["png", "jpg"] }] :
       [{ name: "Video", extensions: ["mp4", "mov", "webm", "gif"] }];
+    // The format is already chosen, so the dialog offers only its extension.
+    const wanted = extname(name).slice(1).toLowerCase();
+    const offered = filters[0].extensions.includes(wanted) ? [{ name: filters[0].name, extensions: [wanted] }] : filters;
     const r = process.env.OPENROLL_QA_OUT
       ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, extname(name) ? name : `${name}.${filters[0].extensions[0]}`) }
-      : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
+      : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters: offered });
     if (r.canceled || !r.filePath) return null;
-    // Write to a temp name and rename on close, so a failed export never leaves a broken file
-    // with the real name, and never clobbers an old export until the new one is complete.
-    const tmp = r.filePath + ".openroll-part";
-    const handle = await open(tmp, "w");
-    const id = nextWriter++;
-    writers.set(id, { handle, path: r.filePath, tmp });
-    return { id, path: r.filePath };
+    const file = offered.length === 1 ? withExtension(r.filePath, wanted) : r.filePath;
+    return { id: await writers.create(file), path: file };
   });
 
   // For AI tools, which name the file themselves. Same temp file and rename as above; no dialog.
@@ -299,11 +297,7 @@ function registerIpc(): void {
     }
     if (!isAbsolute(path) || !ok.test(path)) throw new Error("Give an absolute file path ending in a video, audio, image or subtitle extension.");
     await mkdir(dirname(path), { recursive: true });
-    const tmp = path + ".openroll-part";
-    const handle = await open(tmp, "w");
-    const id = nextWriter++;
-    writers.set(id, { handle, path, tmp });
-    return { id, path };
+    return { id: await writers.create(path), path };
   });
 
   ipcMain.handle("agent:allow", async (_e, paths: unknown) => {
@@ -320,43 +314,20 @@ function registerIpc(): void {
     return out;
   });
 
-  ipcMain.handle("writer:write", async (_e, id: number, position: number, data: Uint8Array) => {
-    const w = writers.get(id);
-    if (!w) throw new Error("writer closed");
-    if (!w.handle) throw new Error("writer closed");
-    await w.handle.write(data, 0, data.byteLength, position);
-  });
+  ipcMain.handle("writer:write", (_e, id: number, position: number, data: Uint8Array) => writers.write(id, position, data));
 
-  // A retry with another encoder starts the file over, so nothing of the failed attempt stays behind.
-  ipcMain.handle("writer:reset", async (_e, id: number) => {
-    const w = writers.get(id);
-    if (w?.handle) await w.handle.truncate(0);
-  });
+  ipcMain.handle("writer:reset", (_e, id: number) => writers.reset(id));
 
   ipcMain.handle("writer:close", async (_e, id: number, abort: boolean) => {
-    const w = writers.get(id);
-    if (!w) return;
-    writers.delete(id);
-    await w.handle?.close();
-    if (abort) await rm(w.tmp, { force: true });
-    else {
-      await renameBusy(w.tmp, w.path);
-      allowPath(w.path);
-    }
+    const path = await writers.close(id, !!abort);
+    if (path) allowPath(path);
   });
 
   const media = registerFfmpegIpc({
     win: () => win,
     cacheDir,
     allow: allowPath,
-    takeWriter: async id => {
-      const w = writers.get(id);
-      if (!w) return null;
-      // ffmpeg writes this file itself; the handle would only get in the way on Windows.
-      await w.handle?.close();
-      w.handle = null;
-      return w.tmp;
-    },
+    takeWriter: id => writers.take(id),
   });
   registerRelinkIpc(() => win);
 
@@ -728,6 +699,7 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
+  writers.discardAll();
   if (secondLaunch) return;
   void control.stop();
   session.end();

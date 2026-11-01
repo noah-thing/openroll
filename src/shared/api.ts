@@ -129,7 +129,8 @@ export interface OpenRollApi {
     audio(id: string, data: Uint8Array): Promise<void>;
     begin(id: string, writerId: number, spec: PipeSpec): Promise<void>;
     frame(id: string, data: Uint8Array): Promise<void>;
-    finish(id: string, spec: PipeSpec): Promise<void>;
+    /** Resolves to the size of the finished file in bytes. */
+    finish(id: string, spec: PipeSpec): Promise<number>;
     cancel(id: string): Promise<void>;
   };
 

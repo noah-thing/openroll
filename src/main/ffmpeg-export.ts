@@ -118,6 +118,8 @@ export class PipeExports {
     const s = this.sessions.get(id);
     if (!s) return;
     s.abort.abort();
+    // The temp folder cannot be removed while ffmpeg still has files in it open.
+    await s.run?.done.catch(() => {});
     await this.close(id);
   }
 
