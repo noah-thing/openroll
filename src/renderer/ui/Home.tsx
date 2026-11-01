@@ -1,0 +1,117 @@
+import { useEffect, useState } from "react";
+import type { Project } from "../../core/project";
+import type { FileInfo, RecentProject } from "../../shared/api";
+import { Icon } from "./kit/Icon";
+
+interface Props {
+  onOpen(project: Project, path: string): void;
+  onNew(files?: FileInfo[]): void;
+}
+
+export function Home({ onOpen, onNew }: Props) {
+  const [projects, setProjects] = useState<RecentProject[] | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void window.openroll.projects.list().then(setProjects);
+  }, []);
+
+  async function open(r: RecentProject) {
+    const text = await window.openroll.projects.load(r.path);
+    try {
+      const p = JSON.parse(text ?? "") as Project;
+      if (p.format !== "openroll") throw new Error();
+      onOpen(p, r.path);
+    } catch {
+      setError(`${r.name} could not be opened. A backup sits next to it as ${r.name}.openroll.bak.`);
+    }
+  }
+
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const files = await window.openroll.pathsForDropped([...e.dataTransfer.files]);
+    if (files.length) onNew(files);
+  }
+
+  return (
+    <div
+      className={"home" + (dragging ? " home-drop" : "")}
+      onDragOver={e => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={e => e.currentTarget === e.target && setDragging(false)}
+      onDrop={onDrop}
+    >
+      <header className="home-bar drag-region">
+        <div className="mark">
+          <Logo />
+          OpenRoll
+        </div>
+      </header>
+      <main className="home-main">
+        <section className="home-start">
+          <button className="home-new" onClick={() => onNew()}>
+            <span className="home-new-plus">
+              <Icon name="plus" size={22} />
+            </span>
+            <span>
+              <b>New project</b>
+              <small>or drop clips anywhere on this window</small>
+            </span>
+          </button>
+          <button
+            className="home-import"
+            onClick={async () => {
+              const files = await window.openroll.pickMedia();
+              if (files.length) onNew(files);
+            }}
+          >
+            <Icon name="media" />
+            Start from clips…
+          </button>
+        </section>
+
+        {error && <p className="home-error">{error}</p>}
+
+        <section className="home-projects">
+          <h2>Projects</h2>
+          {projects && !projects.length && <p className="home-empty">Projects you make show up here. They save as you work, there is no save button.</p>}
+          <div className="home-grid">
+            {projects?.map(p => (
+              <button key={p.path} className="home-card" onClick={() => void open(p)}>
+                <span className="home-thumb">{p.thumb ? <img src={window.openroll.mediaUrl(p.thumb)} alt="" draggable={false} /> : null}</span>
+                <span className="home-name">{p.name}</span>
+                <span className="home-date">{relative(p.modified)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </main>
+      {dragging && <div className="home-drop-hint">Drop to start a new project with these clips</div>}
+    </div>
+  );
+}
+
+export function Logo() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" />
+      <circle cx="12" cy="12" r="2.2" />
+      <circle cx="12" cy="6.6" r="1.6" />
+      <circle cx="16.7" cy="14.7" r="1.6" />
+      <circle cx="7.3" cy="14.7" r="1.6" />
+    </svg>
+  );
+}
+
+function relative(ms: number): string {
+  const d = (Date.now() - ms) / 1000;
+  if (d < 60) return "Just now";
+  if (d < 3600) return `${Math.floor(d / 60)} min ago`;
+  if (d < 86400) return `${Math.floor(d / 3600)} h ago`;
+  if (d < 86400 * 7) return `${Math.floor(d / 86400)} days ago`;
+  return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}

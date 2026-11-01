@@ -1,0 +1,49 @@
+@import "../fonts/fonts.css";
+
+:root {
+  /* Neutral graphite with a faint cool bias, like a grading suite with the lights down. */
+  --bg: #141415;
+  --chrome: #181819;
+  --pane: #1c1c1e;
+  --pane-2: #232326;
+  --pane-3: #2c2c30;
+  --sunk: #111112;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-soft: rgba(255, 255, 255, 0.045);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --ink: #ececee;
+  --ink-2: #a3a3a9;
+  --ink-3: #6d6d74;
+  --ink-4: #4a4a50;
+
+  --accent: #4b8bf5;
+  --accent-hover: #5c97f7;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(75, 139, 245, 0.16);
+  --sel: #ffffff;
+  --playhead: #ef5146;
+  --danger: #ef5146;
+  --ok: #4cc38a;
+
+  --clip-video: #314158;
+  --clip-image: #34464f;
+  --clip-overlay: #3d3d5c;
+  --clip-audio: #284b3d;
+  --clip-text: #56456b;
+  --clip-caption: #3c4b5c;
+  --clip-color: #44403b;
+  --wave: rgba(214, 240, 226, 0.42);
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  --font-num: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Ubuntu, Cantarell, sans-serif;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-clip: 4px;
+  --shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  --ease-out: cubic-bezier(0.22, 0.9, 0.24, 1);
+  --ease-spring: cubic-bezier(0.32, 1.32, 0.5, 1);
+
+  color-scheme: dark;
+}

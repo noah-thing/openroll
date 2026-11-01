@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+design/footage/*.png
+.playwright-mcp/
+qa/shots/
+research/
+design/
