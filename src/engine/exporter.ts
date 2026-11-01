@@ -27,6 +27,9 @@ const PREROLL = 1.5;
 const LATENCY_ROOM = 0.02;
 const AUDIO_CHUNK = 10;
 
+/** The file could not be written. Another encoder would hit the same wall, so the ladder stops here. */
+export class OutputError extends Error {}
+
 interface Result {
   bytes: number;
   seconds: number;
@@ -61,6 +64,7 @@ export class Exporter {
         return await this.attempt({ ...settings, encoder: rung }, h);
       } catch (err) {
         if (this.cancelled || (err as Error).message === "cancelled") throw new Error("cancelled");
+        if (err instanceof OutputError) throw err;
         last = err as Error;
         console.warn(`export with ${rung} failed`, err);
       }
@@ -86,7 +90,7 @@ export class Exporter {
         try {
           switch (m.type) {
             case "write":
-              await window.openroll.write(this.writerId, m.position, m.data);
+              await this.put(m.position, m.data);
               this.send({ type: "written", req: m.req });
               break;
             case "frame":
@@ -195,17 +199,17 @@ export class Exporter {
         if (this.cancelled) throw new Error("cancelled");
         progress(n);
         const pcm = pcm16(await this.mix(n * AUDIO_CHUNK, AUDIO_CHUNK));
-        await window.openroll.write(this.writerId, pos, pcm);
+        await this.put(pos, pcm);
         pos += pcm.byteLength;
       }
-      await window.openroll.write(this.writerId, 0, wavHeader(pos - 44));
+      await this.put(0, wavHeader(pos - 44));
       return { bytes: pos, seconds: (performance.now() - started) / 1000 };
     }
 
     const writable = new WritableStream<StreamTargetChunk>({
       write: async chunk => {
         written = Math.max(written, chunk.position + chunk.data.byteLength);
-        await window.openroll.write(this.writerId, chunk.position, chunk.data);
+        await this.put(chunk.position, chunk.data);
       },
     });
     const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 }) });
@@ -230,6 +234,12 @@ export class Exporter {
       throw err;
     }
     return { bytes: written, seconds: (performance.now() - started) / 1000 };
+  }
+
+  private put(position: number, data: Uint8Array): Promise<void> {
+    return window.openroll.write(this.writerId, position, data).catch(err => {
+      throw new OutputError(`the file could not be written (${ipcReason(err)})`);
+    });
   }
 
   cancel(): void {
@@ -309,6 +319,12 @@ export class Exporter {
       if (dur > 0) node.start(Math.max(0, at(tl) - chain.latency), offset, dur);
     }
   }
+}
+
+/** Electron wraps errors from the main process in a long prefix; keep the part a person can use. */
+export function ipcReason(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err);
+  return text.replace(/^Error invoking remote method '[^']*': (Error: )?/, "").replace(/^Error: /, "");
 }
 
 function itemsEnd(p: Project): number {

@@ -8,6 +8,9 @@ interface Writer {
   tmp: string;
 }
 
+/** ffmpeg can hold the file for a moment after it was told to stop, and Windows will not delete it until it lets go. */
+const discard = (path: string) => rm(path, { force: true, maxRetries: 8, retryDelay: 250 });
+
 /**
  * Output files for exports. Everything goes to a temp file beside the target and is renamed
  * over it on close, so a failed or cancelled export never leaves a broken file with the real
@@ -68,11 +71,11 @@ export class OutputWriters {
       }
     } catch (err) {
       await w.handle?.close().catch(() => {});
-      await rm(w.tmp, { force: true });
+      await discard(w.tmp).catch(() => {});
       throw err;
     }
     await w.handle?.close().catch(() => {});
-    await rm(w.tmp, { force: true });
+    await discard(w.tmp);
     return null;
   }
 

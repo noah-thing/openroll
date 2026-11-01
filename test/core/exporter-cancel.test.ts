@@ -1,21 +1,61 @@
-import { describe, expect, it } from "vitest";
-import { Exporter } from "../../src/engine/exporter";
+import { afterEach, describe, expect, it } from "vitest";
+import { Exporter, ipcReason } from "../../src/engine/exporter";
 import type { ExportSettings } from "../../src/engine/export-protocol";
+
+const g = globalThis as unknown as { window: unknown; Worker: unknown };
+const settings = { format: "mp4", encoder: "hardware", audio: true, transparent: false } as ExportSettings;
+const project = { tracks: [], media: {}, settings: {} } as never;
+afterEach(() => {
+  delete (g as { Worker?: unknown }).Worker;
+});
 
 describe("Exporter", () => {
   it("does not start rendering when stopped before an encoder was running", async () => {
     const started: unknown[] = [];
-    (globalThis as unknown as { Worker: unknown }).Worker = class {
+    g.Worker = class {
       constructor() {
         started.push(this);
         throw new Error("worker started");
       }
     };
-    (globalThis as unknown as { window: unknown }).window = { openroll: { convert: { status: async () => ({ available: true }) }, resetWriter: async () => {} } };
-    const ex = new Exporter({ tracks: [], media: {}, settings: {} } as never, {}, 1);
+    g.window = { openroll: { convert: { status: async () => ({ available: true }) }, resetWriter: async () => {} } };
+    const ex = new Exporter(project, {}, 1);
     ex.cancel();
-    const s = { format: "mp4", encoder: "hardware", audio: true, transparent: false } as ExportSettings;
-    await expect(ex.run(s, { onProgress() {} })).rejects.toThrow("cancelled");
+    await expect(ex.run(settings, { onProgress() {} })).rejects.toThrow("cancelled");
     expect(started).toHaveLength(0);
+  });
+
+  it("stops at once when the file cannot be written instead of trying the other encoders", async () => {
+    const started: unknown[] = [];
+    const resets: number[] = [];
+    g.Worker = class {
+      onmessage: ((e: { data: unknown }) => void) | null = null;
+      onerror = null;
+      constructor() {
+        started.push(this);
+      }
+      postMessage(m: { type: string }) {
+        if (m.type === "start") queueMicrotask(() => this.onmessage?.({ data: { type: "write", req: 1, position: 0, data: new Uint8Array(1) } }));
+      }
+      terminate() {}
+    };
+    g.window = {
+      openroll: {
+        convert: { status: async () => ({ available: true }) },
+        resetWriter: async (id: number) => void resets.push(id),
+        write: async () => {
+          throw new Error("Error invoking remote method 'writer:write': Error: ENOSPC: no space left on device, write");
+        },
+      },
+    };
+    const ex = new Exporter(project, {}, 1);
+    await expect(ex.run(settings, { onProgress() {} })).rejects.toThrow("the file could not be written (ENOSPC: no space left on device, write)");
+    expect(started).toHaveLength(1);
+    expect(resets).toEqual([]);
+  });
+
+  it("strips the wrapper Electron puts on errors from the main process", () => {
+    expect(ipcReason(new Error("Error invoking remote method 'writer:write': Error: EACCES: permission denied"))).toBe("EACCES: permission denied");
+    expect(ipcReason("plain")).toBe("plain");
   });
 });

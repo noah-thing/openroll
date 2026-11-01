@@ -57,3 +57,23 @@ describe("export queue", () => {
     await exportQueue.whenDone(first);
   });
 });
+
+describe("export queue when the file will not delete", () => {
+  it("still ends the job instead of leaving it running", async () => {
+    (globalThis as unknown as { window: unknown }).window = {
+      openroll: {
+        closeWriter: async () => {
+          throw new Error("EPERM");
+        },
+      },
+    };
+    const { exportQueue } = await import("../../src/renderer/state/export-queue");
+    let release!: () => void;
+    const id = exportQueue.add(entry(7, () => new Promise(resolve => (release = () => resolve([])))));
+    const done = exportQueue.whenDone(id);
+    exportQueue.cancel(id);
+    release();
+    await done;
+    expect(exportQueue.jobs.find(j => j.id === id)).toBeUndefined();
+  });
+});
