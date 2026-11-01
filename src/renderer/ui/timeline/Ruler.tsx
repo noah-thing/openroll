@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Marker } from "../../../core/project";
 import { shortTime } from "../../lib/format";
+import { labelHex } from "../../state/timeline-actions";
 import { rulerStep } from "./layout";
 
 interface Props {
@@ -8,10 +9,17 @@ interface Props {
   left: number;
   width: number;
   markers: Marker[];
+  range: { in: number | null; out: number | null };
+  renaming: string | null;
   onPointerDown(e: React.PointerEvent): void;
+  onContextMenu(e: React.MouseEvent): void;
+  onMarkerDown(e: React.PointerEvent, marker: Marker): void;
+  onMarkerContext(e: React.MouseEvent, marker: Marker): void;
+  onMarkerRename(marker: Marker, label: string | null): void;
+  onRangeDown(e: React.PointerEvent, which: "in" | "out"): void;
 }
 
-export function Ruler({ pps, left, width, markers, onPointerDown }: Props) {
+export function Ruler({ pps, left, width, markers, range, renaming, onPointerDown, onContextMenu, onMarkerDown, onMarkerContext, onMarkerRename, onRangeDown }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -47,11 +55,51 @@ export function Ruler({ pps, left, width, markers, onPointerDown }: Props) {
     g.globalAlpha = 1;
   }, [pps, left, width]);
 
+  const a = range.in !== null ? (range.in / 1e6) * pps : null;
+  const b = range.out !== null ? (range.out / 1e6) * pps : null;
+  const bandL = a ?? 0;
+  const bandR = b ?? null;
+
   return (
-    <div className="tl-ruler" onPointerDown={onPointerDown}>
+    <div className="tl-ruler" onPointerDown={onPointerDown} onContextMenu={onContextMenu}>
       <canvas ref={ref} className="tl-ruler-canvas" style={{ left, width }} />
+      {(a !== null || b !== null) && (
+        <div className="tl-range" style={{ left: bandL, width: bandR !== null ? Math.max(0, bandR - bandL) : 100000 }} aria-hidden />
+      )}
+      {a !== null && <span className="tl-range-h tl-range-in" style={{ transform: `translateX(${a}px)` }} title="In point" onPointerDown={e => onRangeDown(e, "in")} />}
+      {b !== null && <span className="tl-range-h tl-range-out" style={{ transform: `translateX(${b}px)` }} title="Out point" onPointerDown={e => onRangeDown(e, "out")} />}
       {markers.map(m => (
-        <span key={m.id} className="tl-marker" style={{ transform: `translateX(${(m.t / 1e6) * pps}px)` }} title={m.label ?? "Marker"} />
+        <div key={m.id} className="tl-marker-wrap" style={{ transform: `translateX(${(m.t / 1e6) * pps}px)` }}>
+          <span
+            className="tl-marker"
+            style={{ background: labelHex(m.color) }}
+            title={m.label ?? "Marker"}
+            onPointerDown={e => onMarkerDown(e, m)}
+            onContextMenu={e => onMarkerContext(e, m)}
+            onDoubleClick={e => {
+              e.stopPropagation();
+              onMarkerRename(m, null);
+            }}
+          />
+          {renaming === m.id ? (
+            <input
+              className="tl-marker-input"
+              autoFocus
+              defaultValue={m.label ?? ""}
+              placeholder="Marker name"
+              onPointerDown={e => e.stopPropagation()}
+              onFocus={e => e.currentTarget.select()}
+              onBlur={e => onMarkerRename(m, e.currentTarget.value)}
+              onKeyDown={e => {
+                e.stopPropagation();
+                if (e.key === "Enter") e.currentTarget.blur();
+                else if (e.key === "Escape") onMarkerRename(m, m.label ?? "");
+              }}
+            />
+          ) : (
+            m.label && <span className="tl-marker-label">{m.label}</span>
+          )}
+        </div>
       ))}
     </div>
   );

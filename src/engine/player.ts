@@ -125,6 +125,12 @@ export class Player {
     this.emit();
   }
 
+  /** Seek for a drag: like seek, plus a short grain of the audio under the playhead. */
+  scrub(t: Micros): void {
+    this.seek(t);
+    if (!this.playing && this.project) this.audio.scrub(this.project, Math.max(0, Math.min(t, this.duration)), this.urls);
+  }
+
   private restart(): void {
     const t = this.time;
     this.audio.stop();

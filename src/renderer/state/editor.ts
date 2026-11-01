@@ -27,6 +27,12 @@ export class Editor {
   player: Player | null = null;
   toasts: Toast[] = [];
   saveState: "saved" | "saving" | "unsaved" | "error" = "saved";
+  /** In and out points shown on the ruler. Kept for the session, not saved in the project. */
+  range: { in: Micros | null; out: Micros | null } = { in: null, out: null };
+  /** Shuttle speed while J or L is stepping the playhead, 0 otherwise. */
+  shuttle = 0;
+  /** Set while a range or the stretch around the playhead is looping. */
+  looping = false;
   private listeners = new Set<Listener>();
   private saveTimer = 0;
   private toastId = 0;
@@ -107,6 +113,23 @@ export class Editor {
     if (ids.length === this.selection.length && ids.every((id, i) => id === this.selection[i])) return;
     this.selection = ids;
     this.emit();
+  }
+
+  setRange(range: { in: Micros | null; out: Micros | null }): void {
+    this.range = range;
+    this.emit();
+  }
+
+  setShuttle(rate: number, looping = this.looping): void {
+    if (rate === this.shuttle && looping === this.looping) return;
+    this.shuttle = rate;
+    this.looping = looping;
+    this.emit();
+  }
+
+  /** Seek while dragging the playhead: moves the frame and plays a short grain of sound. */
+  scrub(t: Micros): void {
+    this.player?.scrub(t);
   }
 
   get time(): Micros {
