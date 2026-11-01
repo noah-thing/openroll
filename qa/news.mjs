@@ -32,11 +32,13 @@ export default async function ({ page, shot }) {
   check("the X closes it", (await page.locator(".news-toast").count()) === 0);
 
   const count = await page.locator(".inbox-count").innerText().catch(() => "0");
-  check("bell counts the unread quiet item", count === "1", `count ${count}`);
+  // The fixture has one item for Windows only, so Windows sees one more.
+  const win = process.platform === "win32";
+  check("bell counts the unread quiet items", count === (win ? "2" : "1"), `count ${count}`);
   await page.click(".inbox-bell");
   await page.waitForSelector(".inbox-panel");
   const titles = await page.locator(".inbox-entry h3").allInnerTexts();
-  check("bell lists everything for this platform", titles.length === 4 && !titles.includes("Only for Windows"), JSON.stringify(titles));
+  check("bell lists everything for this platform", titles.length === (win ? 5 : 4) && titles.includes("Only for Windows") === win, JSON.stringify(titles));
   await page.waitForTimeout(1500);
   await shot("news-04-bell");
   await page.keyboard.press("Escape");

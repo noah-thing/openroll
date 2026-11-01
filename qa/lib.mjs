@@ -12,8 +12,27 @@ export async function openProject(page, names = ["h264_1080p30_60s.mp4", "longgo
     const infos = await window.openroll.qa.allow(paths);
     window.__or.newProject(infos);
   }, files);
-  await page.waitForSelector(".clip", { timeout: 20000 });
+  await waitForClips(page);
   await page.waitForTimeout(600);
+}
+
+/** Waits for a clip to show. If none does, prints what the timeline holds before failing. */
+export async function waitForClips(page, timeout = 20000) {
+  try {
+    await page.waitForSelector(".clip", { timeout });
+  } catch (err) {
+    const state = await page.evaluate(() => {
+      const p = window.__or?.editor?.project;
+      return {
+        media: p && Object.values(p.media).map(m => ({ name: m.name, kind: m.kind, duration: m.duration, width: m.width, height: m.height })),
+        items: p && p.tracks.flatMap(t => t.items.map(i => ({ start: i.start, duration: i.duration }))),
+        clips: [...document.querySelectorAll(".clip")].slice(0, 5).map(c => { const r = c.getBoundingClientRect(); return [c.className, r.x, r.y, r.width, r.height, getComputedStyle(c).display]; }),
+        timeline: (() => { const t = document.querySelector(".timeline"); const r = t?.getBoundingClientRect(); return r && [r.width, r.height]; })(),
+      };
+    }).catch(e => String(e));
+    console.log("no visible clip:", JSON.stringify(state));
+    throw err;
+  }
 }
 
 export const project = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__or.editor.project)));

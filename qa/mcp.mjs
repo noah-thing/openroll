@@ -14,7 +14,7 @@ export default async function ({ page, userData, shot }) {
   const check = (name, ok, extra = "") => console.log(`${ok ? "PASS" : "FAIL"} ${name} ${extra}`);
   await page.waitForSelector(".home");
 
-  const transport = new StdioClientTransport({ command: electron, args: [resolve("."), "--mcp", `--user-data-dir=${userData}`], stderr: "ignore" });
+  const transport = new StdioClientTransport({ command: electron, args: [resolve("."), "--mcp", `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : [])], stderr: process.env.CI ? "inherit" : "ignore" });
   const client = new Client({ name: "claude-code", version: "qa" });
   const t0 = Date.now();
   await client.connect(transport);

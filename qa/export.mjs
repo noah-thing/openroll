@@ -1,6 +1,7 @@
 // Export a 3 clip project with a title and a transition, then check the file with ffprobe.
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { waitForClips } from "./lib.mjs";
 
 const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 
@@ -9,7 +10,7 @@ export default async function ({ page, shot }) {
   const files = ["h264_1080p30_60s.mp4", "portrait_1080x1920_20s.mp4", "hevc_4k30_30s.mp4", "tone_90s.mp3"].map(f => join(DIR, f));
   const infos = await page.evaluate(paths => window.openroll.qa.allow(paths), files);
   await page.evaluate(i => window.__or.newProject(i), infos);
-  await page.waitForSelector(".clip");
+  await waitForClips(page);
   await page.waitForTimeout(1000);
   // trim the first clip to 6 s so the export stays short, add a dissolve on the second cut
   await page.evaluate(() => {

@@ -30,7 +30,7 @@
       "level": "quiet",
       "title": "Only for Windows",
       "platforms": ["win32"],
-      "body": "Should not show on this Mac."
+      "body": "Shows on Windows and nowhere else."
     }
   ]
 }

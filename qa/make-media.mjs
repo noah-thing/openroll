@@ -18,6 +18,7 @@ const make = (file, fn) => {
 
 make("h264_1080p30_60s.mp4", f => ff("-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=30,format=yuv420p", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "60", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-g", "60", "-c:a", "aac", "-shortest", f));
 make("portrait_1080x1920_20s.mp4", f => ff("-f", "lavfi", "-i", "mandelbrot=size=1080x1920:rate=30", "-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000", "-t", "20", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", f));
+make("longgop_1080p60_20s.mp4", f => ff("-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=60,format=yuv420p", "-t", "20", "-c:v", "libx264", "-preset", "veryfast", "-g", "600", "-keyint_min", "600", "-sc_threshold", "0", f));
 make("hevc_4k30_30s.mp4", f => ff("-f", "lavfi", "-i", "testsrc2=size=3840x2160:rate=30,format=yuv420p", "-t", "10", "-c:v", "libx265", "-preset", "ultrafast", "-tag:v", "hvc1", f));
 make("tone_90s.mp3", f => ff("-f", "lavfi", "-i", "sine=frequency=220:sample_rate=44100", "-t", "90", "-c:a", "libmp3lame", f));
 for (const [name, filter] of [["ferry.jpg", "gradients=size=1280x720:c0=0x4a7ab0:c1=0xe8c08a:seed=3"], ["forest.jpg", "gradients=size=1280x720:c0=0x2f4a2a:c1=0xc9d6a0:seed=7"], ["coffee.jpg", "gradients=size=1280x720:c0=0x4a2f1f:c1=0xf0e2c8:seed=11"]]) {

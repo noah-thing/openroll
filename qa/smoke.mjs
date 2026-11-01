@@ -2,6 +2,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { waitForClips } from "./lib.mjs";
 
 const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 
@@ -14,7 +15,7 @@ export default async function ({ page, shot }) {
     const infos = await window.openroll.qa.allow(paths);
     window.__or.newProject(infos.filter(i => !i.name.includes("4k") && !i.name.endsWith(".mp3")).slice(0, 3));
   }, files);
-  await page.waitForSelector(".clip", { timeout: 20000 });
+  await waitForClips(page);
   console.log("import to first clip on timeline:", Date.now() - t0, "ms");
   await page.waitForTimeout(2500);
   await shot("02-editor");

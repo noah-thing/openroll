@@ -27,6 +27,7 @@ import type { AiSync } from "./ai/protocol";
 import type { MediaRef, Project } from "../core/project";
 import { projectDuration } from "../core/project";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
+import { ensureAac } from "./aac";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -159,6 +160,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       })
     : null;
   if (output && video) output.addVideoTrack(video, { frameRate: fps });
+  if (output && s.audio && !webm) await ensureAac();
   const audio = output && s.audio ? new AudioSampleSource({ codec: webm ? "opus" : "aac", bitrate: webm ? 128_000 : 192_000 }) : null;
   if (output && audio) output.addAudioTrack(audio);
   await output?.start();

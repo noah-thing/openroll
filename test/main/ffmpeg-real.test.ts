@@ -119,4 +119,11 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
     run(proxyArgs(big, proxy, probe(big), { encoders }).slice(0, -1).concat(["-f", "mp4", proxy]));
     expect(streams(proxy)[0]).toMatchObject({ codec_name: "h264", width: 1706, nb_frames: "60" });
   });
+  it("encodes an audio only m4a from the staged mix, for Chromium builds with no AAC encoder", () => {
+    const spec: PipeSpec = { format: "m4a-aac", width: W, height: H, fps: 30, transparent: false, bitrate: 0, hasAudio: true };
+    const out = join(tmp, "sound.m4a");
+    run(pipeArgs(spec, "pipe:0", audio, out, "").main);
+    const s = streams(out);
+    expect(s.map(x => x.codec_name)).toEqual(["aac"]);
+  });
 });

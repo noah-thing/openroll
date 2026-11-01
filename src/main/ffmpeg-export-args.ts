@@ -7,6 +7,7 @@ const MUXER: Record<PipeSpec["format"], string> = {
   "mp4-x264": "mp4",
   "mp4-x265": "mp4",
   "webm-vp9": "webm",
+  "m4a-aac": "ipod",
 };
 
 /** Raw frames in, from a pipe or from a file the page filled first. */
@@ -36,6 +37,10 @@ export interface PipeArgs {
  * two pass formats, `output` is the file to write and `audioFile` the staged mix.
  */
 export function pipeArgs(spec: PipeSpec, source: string, audioFile: string | null, output: string, paletteFile: string): PipeArgs {
+  if (spec.format === "m4a-aac") {
+    if (!audioFile) throw new Error("an audio export needs the staged mix");
+    return { twoPass: false, main: ["-nostdin", ...audioInput(audioFile), "-c:a", "aac", "-b:a", "256k", "-f", MUXER[spec.format], output] };
+  }
   const audio = spec.hasAudio && audioFile ? audioInput(audioFile) : [];
   const out = (codecArgs: string[], audioCodec: string[]) => [
     ...rawInput(spec, source),

@@ -3,6 +3,7 @@ import { audible } from "../core/audio-plan";
 import { itemEnd, type MediaItem, type Project } from "../core/project";
 import type { PipeSpec } from "../shared/ffexport";
 import { buildChain, calibrate, createBus, loadWorklet, needsWorklet } from "./audio-graph";
+import { ensureAac } from "./aac";
 import { ladder, pipeFormat } from "./export-formats";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
 import type { AiSync } from "./ai/protocol";
@@ -77,6 +78,7 @@ export class Exporter {
   private attempt(s: ExportSettings, h: ExportHandlers): Promise<Result> {
     // A stop that lands between two encoders has no worker to receive it yet.
     if (this.cancelled) return Promise.reject(new Error("cancelled"));
+    if (s.format === "m4a" && s.encoder === "ffmpeg") return this.piped(s, h);
     if (s.format === "m4a" || s.format === "wav") return this.audioOnly(s, h);
     if (s.encoder === "ffmpeg") return this.piped(s, h);
     return this.render(s, h, async () => {});
@@ -138,7 +140,7 @@ export class Exporter {
     const id = await window.openroll.ffexport.open();
     this.pipeId = id;
     try {
-      const staged = s.audio && s.format !== "gif" ? await this.stageAudio(id, h) : 0;
+      const staged = (s.audio || s.format === "m4a") && s.format !== "gif" ? await this.stageAudio(id, h) : 0;
       const spec: PipeSpec = {
         format: pipeFormat(s),
         width: s.width,
@@ -149,8 +151,10 @@ export class Exporter {
         hasAudio: staged > 0,
       };
       await window.openroll.ffexport.begin(id, this.writerId, spec);
-      const r = await this.render({ ...s, audio: false }, h, data => window.openroll.ffexport.frame(id, data));
-      h.onProgress({ frame: 1, frames: 1, elapsed: r.seconds, bytes: 0, note: "Finishing the file" });
+      if (spec.format !== "m4a-aac") {
+        const r = await this.render({ ...s, audio: false }, h, data => window.openroll.ffexport.frame(id, data));
+        h.onProgress({ frame: 1, frames: 1, elapsed: r.seconds, bytes: 0, note: "Finishing the file" });
+      }
       const bytes = await window.openroll.ffexport.finish(id, spec);
       return { bytes, seconds: (performance.now() - started) / 1000 };
     } catch (err) {
@@ -213,6 +217,7 @@ export class Exporter {
       },
     });
     const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 }) });
+    await ensureAac();
     const source = new AudioSampleSource({ codec: "aac", bitrate: 256_000 });
     output.addAudioTrack(source);
     await output.start();

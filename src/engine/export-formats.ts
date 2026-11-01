@@ -39,13 +39,16 @@ export const hasNoBackground = (background: string): boolean => background === "
  */
 export function ladder(s: Pick<ExportSettings, "format" | "transparent">, ffmpeg: boolean): EncoderRung[] {
   if (s.format === "prores422" || s.format === "prores4444" || s.format === "gif") return ffmpeg ? ["ffmpeg"] : [];
-  if (s.format === "m4a" || s.format === "wav" || s.format === "png") return ["software"];
+  // Chromium on Linux, and Windows without Media Foundation, has no AAC encoder.
+  if (s.format === "m4a") return ["software", ...(ffmpeg ? (["ffmpeg"] as const) : [])];
+  if (s.format === "wav" || s.format === "png") return ["software"];
   // WebCodecs cannot write alpha into VP9 reliably, so transparent WebM goes straight to ffmpeg.
   if (s.format === "webm" && s.transparent) return ffmpeg ? ["ffmpeg"] : [];
   return ["hardware", "software", ...(ffmpeg ? (["ffmpeg"] as const) : [])];
 }
 
 export function pipeFormat(s: Pick<ExportSettings, "format" | "codec">): PipeFormat {
+  if (s.format === "m4a") return "m4a-aac";
   if (s.format === "mp4") return s.codec === "hevc" ? "mp4-x265" : "mp4-x264";
   if (s.format === "webm") return "webm-vp9";
   if (s.format === "prores422" || s.format === "prores4444" || s.format === "gif") return s.format;

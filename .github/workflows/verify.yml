@@ -11,13 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, target: win-x64, ffdir: resources/ffmpeg/win-x64, package: "--win nsis portable --x64" }
-          - { os: ubuntu-latest, target: linux-x64, ffdir: resources/ffmpeg/linux-x64, package: "--linux AppImage --x64" }
+          - { os: windows-latest, target: win-x64, ffdir: resources/ffmpeg/win-x64, exe: .exe, package: "--win nsis portable --x64" }
+          - { os: ubuntu-latest, target: linux-x64, ffdir: resources/ffmpeg/linux-x64, exe: "", package: "--linux AppImage --x64" }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
       OPENROLL_TESTMEDIA: ${{ github.workspace }}/testmedia
       OPENROLL_QA_OUT: ${{ github.workspace }}/qa-out
+      FFMPEG: ${{ github.workspace }}/${{ matrix.ffdir }}/ffmpeg${{ matrix.exe }}
+      FFPROBE: ${{ github.workspace }}/${{ matrix.ffdir }}/ffprobe${{ matrix.exe }}
     defaults:
       run:
         shell: bash
