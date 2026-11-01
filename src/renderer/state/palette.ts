@@ -11,7 +11,7 @@ import { shortTime } from "../lib/format";
 import { COMMANDS, type Hooks } from "./commands";
 import type { Editor } from "./editor";
 import { chooseApp, toggleGuide } from "./guides";
-import { openSmart, showRail } from "./smart-events";
+import { showRail } from "./smart-events";
 import { addShape, addTextPreset, addTransition, generateCaptions, removeSilences, setLayout } from "./smart-actions";
 import { closeAllGapsOn, detachAudio, setSpeedFor } from "./timeline-actions";
 import { TEXT_PRESETS } from "../ui/panels/text-presets";
@@ -50,6 +50,9 @@ const KEYWORDS: Record<string, string> = {
   export: "render save mp4 share",
   import: "add media files open",
   undo: "back",
+  history: "steps back earlier jump",
+  "save-version": "snapshot checkpoint name",
+  versions: "restore snapshot checkpoint",
   duplicate: "copy clone",
   snapping: "magnet snap",
 };
@@ -118,9 +121,6 @@ export function buildActions(editor: Editor): Action[] {
 
   // Panels and tools
   for (const [id, name] of TABS) act(`show-${id}`, `Show ${name.toLowerCase()}`, "Panels", () => showRail(id), { keywords: "open tab panel" });
-  act("history", "Undo history", "Project", () => openSmart("history"), { keywords: "steps back" });
-  act("save-version", "Save a version", "Project", () => openSmart("save-version"), { keywords: "snapshot checkpoint name" });
-  act("versions", "Open saved versions", "Project", () => openSmart("versions"), { keywords: "restore snapshot checkpoint" });
   for (const g of GUIDES) {
     const app = g.covered.length > 0;
     act(`guide-${g.id}`, `Safe zones, ${g.label}`, "View", () => (app ? chooseApp(g.id) : toggleGuide(g.id)), { keywords: "guides overlay title action tiktok reels shorts" });

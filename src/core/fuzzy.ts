@@ -62,7 +62,8 @@ export function fuzzyMatch(query: string, label: string, keywords = ""): Match |
     // A hit in the label beats the same hit in keywords.
     const best = inLabel && (!inWords || inLabel.score + 25 >= inWords.score) ? inLabel : inWords;
     if (!best) return null;
-    total += best.score + (best === inLabel ? 25 : 0);
+    // Keywords are a way in, not the headline: they count for about half a label hit.
+    total += best === inLabel ? best.score + 25 : best.score * 0.5;
     if (best === inLabel) for (const h of best.hits) hits.add(h);
   }
   // Shorter labels win ties: "Export" before "Export captions" for "export".
