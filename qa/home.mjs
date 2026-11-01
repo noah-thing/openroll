@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
-const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
 export default async function ({ page, shot }) {
   await page.waitForSelector(".home");
   await shot("home-empty");

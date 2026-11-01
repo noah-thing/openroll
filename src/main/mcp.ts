@@ -69,7 +69,7 @@ class Link {
       socket!.on("data", first);
       socket!.write(JSON.stringify({ hello: { token, client: { name: this.clientName } } }) + "\n");
     });
-    socket.on("data", chunk => this.receive(chunk as unknown as string));
+    socket.on("data", chunk => this.receive(String(chunk)));
     socket.on("close", () => {
       this.socket = null;
       this.ready = null;

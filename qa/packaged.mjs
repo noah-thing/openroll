@@ -8,7 +8,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const exe = process.argv[2];
-const clip = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"), "h264_1080p30_60s.mp4");
+const clip = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"), "h264_1080p30_60s.mp4");
 const userData = await mkdtemp(join(tmpdir(), "openroll-pkg-"));
 const port = 9333;
 const child = spawn(exe, [`--remote-debugging-port=${port}`, `--user-data-dir=${userData}`], {

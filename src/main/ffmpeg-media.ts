@@ -211,7 +211,7 @@ export class MediaService {
           });
           await run.done;
           await renameBusy(t.part, t.file);
-          // Touch so the oldest-first trim keeps what people are using.
+          // Touch so the trim that drops the oldest keeps what people are using.
           await utimes(t.file, new Date(), new Date()).catch(() => {});
           this.deps.allow(t.file);
           this.set(path, { kind, status: "ready", progress: 1, file: t.file, reason });

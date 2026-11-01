@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { check } from "./lib.mjs";
 
-const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
 const OUT = process.env.OPENROLL_QA_OUT;
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 

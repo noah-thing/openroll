@@ -2,7 +2,7 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DIR = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia");
+const DIR = process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia");
 
 export default async function ({ app, page, shot }) {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 600));

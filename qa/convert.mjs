@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { check } from "./lib.mjs";
 
-const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
 
 // Stats arrive once a second with a median over that second, so collect every report while jumping around.
 const jumps = page =>
@@ -37,7 +37,7 @@ const jumps = page =>
 export default async function ({ page, shot }) {
   await page.waitForSelector(".home");
 
-  // 1. ProRes with AC-3 is not decodable here, so it is prepared in the background.
+  // ProRes with AC-3 is not decodable here, so it is prepared in the background.
   const [prores] = await page.evaluate(paths => window.openroll.qa.allow(paths), [join(DIR, "prores_ac3_720p.mov")]);
   await page.evaluate(i => window.__or.newProject([i]), prores);
   await page.waitForSelector(".clip");
@@ -57,7 +57,7 @@ export default async function ({ page, shot }) {
   console.log("canvas ready:", dataUrl > 0);
   await shot("convert-ready");
 
-  // 2. Proxy and scrub latency on the 4K long GOP file.
+  // Proxy and scrub latency on the 4K long GOP file.
   await page.evaluate(() => document.querySelector(".mark")?.click());
   await page.waitForSelector(".home");
   const [big] = await page.evaluate(paths => window.openroll.qa.allow(paths), [join(DIR, "longgop_4k_30s.mp4")]);

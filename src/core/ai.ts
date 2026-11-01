@@ -2,7 +2,7 @@
 // path, a subject track into framing keyframes, and the small binary format analysis
 // results are kept in. Nothing here touches a model or a frame, so it is all testable.
 
-import type { Keyframe, MediaItem, MediaRef, Micros } from "./project";
+import type { Keyframe, MediaItem, Micros } from "./project";
 
 /** Camera motion measured between frames, accumulated from the first frame. */
 export interface CameraPath {
@@ -120,8 +120,6 @@ export function shiftAt(c: Correction, sourceSeconds: number): StabilizeShift {
   return { dx: mix(c.dx), dy: mix(c.dy), rot: mix(c.rot), zoom: c.zoom };
 }
 
-// Reframing
-
 /** Where the main subject sits in the source frame, 0..1 on both axes. */
 export interface SubjectSample {
   /** Source seconds. */
@@ -227,27 +225,9 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
-// What a clip asks of the engine
-
-/** Fields that decide which analyses a clip needs, so unchanged edits never trigger new work. */
-export function wantsCutout(i: MediaItem): boolean {
-  return !!i.cutout;
-}
-
 export function wantsStabilize(i: MediaItem): boolean {
   return (i.stabilize?.strength ?? 0) > 0;
 }
-
-/** Slow motion asks for in between frames only while the clip really is slower than its source. */
-export function wantsInterpolation(i: MediaItem, media: MediaRef): boolean {
-  return media.kind === "video" && !!i.slowMotion && i.speed < 0.999 && !i.freeze;
-}
-
-export function wantsMotionBlur(i: MediaItem): boolean {
-  return (i.motionBlur?.amount ?? 0) > 0.01;
-}
-
-// Cache container
 
 /** A JSON header plus raw arrays in one file. The cache stores bytes, so analysis results use this. */
 export function pack(meta: unknown, ...arrays: ArrayBufferView[]): Uint8Array {

@@ -91,48 +91,40 @@ export function buildActions(editor: Editor): Action[] {
 
   const act = (id: string, label: string, group: string, run: Action["run"], extra: Partial<Action> = {}) => out.push({ id, label, group, run, ...extra });
 
-  // Making things
   act("add-text", "Add text", "Add", e => addTextPreset(e, "plain"), { keywords: "title caption words type" });
   for (const p of TEXT_PRESETS) if (p.id !== "plain") act(`add-text-${p.id}`, `Add text, ${p.name.toLowerCase()}`, "Add", e => addTextPreset(e, p.id), { keywords: "title" });
   for (const [kind, name] of TRANSITION_NAMES) act(`transition-${kind}`, `Add transition, ${name.toLowerCase()}`, "Add", e => addTransition(e, kind, name), { keywords: "between cut" });
   for (const [kind, label] of [["rect", "rectangle"], ["ellipse", "ellipse"], ["line", "line"]] as const) act(`shape-${kind}`, `Add ${label}`, "Add", e => void addShape(e, { kind }, "Add shape"), { keywords: "shape box circle" });
   for (const s of STICKERS) act(`sticker-${s.id}`, `Add sticker, ${s.name.toLowerCase()}`, "Stickers", e => void addShape(e, { kind: "sticker", sticker: s.id }), { keywords: s.group.toLowerCase() });
 
-  // Smart edits
   act("captions-generate", "Generate captions", "Smart", e => generateCaptions(e), { keywords: "subtitles speech transcribe words" });
   act("silences", "Remove silences", "Smart", e => removeSilences(e), { keywords: "pauses dead air filler words um uh" });
   act("shorts", "Find shorts in a long video", "Smart", () => showRail("smart"), { keywords: "highlights clips tiktok reels vertical" });
   act("beat", "Cut to the beat", "Smart", () => showRail("smart"), { keywords: "music rhythm sync montage" });
 
-  // Frame shape
   for (const r of RATIOS) {
     const name = r.label === "9:16" ? "Make vertical, 9:16" : r.label === "16:9" ? "Make wide, 16:9" : r.label === "1:1" ? "Make square, 1:1" : "Make portrait, 4:5";
     act(`frame-${r.label}`, name, "Frame", e => changeFrame(e, r), { keywords: `${r.label} aspect ratio shape instagram tiktok youtube shorts reels` });
   }
 
-  // Speed on the selected clip
   for (const s of [0.5, 1.5, 2, 3]) act(`speed-${s}`, `Change speed to ${s}x`, "Speed", e => setSpeedFor(e, s), { keywords: s > 1 ? "faster fast" : "slower slow motion", enabled: hasVideoSelected });
   act("speed-1", "Normal speed", "Speed", e => setSpeedFor(e, 1), { enabled: hasVideoSelected, keywords: "reset" });
   act("detach-audio", "Detach audio from clip", "Editing", e => detachAudio(e), { enabled: hasVideoSelected, keywords: "separate extract sound" });
   act("close-gaps", "Close all gaps on the main track", "Editing", e => closeAllGapsOn(e, e.project.tracks.find(t => t.main)!.id), { keywords: "empty space" });
 
-  // Layouts
   for (const l of LAYOUTS) act(`layout-${l.id}`, l.label, "Layout", e => setLayout(e, l.id, l.label), { enabled: hasVideoSelected, keywords: "pip split screen corner stack" });
 
-  // Panels and tools
   for (const [id, name] of TABS) act(`show-${id}`, `Show ${name.toLowerCase()}`, "Panels", () => showRail(id), { keywords: "open tab panel" });
   for (const g of GUIDES) {
     const app = g.covered.length > 0;
     act(`guide-${g.id}`, `Safe zones, ${g.label}`, "View", () => (app ? chooseApp(g.id) : toggleGuide(g.id)), { keywords: "guides overlay title action tiktok reels shorts" });
   }
 
-  // Markers
   editor.project.markers.forEach((m, i) => act(`marker-${m.id}`, `Go to marker, ${m.label || `${i + 1} at ${shortTime(m.t)}`}`, "Markers", e => e.seek(m.t), { keywords: "jump" }));
 
   return out;
 }
 
-// Recent commands
 
 const STORE = "openroll.recent-commands";
 const KEEP = 10;

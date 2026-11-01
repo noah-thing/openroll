@@ -25,6 +25,3 @@ export const PIPE_EXTENSION: Record<PipeFormat, string> = {
   "webm-vp9": "webm",
   "m4a-aac": "m4a",
 };
-
-/** Raw frame size in bytes for one frame. */
-export const frameBytes = (w: number, h: number) => w * h * 4;

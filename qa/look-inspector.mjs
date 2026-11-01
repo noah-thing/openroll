@@ -1,8 +1,9 @@
-import { homedir } from "node:os";
 // Drag an effect onto a clip, keyframe by hand through the inspector, curves and colour mix.
+// usage: npm run build && node qa/launch.mjs qa/look-inspector.mjs
+import { homedir } from "node:os";
 import { join } from "node:path";
 
-const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-testmedia"));
 
 export default async function ({ page, shot }) {
   page.setDefaultTimeout(8000);
@@ -44,7 +45,6 @@ export default async function ({ page, shot }) {
   });
   console.log("scale keys:", scaleMid);
 
-  // Curves and colour mix
   await page.click('.tabs button:has-text("Look")');
   await page.waitForTimeout(300);
 

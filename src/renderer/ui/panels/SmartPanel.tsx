@@ -36,7 +36,6 @@ export function SmartPanel({ editor, cache }: { editor: Editor; cache: MediaCach
   );
 }
 
-// Shorts
 
 /** Kept for the session, so switching panels does not throw the cards away. */
 const found = new WeakMap<Editor, FoundShorts>();
@@ -175,7 +174,6 @@ function ShortCard({ h, source, cache, busy, disabled, onMake, onShow }: { h: Hi
   );
 }
 
-// Cut to the beat
 
 interface Pick {
   music: MediaItem | null;

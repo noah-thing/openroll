@@ -81,13 +81,11 @@ export function shuttle(editor: Editor, dir: 1 | -1): void {
   startStepping(editor, next);
 }
 
-/** K: stop, whatever is moving. */
 export function shuttleStop(editor: Editor): void {
   stopTransport(editor);
   editor.player?.pause();
 }
 
-/** Space: pause when anything is moving, play otherwise. */
 export function togglePlay(editor: Editor): void {
   if (runs.has(editor) || editor.looping) {
     shuttleStop(editor);

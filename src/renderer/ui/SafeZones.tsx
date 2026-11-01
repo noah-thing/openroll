@@ -60,7 +60,6 @@ export function GuideLabels({ width, height }: { width: number; height: number }
 
 const APPS: GuideId[] = ["tiktok", "shorts", "reels"];
 
-/** The button in the viewer controls and its small menu. */
 export function GuidesButton() {
   const on = useGuides();
   const [open, setOpen] = useState(false);

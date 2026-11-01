@@ -12,7 +12,6 @@ export function useEditor<T>(editor: Editor, pick: (e: Editor) => T): T {
   });
 }
 
-/** Run `fn` on every animation frame while mounted. */
 export function useFrame(fn: (now: number) => void): void {
   const ref = useRef(fn);
   ref.current = fn;

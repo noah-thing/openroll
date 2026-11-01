@@ -395,13 +395,6 @@ export function frameDuration(p: Project): Micros {
   return Math.round((SECOND * p.settings.fps.den) / p.settings.fps.num);
 }
 
-/** Snap a time to the nearest frame boundary of the project rate. */
-export function toFrame(p: Project, t: Micros): Micros {
-  const { num, den } = p.settings.fps;
-  const frame = Math.round((t * num) / (SECOND * den));
-  return Math.round((frame * SECOND * den) / num);
-}
-
 export function findItem(p: Project, id: string): { track: Track; item: Item; index: number } | null {
   for (const track of p.tracks) {
     const index = track.items.findIndex(i => i.id === id);
