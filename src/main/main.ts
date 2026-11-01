@@ -580,7 +580,7 @@ function buildMenu(): void {
     click: send(cmd),
   });
   const mac = process.platform === "darwin";
-  const checkUpdates: MenuItemConstructorOptions = { label: "Check for Updates…", click: () => void updater.check(true) };
+  const checkUpdates: MenuItemConstructorOptions = { label: "Check for updates…", click: () => void updater.check(true) };
   const template: MenuItemConstructorOptions[] = [
     ...(mac
       ? [
@@ -606,9 +606,9 @@ function buildMenu(): void {
     {
       label: "File",
       submenu: [
-        item("New Project", "new", "CmdOrCtrl+N"),
-        item("Open Project…", "open", "CmdOrCtrl+O"),
-        item("Import Media…", "import", "CmdOrCtrl+I"),
+        item("New project", "new", "CmdOrCtrl+N"),
+        item("Open project…", "open", "CmdOrCtrl+O"),
+        item("Import media…", "import", "CmdOrCtrl+I"),
         { type: "separator" },
         item("Export…", "export", "CmdOrCtrl+E"),
         { type: "separator" },
@@ -620,11 +620,11 @@ function buildMenu(): void {
       submenu: [
         item("Undo", "undo", "CmdOrCtrl+Z"),
         item("Redo", "redo", "Shift+CmdOrCtrl+Z"),
-        item("Undo History…", "history"),
-        item("Save a Version…", "save-version"),
+        item("Undo history…", "history"),
+        item("Save a version…", "save-version"),
         item("Versions…", "versions"),
         { type: "separator" },
-        item("Command Bar…", "palette", "CmdOrCtrl+K"),
+        item("Command bar…", "palette", "CmdOrCtrl+K"),
         { type: "separator" },
         { role: "cut" },
         { role: "copy" },
@@ -632,16 +632,16 @@ function buildMenu(): void {
         item("Duplicate", "duplicate", "CmdOrCtrl+D"),
         item("Delete", "delete", "Delete"),
         { type: "separator" },
-        item("Split at Playhead", "split", "S"),
-        item("Select All", "select-all", "CmdOrCtrl+A"),
+        item("Split at playhead", "split", "S"),
+        item("Select all", "select-all", "CmdOrCtrl+A"),
       ],
     },
     {
       label: "View",
       submenu: [
-        item("Zoom In Timeline", "zoom-in", "CmdOrCtrl+="),
-        item("Zoom Out Timeline", "zoom-out", "CmdOrCtrl+-"),
-        item("Fit Timeline", "zoom-fit", "Shift+Z"),
+        item("Zoom in timeline", "zoom-in", "CmdOrCtrl+="),
+        item("Zoom out timeline", "zoom-out", "CmdOrCtrl+-"),
+        item("Fit timeline", "zoom-fit", "Shift+Z"),
         { type: "separator" },
         { role: "togglefullscreen" },
         ...(isDev ? [{ role: "toggleDevTools" as const }, { role: "reload" as const }] : []),
@@ -651,9 +651,9 @@ function buildMenu(): void {
     {
       label: "Help",
       submenu: [
-        item("Keyboard Shortcuts", "shortcuts", "CmdOrCtrl+/"),
+        item("Keyboard shortcuts", "shortcuts", "CmdOrCtrl+/"),
         { type: "separator" },
-        item("Report a Problem…", "report"),
+        item("Report a problem…", "report"),
         ...(mac ? [] : [checkUpdates, item("About OpenRoll", "about")]),
       ],
     },
