@@ -322,7 +322,19 @@ function registerIpc(): void {
   ipcMain.handle("projects:save", async (_e, path: unknown, name: unknown, json: unknown): Promise<SaveResult> => {
     if (typeof json !== "string") return { ok: false, error: "nothing to save" };
     try {
-      const target = typeof path === "string" && path.endsWith(".openroll") ? path : await freshProjectPath(String(name || "Untitled"));
+      let target = typeof path === "string" && path.endsWith(".openroll") ? path : await freshProjectPath(String(name || "Untitled"));
+      // A renamed project gets a matching file name, but only inside our own projects folder.
+      const wanted = String(name || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+      const current = basename(target, ".openroll");
+      const matches = current === wanted || (current.startsWith(wanted + " ") && /^\d+$/.test(current.slice(wanted.length + 1)));
+      if (wanted && !matches && dirname(target) === projectsDir() && existsSync(target)) {
+        const renamed = await freshProjectPath(wanted);
+        await rename(target, renamed);
+        await rm(target + ".bak", { force: true });
+        const oldThumb = join(thumbsDir(), hash(target) + ".jpg");
+        if (existsSync(oldThumb)) await rename(oldThumb, join(thumbsDir(), hash(renamed) + ".jpg")).catch(() => {});
+        target = renamed;
+      }
       await mkdir(dirname(target), { recursive: true });
       const tmp = target + ".tmp";
       await writeFile(tmp, json, "utf8");

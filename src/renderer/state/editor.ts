@@ -219,12 +219,35 @@ export class Editor {
       return;
     }
     this.path = r.path ?? this.path;
+    void this.saveThumb();
     // An edit may have landed while we were writing; that one saves on its own timer.
     if (this.project === snapshot) {
       this.saveState = "saved";
       window.openroll.setDirty(false);
     }
     this.emit();
+  }
+
+  private thumbAt = 0;
+
+  /** A small picture of the edit for the home screen, refreshed at most every 20 s. */
+  async saveThumb(force = false): Promise<void> {
+    const player = this.player;
+    if (!player || !this.path || (!force && Date.now() - this.thumbAt < 20_000)) return;
+    if (!this.project.tracks.some(t => t.items.length)) return;
+    this.thumbAt = Date.now();
+    try {
+      const img = await player.snapshot(player.time);
+      const w = Math.min(480, img.width), h = Math.round((img.height * w) / img.width);
+      const src = new OffscreenCanvas(img.width, img.height);
+      src.getContext("2d")!.putImageData(img, 0, 0);
+      const out = new OffscreenCanvas(w, h);
+      out.getContext("2d")!.drawImage(src, 0, 0, w, h);
+      const blob = await out.convertToBlob({ type: "image/jpeg", quality: 0.8 });
+      await window.openroll.projects.saveThumb(this.path, new Uint8Array(await blob.arrayBuffer()));
+    } catch {
+      // A missing thumbnail only costs a blank card.
+    }
   }
 
   dispose(): void {

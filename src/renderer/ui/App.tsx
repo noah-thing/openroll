@@ -27,6 +27,7 @@ export function App() {
   const close = useCallback(async () => {
     if (!editor) return;
     await editor.save();
+    await editor.saveThumb(true);
     editor.dispose();
     setEditor(null);
   }, [editor]);
@@ -80,7 +81,7 @@ export function App() {
 
   return (
     <>
-      {editor ? <EditorView key={editor.project.id} editor={editor} onClose={close} /> : <Home onOpen={open} onNew={files => open(createProject(), null, files)} />}
+      {editor ? <EditorView key={editor.project.id} editor={editor} onClose={close} /> : <Home onOpen={open} onNew={(files, shape) => open(createProject("Untitled", shape), null, files)} />}
       <Overlays />
       {notice && !editor && (
         <RecoveryPrompt

@@ -6,8 +6,15 @@ import { Icon } from "./kit/Icon";
 
 interface Props {
   onOpen(project: Project, path: string): void;
-  onNew(files?: FileInfo[]): void;
+  onNew(files?: FileInfo[], shape?: { width: number; height: number }): void;
 }
+
+const SHAPES = [
+  { label: "Widescreen", note: "YouTube, TV", width: 1920, height: 1080 },
+  { label: "Vertical", note: "TikTok, Shorts, Reels", width: 1080, height: 1920 },
+  { label: "Square", note: "Feeds", width: 1080, height: 1080 },
+  { label: "Portrait", note: "Instagram posts", width: 1080, height: 1350 },
+];
 
 export function Home({ onOpen, onNew }: Props) {
   const [projects, setProjects] = useState<RecentProject[] | null>(null);
@@ -70,25 +77,32 @@ export function Home({ onOpen, onNew }: Props) {
       </header>
       <main className="home-main">
         <section className="home-start">
-          <button className="home-new" onClick={() => onNew()}>
-            <span className="home-new-plus">
-              <Icon name="plus" size={22} />
-            </span>
-            <span>
-              <b>New project</b>
-              <small>or drop clips anywhere on this window</small>
-            </span>
-          </button>
-          <button
-            className="home-import"
-            onClick={async () => {
-              const files = await window.openroll.pickMedia();
-              if (files.length) onNew(files);
-            }}
-          >
-            <Icon name="media" />
-            Start from clips…
-          </button>
+          <h2>New project</h2>
+          <div className="home-shapes">
+            <button
+              className="home-shape home-shape-clips"
+              onClick={async () => {
+                const files = await window.openroll.pickMedia();
+                if (files.length) onNew(files);
+              }}
+            >
+              <span className="home-shape-frame">
+                <Icon name="plus" size={22} />
+              </span>
+              <b>From clips</b>
+              <small>Shape follows the first clip</small>
+            </button>
+            {SHAPES.map(shape => (
+              <button key={shape.label} className="home-shape" onClick={() => onNew(undefined, shape)}>
+                <span className="home-shape-frame">
+                  <i style={{ aspectRatio: `${shape.width} / ${shape.height}` }} />
+                </span>
+                <b>{shape.label}</b>
+                <small>{shape.note}</small>
+              </button>
+            ))}
+          </div>
+          <p className="home-hint">You can also drop clips anywhere on this window.</p>
         </section>
 
         {error && <p className="home-error">{error}</p>}
