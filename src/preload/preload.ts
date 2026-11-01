@@ -5,7 +5,7 @@ import { mediaUrlFor } from "../shared/media-url";
 const api: OpenRollApi = {
   platform: process.platform,
   versions: {
-    app: process.env.OPENROLL_VERSION ?? "dev",
+    app: process.argv.find(a => a.startsWith("--openroll-version="))?.slice(19) ?? "dev",
     electron: process.versions.electron,
     chrome: process.versions.chrome,
   },
@@ -35,6 +35,41 @@ const api: OpenRollApi = {
     file: key => ipcRenderer.invoke("cache:file", key),
   },
   saveRecording: (name, ext, data) => ipcRenderer.invoke("recordings:save", name, ext, data),
+
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    set: patch => ipcRenderer.invoke("settings:set", patch),
+    pickProjectsDir: () => ipcRenderer.invoke("settings:pick-projects-dir"),
+    onChange: handler => {
+      const listener = (_e: unknown, s: Parameters<typeof handler>[0]) => handler(s);
+      ipcRenderer.on("settings:changed", listener);
+      return () => ipcRenderer.off("settings:changed", listener);
+    },
+  },
+  cacheInfo: () => ipcRenderer.invoke("cache:info"),
+  clearCache: () => ipcRenderer.invoke("cache:clear"),
+
+  updates: {
+    state: () => ipcRenderer.invoke("updates:state"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    installNow: () => ipcRenderer.invoke("updates:install-now"),
+    onState: handler => {
+      const listener = (_e: unknown, s: Parameters<typeof handler>[0]) => handler(s);
+      ipcRenderer.on("updates:state", listener);
+      return () => ipcRenderer.off("updates:state", listener);
+    },
+  },
+
+  history: {
+    list: path => ipcRenderer.invoke("history:list", path),
+    restore: (path, file) => ipcRenderer.invoke("history:restore", path, file),
+  },
+  session: {
+    take: () => ipcRenderer.invoke("session:take"),
+    projectClosed: () => ipcRenderer.send("session:project-closed"),
+  },
+
+  systemInfo: () => ipcRenderer.invoke("system:info"),
 
   onMenu: handler => {
     const listener = (_e: unknown, cmd: string) => handler(cmd);

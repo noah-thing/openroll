@@ -66,6 +66,14 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
       outH = m.height;
       dirty = true;
       break;
+    case "decode":
+      if (VideoReader.preferHardware === m.hardware) break;
+      VideoReader.preferHardware = m.hardware;
+      // Readers are made on demand, so dropping them is enough for the new choice to apply.
+      for (const r of readers.values()) r.reader?.dispose();
+      readers.clear();
+      dirty = true;
+      break;
     case "clock":
       playing = m.playing;
       clockT = m.t;
