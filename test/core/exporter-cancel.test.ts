@@ -54,6 +54,27 @@ describe("Exporter", () => {
     expect(resets).toEqual([]);
   });
 
+  it("stops at once when the sound cannot be mixed", async () => {
+    const started: unknown[] = [];
+    g.Worker = class {
+      onmessage: ((e: { data: unknown }) => void) | null = null;
+      onerror = null;
+      constructor() {
+        started.push(this);
+      }
+      postMessage(m: { type: string }) {
+        if (m.type === "start") queueMicrotask(() => this.onmessage?.({ data: { type: "need-audio", req: 1, from: 0, seconds: 10 } }));
+      }
+      terminate() {}
+    };
+    g.window = { openroll: { convert: { status: async () => ({ available: true }) }, resetWriter: async () => {} } };
+    // A project with a clip but no OfflineAudioContext here: mixing throws.
+    const withClip = { tracks: [{ muted: false, items: [{ type: "media", mediaId: "a", start: 0, duration: 1_000_000, in: 0, speed: 1, volume: 1, fadeIn: 0, fadeOut: 0 }] }], media: { a: { hasAudio: true } }, settings: {} } as never;
+    const ex = new Exporter(withClip, { a: "x" }, 1);
+    await expect(ex.run(settings, { onProgress() {} })).rejects.toThrow("the sound could not be mixed");
+    expect(started).toHaveLength(1);
+  });
+
   it("strips the wrapper Electron puts on errors from the main process", () => {
     expect(ipcReason(new Error("Error invoking remote method 'writer:write': Error: EACCES: permission denied"))).toBe("EACCES: permission denied");
     expect(ipcReason("plain")).toBe("plain");

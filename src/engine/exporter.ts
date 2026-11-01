@@ -27,8 +27,8 @@ const PREROLL = 1.5;
 const LATENCY_ROOM = 0.02;
 const AUDIO_CHUNK = 10;
 
-/** The file could not be written. Another encoder would hit the same wall, so the ladder stops here. */
-export class OutputError extends Error {}
+/** A failure no other encoder would get around, such as a full disk, so the ladder stops here. */
+export class FatalExportError extends Error {}
 
 interface Result {
   bytes: number;
@@ -64,7 +64,7 @@ export class Exporter {
         return await this.attempt({ ...settings, encoder: rung }, h);
       } catch (err) {
         if (this.cancelled || (err as Error).message === "cancelled") throw new Error("cancelled");
-        if (err instanceof OutputError) throw err;
+        if (err instanceof FatalExportError) throw err;
         last = err as Error;
         console.warn(`export with ${rung} failed`, err);
       }
@@ -99,7 +99,9 @@ export class Exporter {
               break;
             case "need-audio": {
               // A chunk that cannot be mixed fails the export; skipping it would leave a silent gap in the file.
-              const planes = await this.mix(m.from, m.seconds);
+              const planes = await this.mix(m.from, m.seconds).catch(err => {
+                throw new FatalExportError(`the sound could not be mixed (${ipcReason(err)})`);
+              });
               this.send({ type: "audio", req: m.req, planes, frames: planes[0].length }, planes.map(p => p.buffer));
               break;
             }
@@ -234,7 +236,7 @@ export class Exporter {
 
   private put(position: number, data: Uint8Array): Promise<void> {
     return window.openroll.write(this.writerId, position, data).catch(err => {
-      throw new OutputError(`the file could not be written (${ipcReason(err)})`);
+      throw new FatalExportError(`the file could not be written (${ipcReason(err)})`);
     });
   }
 
