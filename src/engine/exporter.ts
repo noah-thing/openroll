@@ -1,7 +1,7 @@
 import { ALL_FORMATS, AudioBufferSink, Input, UrlSource, type InputAudioTrack } from "mediabunny";
 import { audible } from "../core/audio-plan";
 import { itemEnd, type MediaItem, type Project } from "../core/project";
-import { buildChain, createBus, loadWorklet, needsWorklet } from "./audio-graph";
+import { buildChain, calibrate, createBus, loadWorklet, needsWorklet } from "./audio-graph";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
 
 export interface ExportProgress {
@@ -110,6 +110,7 @@ export class Exporter {
         items.push(item);
       }
     }
+    await calibrate();
     if (items.some(needsWorklet)) await loadWorklet(ctx);
     const bus = createBus(ctx, ctx.destination);
     await Promise.all(items.map(item => this.place(ctx, bus, item, winStart, winEnd)));

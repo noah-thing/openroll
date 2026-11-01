@@ -32,7 +32,7 @@ export function needsWorklet(item: MediaItem): boolean {
 }
 
 export async function loadWorklet(ctx: BaseAudioContext): Promise<void> {
-  await ctx.audioWorklet.addModule(workletUrl);
+  await Promise.all([ctx.audioWorklet.addModule(workletUrl), calibrate()]);
 }
 
 /** Final stage of every mix: leaves normal levels alone and rounds off overs instead of clipping. */
@@ -107,55 +107,90 @@ function biquad(ctx: BaseAudioContext, type: BiquadFilterType, frequency: number
   return f;
 }
 
-function compressor(ctx: BaseAudioContext, threshold: number, ratio: number, attack: number, release: number, knee: number): DynamicsCompressorNode {
+interface CompressorSpec {
+  threshold: number;
+  ratio: number;
+  attack: number;
+  release: number;
+  knee: number;
+}
+
+const LEVELLER: CompressorSpec = { threshold: -26, ratio: 3, attack: 0.012, release: 0.25, knee: 18 };
+const SIBILANCE: CompressorSpec = { threshold: -38, ratio: 6, attack: 0.002, release: 0.06, knee: 6 };
+
+/** Makeup gain Chromium adds on its own for each spec, found by measuring a quiet tone. */
+const makeup = new Map<CompressorSpec, number>();
+
+function makeCompressor(ctx: BaseAudioContext, spec: CompressorSpec): DynamicsCompressorNode {
   const c = ctx.createDynamicsCompressor();
-  c.threshold.value = threshold;
-  c.ratio.value = ratio;
-  c.attack.value = attack;
-  c.release.value = release;
-  c.knee.value = knee;
+  c.threshold.value = spec.threshold;
+  c.ratio.value = spec.ratio;
+  c.attack.value = spec.attack;
+  c.release.value = spec.release;
+  c.knee.value = spec.knee;
   return c;
+}
+
+/**
+ * Web Audio compressors lift their output to make up for what they take away, and the
+ * amount is baked in. Measure it once so the voice toggle changes the sound, not the level.
+ */
+export async function calibrate(): Promise<void> {
+  for (const spec of [LEVELLER, SIBILANCE]) {
+    if (makeup.has(spec)) continue;
+    const ctx = new OfflineAudioContext(1, 9600, 48_000);
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 1000;
+    const quiet = ctx.createGain();
+    quiet.gain.value = dbToGain(-80);
+    osc.connect(quiet).connect(makeCompressor(ctx, spec)).connect(ctx.destination);
+    osc.start();
+    const out = (await ctx.startRendering()).getChannelData(0);
+    // skip the compressor's lookahead, then compare against the known input level
+    let sum = 0;
+    for (let i = 4800; i < out.length; i++) sum += out[i] * out[i];
+    const rms = Math.sqrt(sum / (out.length - 4800));
+    makeup.set(spec, rms / (dbToGain(-80) / Math.SQRT2));
+  }
+}
+
+/** A compressor followed by the gain that cancels its automatic makeup. */
+function compress(ctx: BaseAudioContext, from: AudioNode, spec: CompressorSpec): AudioNode {
+  const c = makeCompressor(ctx, spec);
+  const trim = ctx.createGain();
+  trim.gain.value = 1 / (makeup.get(spec) ?? 1);
+  from.connect(c);
+  c.connect(trim);
+  return trim;
 }
 
 /** Rumble filter, presence lift, a gentle leveller and a de-esser. Returns the new tail. */
 function enhanceVoice(ctx: BaseAudioContext, from: AudioNode): AudioNode {
-  const chain = [
-    biquad(ctx, "highpass", 80),
-    biquad(ctx, "peaking", 250, -2, 1),
-    biquad(ctx, "peaking", 3200, 3.5, 0.9),
-    compressor(ctx, -26, 3, 0.012, 0.25, 18),
-  ];
   let tail = from;
-  for (const n of chain) {
+  for (const n of [biquad(ctx, "highpass", 80), biquad(ctx, "peaking", 250, -2, 1), biquad(ctx, "peaking", 3200, 3.5, 0.9)]) {
     tail.connect(n);
     tail = n;
   }
-  // The leveller's automatic makeup gain is part of how Chromium builds the node; this
-  // trims it back so enabling the toggle does not jump the level.
-  const trim = ctx.createGain();
-  trim.gain.value = dbToGain(-VOICE_MAKEUP_DB);
-  tail.connect(trim);
+  tail = compress(ctx, tail, LEVELLER);
 
   // De-esser: split at 6.5 kHz, squash only the top band, add the halves back. The top
   // band is inverted because a second order low and high pass pair differ by 180 degrees
   // at the crossover, and this makes them sum flat when nothing is being squashed.
   const low = biquad(ctx, "lowpass", 6500);
   const high = biquad(ctx, "highpass", 6500);
-  const squash = compressor(ctx, -38, 6, 0.002, 0.06, 6);
   const flip = ctx.createGain();
   flip.gain.value = -1;
   const sum = ctx.createGain();
-  trim.connect(low);
-  trim.connect(high);
+  // The high pass and leveller take about this much off typical speech; put it back so
+  // the toggle changes tone and consistency rather than loudness.
+  sum.gain.value = dbToGain(1.3);
+  tail.connect(low);
+  tail.connect(high);
   low.connect(sum);
-  high.connect(squash);
-  squash.connect(flip);
+  compress(ctx, high, SIBILANCE).connect(flip);
   flip.connect(sum);
   return sum;
 }
-
-/** Makeup gain Chromium bakes into the voice leveller, measured, in dB. */
-export const VOICE_MAKEUP_DB = 0;
 
 function voiceEffect(ctx: BaseAudioContext, from: AudioNode, fx: VoiceFx): AudioNode {
   switch (fx) {

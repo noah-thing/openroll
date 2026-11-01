@@ -13,7 +13,8 @@ declare const self: DedicatedWorkerGlobalScope;
 const MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
 env.backends.onnx.wasm!.wasmPaths = { mjs: new URL(loaderUrl, self.location.href).href, wasm: new URL(wasmUrl, self.location.href).href };
-env.backends.onnx.wasm!.numThreads = Math.max(1, Math.min(4, (navigator.hardwareConcurrency ?? 4) - 1));
+// More than one thread crashes the renderer in Electron 45; one is still faster than real time.
+env.backends.onnx.wasm!.numThreads = 1;
 
 let model: Promise<KokoroTTS> | null = null;
 let current = 0;

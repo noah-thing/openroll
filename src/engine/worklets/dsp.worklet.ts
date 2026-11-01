@@ -133,5 +133,15 @@ function tap(buf: Float32Array, pos: number, size: number): number {
   return buf[i] * (1 - f) + buf[(i + 1) % size] * f;
 }
 
+/** Hands the microphone's samples to the page, 128 at a time. */
+class CaptureProcessor extends AudioWorkletProcessor {
+  process(inputs: Float32Array[][]): boolean {
+    const mono = inputs[0]?.[0];
+    if (mono) this.port.postMessage(mono.slice());
+    return true;
+  }
+}
+
+registerProcessor("openroll-capture", CaptureProcessor);
 registerProcessor("openroll-rnnoise", RnnoiseProcessor);
 registerProcessor("openroll-pitch", PitchProcessor);

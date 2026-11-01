@@ -5,6 +5,7 @@ import { useEditor } from "../lib/hooks";
 import { span } from "../lib/format";
 import type { Editor } from "../state/editor";
 import { Section, Segmented, Slider, Toggle } from "./kit/Field";
+import { AudioInspector, ReadAloudSection } from "./panels/AudioInspector";
 
 type Tab = "video" | "audio" | "speed" | "animate" | "text";
 
@@ -72,19 +73,18 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
           </>
         )}
 
-        {active === "audio" && item.type === "media" && (
-          <Section title="Sound">
-            <Slider label="Volume" value={item.volume * 100} min={0} max={200} unit="%" reset={100} onChange={v => set("Volume", { volume: v / 100 }, "vol")} onCommit={done} />
-            <Slider label="Fade in" value={item.fadeIn / 1e6} min={0} max={Math.min(10, item.duration / 2e6)} step={0.1} unit="s" reset={0} onChange={v => set("Fade in", { fadeIn: Math.round(v * 1e6) }, "fin")} onCommit={done} />
-            <Slider label="Fade out" value={item.fadeOut / 1e6} min={0} max={Math.min(10, item.duration / 2e6)} step={0.1} unit="s" reset={0} onChange={v => set("Fade out", { fadeOut: Math.round(v * 1e6) }, "fout")} onCommit={done} />
-          </Section>
-        )}
+        {active === "audio" && item.type === "media" && <AudioInspector editor={editor} item={item} project={project} />}
 
         {active === "speed" && item.type === "media" && <SpeedSection editor={editor} item={item} />}
 
         {active === "animate" && <AnimateSection item={item} set={set} done={done} />}
 
-        {active === "text" && item.type === "text" && <TextSection item={item} set={set} done={done} />}
+        {active === "text" && item.type === "text" && (
+          <>
+            <TextSection item={item} set={set} done={done} />
+            <ReadAloudSection editor={editor} item={item} />
+          </>
+        )}
       </div>
     </>
   );

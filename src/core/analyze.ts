@@ -25,9 +25,11 @@ export class AudioAnalyzer {
   private hop: number;
   private inHop = 0;
   private accFull = 0;
+  private accHigh = 0;
   private accBand = 0;
   private last = 0;
   private fullDb: number[] = [];
+  private highDb: number[] = [];
   private bandDb: number[] = [];
 
   constructor(rate: number, private channels: number) {
@@ -44,16 +46,19 @@ export class AudioAnalyzer {
       let m = 0;
       for (let k = 0; k < c; k++) m += planes[k][i];
       m /= c;
-      // Pre emphasis lifts clicks and hats above the bass so onsets read as sharp edges.
+      // Pre emphasis lifts clicks and hats above the bass; the plain signal keeps the kick loud.
       const emph = m - 0.97 * this.last;
       this.last = m;
-      this.accFull += emph * emph;
+      this.accHigh += emph * emph;
+      this.accFull += m * m;
       const b = this.lp.process(this.hp.process(m));
       this.accBand += b * b;
       if (++this.inHop === this.hop) {
         this.fullDb.push(Math.max(-90, 10 * Math.log10(this.accFull / this.hop + 1e-10)));
         this.bandDb.push(Math.max(-90, 10 * Math.log10(this.accBand / this.hop + 1e-10)));
+        this.highDb.push(Math.max(-90, 10 * Math.log10(this.accHigh / this.hop + 1e-10)));
         this.accFull = 0;
+        this.accHigh = 0;
         this.accBand = 0;
         this.inHop = 0;
       }
@@ -62,7 +67,9 @@ export class AudioAnalyzer {
 
   finish(): AudioAnalysis {
     const lufs = this.meter.integrated();
-    const onset = onsetFromDb(this.fullDb);
+    // Weighting the full band above the highs makes the pulse lock to kicks, not hats.
+    const full = onsetFromDb(this.fullDb), high = onsetFromDb(this.highDb);
+    const onset = full.map((v, i) => v + 0.5 * high[i]);
     const tempo = trackBeats(onset, HOP_SECONDS);
     const musical = !!tempo && tempo.confidence >= MUSIC_CONFIDENCE;
     const speech = musical ? [] : speechRanges(this.bandDb, HOP_SECONDS);

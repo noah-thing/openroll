@@ -79,6 +79,27 @@ describe("beats", () => {
     });
   }
 
+  it("locks to the kick, not the off beat hats", () => {
+    const bpm = 124, offset = 0.21, period = 60 / bpm;
+    const x = new Float32Array(RATE * 20);
+    let seed = 5;
+    for (let t = offset; t < 19; t += period) {
+      const i = Math.round(t * RATE);
+      for (let j = 0; j < 0.18 * RATE; j++) x[i + j] += 0.8 * Math.sin((2 * Math.PI * (45 + 120 * Math.exp(-j / (0.04 * RATE))) * j) / RATE) * Math.exp(-j / (0.07 * RATE));
+      const h = i + Math.round((period / 2) * RATE);
+      for (let j = 0; j < 0.05 * RATE; j++) x[h + j] += 0.25 * ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 31 - 1) * Math.exp(-j / (0.012 * RATE));
+    }
+    const a = new AudioAnalyzer(RATE, 1);
+    feed(a, [x]);
+    const r = a.finish();
+    for (let k = 2; k < 12; k++) {
+      const truth = offset + k * period;
+      expect(Math.min(...r.beats.map(b => Math.abs(b / 1e6 - truth)))).toBeLessThan(0.03);
+    }
+    const onHat = r.beats.filter(b => Math.abs(((b / 1e6 - offset) / period) % 1 - 0.5) < 0.1).length;
+    expect(onHat).toBe(0);
+  });
+
   it("finds nothing in steady noise", () => {
     let seed = 1;
     const noise = Float32Array.from({ length: RATE * 8 }, () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32 - 0.5) * 0.2);
