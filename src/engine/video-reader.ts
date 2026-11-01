@@ -125,8 +125,11 @@ export class VideoReader {
       }
     } catch (err) {
       if (this.disposed) return;
-      // Some streams (4:4:4, 10 bit on older GPUs) only decode in software. Retry once that way.
-      if (this.hardware && err instanceof DOMException && err.name === "NotSupportedError") {
+      // Some streams (4:4:4, 10 bit on older GPUs) only decode in software, and a PC with no
+      // video decoder at all refuses every hardware config. Chromium reports that as
+      // NotSupportedError or as an OperationError, depending on where it is caught. Retry once
+      // in software either way.
+      if (this.hardware) {
         this.hardware = false;
         await this.closeIter();
         this.sink = this.makeSink();

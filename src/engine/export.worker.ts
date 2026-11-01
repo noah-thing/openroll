@@ -53,11 +53,27 @@ class SequentialReader {
   private ahead: VideoSample | null = null;
   private done = false;
 
-  constructor(track: InputVideoTrack) {
+  private hardware = true;
+
+  constructor(private track: InputVideoTrack) {
     this.sink = new VideoSampleSink(track, { hardwareAcceleration: "prefer-hardware" });
   }
 
   async frameAt(t: number): Promise<VideoSample | null> {
+    try {
+      return await this.read(t);
+    } catch (err) {
+      if (!this.hardware) throw err;
+      // Same as the preview reader: no hardware decoder, or one that refuses this stream.
+      this.hardware = false;
+      this.dispose();
+      this.current = this.ahead = this.iter = null;
+      this.sink = new VideoSampleSink(this.track, { hardwareAcceleration: "prefer-software" });
+      return this.read(t);
+    }
+  }
+
+  private async read(t: number): Promise<VideoSample | null> {
     const eps = 1e-4;
     const jump = !this.iter || (this.current && t < this.current.timestamp - eps) || (this.ahead && t > this.ahead.timestamp + 2);
     if (jump) await this.restart(t);
@@ -92,7 +108,7 @@ class SequentialReader {
   dispose(): void {
     this.current?.close();
     this.ahead?.close();
-    void this.iter?.return(undefined);
+    this.iter?.return(undefined).catch(() => {});
   }
 }
 

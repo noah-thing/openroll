@@ -42,7 +42,9 @@ jobs:
           (cd qa/fixtures/news && "$py" -m http.server 4599 >/dev/null 2>&1 &)
           run() {
             echo "::group::$1"
-            if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node qa/launch.mjs "qa/$1.mjs"; else node qa/launch.mjs "qa/$1.mjs"; fi 2>&1 | tee "qa/shots/$1.log"
+            # Keep going after a failure so one run shows every scenario.
+            if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node qa/launch.mjs "qa/$1.mjs"; else node qa/launch.mjs "qa/$1.mjs"; fi 2>&1 | tee "qa/shots/$1.log" \
+              || echo "FAIL $1 stopped early" | tee -a "qa/shots/$1.log"
             echo "::endgroup::"
           }
           run smoke
