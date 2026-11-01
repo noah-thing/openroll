@@ -48,19 +48,22 @@ function h264Args(encoder: NonNullable<ReturnType<typeof pickH264>>, bitsPerSeco
   return ["-c:v", encoder, "-b:v", String(bitsPerSecond), ...gop];
 }
 
+/** Media files are untrusted: a playlist disguised as a clip must not make ffmpeg read other files or reach the network. */
+export const LOCAL_ONLY = ["-protocol_whitelist", "file,pipe"];
+
 /**
  * Edit friendly copy of a file the page cannot decode: H.264 with a short GOP and AAC in an
  * MP4, same size, frame rate conformed to constant. Audio only files become M4A.
  */
 export function prepareArgs(input: string, output: string, info: StreamSummary, ctx: BuildContext, hints: PrepareHints = {}): string[] {
   const audio = info.audio ? ["-map", "0:a:0", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", String(Math.min(2, info.audio.channels))] : [];
-  if (!info.video) return ["-i", input, "-vn", "-sn", "-dn", ...audio, ...threads(ctx), output];
+  if (!info.video) return [...LOCAL_ONLY, "-i", input, "-vn", "-sn", "-dn", ...audio, ...threads(ctx), output];
 
   const v = info.video;
   const copy = hints.videoDecodable && (v.codec === "h264" || v.codec === "hevc");
   if (copy) {
     const tag = v.codec === "hevc" ? ["-tag:v", "hvc1"] : [];
-    return ["-i", input, "-map", "0:v:0", "-c:v", "copy", ...tag, ...audio, "-sn", "-dn", "-movflags", "+faststart", ...threads(ctx), output];
+    return [...LOCAL_ONLY, "-i", input, "-map", "0:v:0", "-c:v", "copy", ...tag, ...audio, "-sn", "-dn", "-movflags", "+faststart", ...threads(ctx), output];
   }
   const encoder = pickH264(ctx.encoders, "quality");
   if (!encoder) throw new Error("This copy of ffmpeg has no H.264 encoder.");
@@ -72,7 +75,7 @@ export function prepareArgs(input: string, output: string, info: StreamSummary, 
   const fps = Math.min(v.fps, 60);
   const bitrate = Math.round(v.width * v.height * fps * 0.18);
   return [
-    "-i", input,
+    ...LOCAL_ONLY, "-i", input,
     "-map", "0:v:0",
     "-vf", filters.join(","),
     "-fps_mode", "cfr", "-r", String(fps),
@@ -97,7 +100,7 @@ export function proxyArgs(input: string, output: string, info: StreamSummary, ct
   const keepAudio = info.audio && (info.audio.codec === "aac" || info.audio.codec === "mp3");
   const audio = !info.audio ? ["-an"] : keepAudio ? ["-map", "0:a:0", "-c:a", "copy"] : ["-map", "0:a:0", "-c:a", "aac", "-b:a", "128k", "-ac", String(Math.min(2, info.audio.channels))];
   return [
-    "-i", input,
+    ...LOCAL_ONLY, "-i", input,
     "-map", "0:v:0",
     "-vf", filters.join(","),
     // Timestamps stay exactly as the source has them so the proxy lines up frame for frame.

@@ -92,6 +92,11 @@ describe("parseRelease", () => {
     expect(r.version).toBe("0.2.0");
     expect(r.assets).toHaveLength(1);
   });
+  it("drops assets with a path in the name or a plain http address", () => {
+    const asset = (name: string, url: string) => ({ name, size: 1, browser_download_url: url });
+    const r = parseRelease({ ...raw, assets: [asset("../x.zip", "https://example.test/x"), asset("b.zip", "http://example.test/b"), asset("c.zip", "http://127.0.0.1:9/c"), asset("d.zip", "https://example.test/d")] })!;
+    expect(r.assets.map(a => a.name)).toEqual(["c.zip", "d.zip"]);
+  });
   it("ignores drafts, prereleases and non version tags", () => {
     expect(parseRelease({ ...raw, draft: true })).toBeNull();
     expect(parseRelease({ ...raw, prerelease: true })).toBeNull();

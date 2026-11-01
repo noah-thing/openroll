@@ -71,6 +71,8 @@ export function parseRelease(raw: unknown): Release | null {
   const assets: ReleaseAsset[] = [];
   for (const a of Array.isArray(r.assets) ? r.assets : []) {
     if (!a || typeof a.name !== "string" || typeof a.browser_download_url !== "string" || typeof a.size !== "number") continue;
+    // The name becomes a file name in the update folder, and the download must be encrypted (a test feed may use loopback).
+    if (/[\\/]/.test(a.name) || a.name.startsWith(".") || !/^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost)[:/])/.test(a.browser_download_url)) continue;
     assets.push({ name: a.name, size: a.size, url: a.browser_download_url });
   }
   return {

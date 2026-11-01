@@ -1,5 +1,5 @@
 import { app, type WebContents } from "electron";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { chmod, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
@@ -59,6 +59,12 @@ export class Control {
     return token;
   }
 
+  private sameToken(given: unknown): boolean {
+    if (typeof given !== "string") return false;
+    const a = Buffer.from(given), b = Buffer.from(this.token);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+
   list(): AgentClient[] {
     return [...this.clients.values()].map(c => c.info);
   }
@@ -87,8 +93,9 @@ export class Control {
           return socket.destroy();
         }
         if (!clientId) {
-          const hello = (msg as Hello).hello;
-          if (!hello || hello.token !== this.token) {
+          // Valid JSON is not always an object: `null` must not throw inside the socket handler.
+          const hello = msg && typeof msg === "object" ? (msg as Hello).hello : undefined;
+          if (!hello || !this.sameToken(hello.token)) {
             send({ error: { message: "OpenRoll refused the connection: wrong token." } });
             return socket.end();
           }
