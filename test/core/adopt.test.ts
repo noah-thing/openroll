@@ -18,6 +18,11 @@ describe("adoptFirstClip", () => {
     expect(p.settings.fps).toEqual({ num: 60, den: 1 });
   });
 
+  it("takes only the shape from a photo", () => {
+    const p = adoptFirstClip(createProject(), [ref(1280, 720, { kind: "image" })]);
+    expect([p.settings.width, p.settings.height]).toEqual([1920, 1080]);
+  });
+
   it("caps huge sources at 4K and ignores audio", () => {
     const p = adoptFirstClip(createProject(), [ref(0, 0, { kind: "audio" }), ref(7680, 4320, { fps: 24 })]);
     expect([p.settings.width, p.settings.height]).toEqual([3840, 2160]);

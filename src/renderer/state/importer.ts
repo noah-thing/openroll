@@ -90,7 +90,8 @@ export function adoptFirstClip(p: Project, refs: MediaRef[]): Project {
   if (!first) return p;
   let w = first.width!, h = first.height!;
   if (first.rotation === 90 || first.rotation === 270) [w, h] = [h, w];
-  const k = Math.min(1, 3840 / Math.max(w, h));
+  // Photos set the shape only; their pixel size says nothing about the video people want out.
+  const k = first.kind === "image" ? 1080 / Math.min(w, h) : Math.min(1, 3840 / Math.max(w, h));
   const width = Math.max(2, Math.round((w * k) / 2) * 2);
   const height = Math.max(2, Math.round((h * k) / 2) * 2);
   const rate = first.fps ? COMMON_RATES.reduce((a, b) => (Math.abs(b - first.fps!) < Math.abs(a - first.fps!) ? b : a)) : 30;
