@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm test
@@ -55,4 +55,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p "require('./package.json').version")
-          gh release create "v$version" assets/* --title "OpenRoll $version" --generate-notes ${{ inputs.draft && '--draft' || '' }}
+          gh release create "v$version" assets/* --title "OpenRoll $version" --notes-file "release-notes/$version.md" ${{ inputs.draft && '--draft' || '' }}
