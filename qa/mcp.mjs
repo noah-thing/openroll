@@ -106,7 +106,7 @@ export default async function ({ page, userData, shot }) {
   const out = join(userData, "mcp-export.mp4");
   const ex = await call("export", { path: out, resolution: "720" });
   check("exports", !ex.error && existsSync(out), ex.error ?? `${ex.value.megabytes} MB in ${ex.value.seconds} s`);
-  if (existsSync(out)) console.log("   ffprobe:", execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height", "-of", "csv=p=0", out]).toString().trim().replace(/\n/g, " | "));
+  if (existsSync(out)) console.log("   ffprobe:", execFileSync(process.env.FFPROBE ?? "ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height", "-of", "csv=p=0", out]).toString().trim().replace(/\n/g, " | "));
 
   const undo = (await call("undo", { steps: 1 })).value;
   check("undo by the AI", undo.undone.length === 1, undo.undone.join(", "));
