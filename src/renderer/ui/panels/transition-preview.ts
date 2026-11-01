@@ -3,8 +3,17 @@ import { Compositor, type Layer } from "../../../engine/compositor";
 const W = 320, H = 180;
 let shared: Compositor | null = null;
 
-function compositor(): Compositor {
-  if (!shared) shared = new Compositor(new OffscreenCanvas(W, H));
+let unavailable = false;
+
+/** Null where the machine has no WebGL2; cards then show the plain picture. */
+function compositor(): Compositor | null {
+  if (!shared && !unavailable) {
+    try {
+      shared = new Compositor(new OffscreenCanvas(W, H));
+    } catch {
+      unavailable = true;
+    }
+  }
   return shared;
 }
 
@@ -34,6 +43,7 @@ export function abstractFrames(): [OffscreenCanvas, OffscreenCanvas] {
 /** Render one moment of a transition between two pictures into a 2D canvas. */
 export function drawTransition(target: HTMLCanvasElement, kind: string, progress: number, a: CanvasImageSource, b: CanvasImageSource): void {
   const c = compositor();
+  if (!c) return plain(target, progress < 0.5 ? a : b);
   c.resize(W, H, W, H);
   const layer = (src: CanvasImageSource, key: string): Layer => ({
     x: 0,
@@ -58,4 +68,12 @@ function keyOf(o: object): number {
   let id = ids.get(o);
   if (!id) ids.set(o, (id = nextId++));
   return id;
+}
+
+function plain(target: HTMLCanvasElement, source: CanvasImageSource): void {
+  const g = target.getContext("2d");
+  if (!g) return;
+  target.width = target.width || 288;
+  target.height = target.height || 162;
+  g.drawImage(source, 0, 0, target.width, target.height);
 }

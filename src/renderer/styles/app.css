@@ -577,3 +577,6 @@ a.textbtn { text-decoration: none; }
   margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--sunk); border: 1px solid var(--line); color: var(--ink-2);
   font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-all; user-select: text;
 }
+.viewer-nogpu { pointer-events: auto; padding: 24px; text-align: center; }
+.viewer-nogpu p { max-width: 360px; line-height: 1.5; color: #a3a3a9; }
+.viewer-nogpu b { display: block; color: #ececee; font-weight: 600; margin-bottom: 6px; }

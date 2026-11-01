@@ -21,10 +21,14 @@ export function Viewer({ editor }: { editor: Editor }) {
   const settings = useEditor(editor, e => e.project.settings);
   const prefs = useSettings();
   const empty = useEditor(editor, e => !e.project.tracks.some(t => t.items.length));
+  const [noGpu, setNoGpu] = useState(false);
 
   useEffect(() => {
     const p = new Player(canvasRef.current!);
-    p.onError = message => editor.toast(message, { tone: "error" });
+    p.onError = message => {
+      if (/WebGL2 is not available/.test(message)) setNoGpu(true);
+      else editor.toast(message, { tone: "error" });
+    };
     editor.attachPlayer(p);
     setPlayer(p);
     const off = p.subscribe(() => setPlaying(p.playing));
@@ -78,10 +82,19 @@ export function Viewer({ editor }: { editor: Editor }) {
       <div className="viewer-stage" ref={stageRef}>
         <div className="viewer-frame" style={{ width: box.w, height: box.h }}>
           <canvas ref={canvasRef} className="viewer-canvas" />
-          {empty && (
-            <div className="viewer-empty">
-              <p>Drop clips here or on the timeline</p>
+          {noGpu ? (
+            <div className="viewer-empty viewer-nogpu">
+              <p>
+                <b>The preview needs graphics acceleration</b>
+                This computer's graphics driver does not offer WebGL 2. Updating the graphics driver usually fixes it. Your project is saved and safe.
+              </p>
             </div>
+          ) : (
+            empty && (
+              <div className="viewer-empty">
+                <p>Drop clips here or on the timeline</p>
+              </div>
+            )
           )}
           <SafeZones width={box.w} height={box.h} />
           <TransformBox editor={editor} width={box.w} height={box.h} />

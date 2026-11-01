@@ -4,6 +4,7 @@ import { _electron as electron } from "playwright-core";
 import { cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const scenario = process.argv[2];
 const keep = process.argv.includes("--keep");
@@ -12,7 +13,7 @@ const userData = await mkdtemp(join(tmpdir(), "openroll-qa-"));
 if (process.env.QA_SEED) await cp(process.env.QA_SEED, userData, { recursive: true });
 const app = await electron.launch({
   // CI Linux runners have no setuid sandbox helper.
-  args: [resolve("."), `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : [])],
+  args: [resolve("."), `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : []), ...(process.env.QA_NO_GPU ? ["--use-gl=angle", "--use-angle=swiftshader"] : [])],
   env: { ...process.env, OPENROLL_QA: "1", OPENROLL_PROJECTS_DIR: join(userData, "projects") },
 });
 const page = await app.firstWindow();
@@ -22,7 +23,7 @@ page.on("console", m => {
 page.on("pageerror", e => console.log("[pageerror]", e.stack ?? e.message));
 await page.waitForLoadState("domcontentloaded");
 try {
-  const run = (await import(resolve(scenario))).default;
+  const run = (await import(pathToFileURL(resolve(scenario)).href)).default;
   await run({ app, page, userData, shot: name => page.screenshot({ path: `qa/shots/${name}.png` }) });
 } finally {
   if (!keep) await app.close();

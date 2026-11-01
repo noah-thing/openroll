@@ -32,6 +32,10 @@ if (process.env.OPENROLL_QA) {
   app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 }
 
+// Without a usable GPU (old drivers, virtual machines, blocklisted cards) Chromium refuses WebGL;
+// its software renderer keeps the editor working there, slower but whole.
+app.commandLine.appendSwitch("enable-unsafe-swiftshader");
+
 if (process.platform === "linux") {
   // Hardware video decode on Linux is opt in for Chromium. These are harmless where VA-API is absent.
   app.commandLine.appendSwitch("enable-features", "AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiVideoDecoder");

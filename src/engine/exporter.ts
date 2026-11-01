@@ -61,6 +61,8 @@ export class Exporter {
         return await this.attempt({ ...settings, encoder: rung }, h);
       } catch (err) {
         if (this.cancelled || (err as Error).message === "cancelled") throw new Error("cancelled");
+        // No encoder can help when the picture cannot be drawn at all.
+        if (/WebGL2 is not available/.test((err as Error).message)) throw new Error("exporting needs graphics acceleration, and this computer's graphics driver does not offer WebGL 2. Updating the driver usually fixes it.");
         last = err as Error;
         console.warn(`export with ${rung} failed`, err);
       }

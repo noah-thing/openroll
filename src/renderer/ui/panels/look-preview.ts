@@ -15,8 +15,17 @@ let abstract: OffscreenCanvas | null = null;
 const ids = new WeakMap<object, number>();
 let nextId = 1;
 
-function compositor(): Compositor {
-  if (!shared) shared = new Compositor(new OffscreenCanvas(CARD_W, CARD_H));
+let unavailable = false;
+
+/** Null where the machine has no WebGL2; cards then show the plain picture. */
+function compositor(): Compositor | null {
+  if (!shared && !unavailable) {
+    try {
+      shared = new Compositor(new OffscreenCanvas(CARD_W, CARD_H));
+    } catch {
+      unavailable = true;
+    }
+  }
   return shared;
 }
 
@@ -28,6 +37,7 @@ export function fallbackFrame(): OffscreenCanvas {
 /** Render `fields` on top of a picture into a 2D canvas, at card resolution. */
 export function drawLook(target: HTMLCanvasElement, source: CanvasImageSource, fields: Partial<Layer>, project?: Project, moving = false): void {
   const c = compositor();
+  if (!c) return plain(target, source);
   if (!moving) c.resetTrails();
   if (project) syncLuts(c, project);
   c.resize(CARD_W, CARD_H, CARD_W, CARD_H);
@@ -122,4 +132,12 @@ export function lookTarget(p: Project, selection: string[], t: number): { item: 
   const media = p.media[pick.mediaId];
   if (!media || media.kind === "audio") return null;
   return { item: pick, media, seconds: media.kind === "video" ? sourceTime(pick, Math.min(Math.max(t, pick.start), pick.start + pick.duration - 1), media.duration) / 1e6 : 0 };
+}
+
+function plain(target: HTMLCanvasElement, source: CanvasImageSource): void {
+  const g = target.getContext("2d");
+  if (!g) return;
+  target.width = target.width || 288;
+  target.height = target.height || 162;
+  g.drawImage(source, 0, 0, target.width, target.height);
 }
