@@ -1,5 +1,8 @@
 import type { AgentClient } from "./agent-protocol";
 import type { NewsItem } from "./news";
+import type { DerivedKind, DerivedState, InspectResult, ProxyRequest } from "./derived";
+import type { PipeSpec } from "./ffexport";
+import type { MissingFile, RelinkMatch } from "./relink";
 import type { Settings } from "./settings";
 
 // The surface the preload script exposes as window.openroll. Keep it small: every
@@ -90,8 +93,45 @@ export interface OpenRollApi {
   /** Writes go through a handle so exports can stream large files without holding them in memory. */
   createWriter(suggestedName: string, kind: "video" | "audio" | "subtitles" | "image"): Promise<{ id: number; path: string } | null>;
   write(id: number, position: number, data: Uint8Array): Promise<void>;
+  /** Empties the file so an export can start over with another encoder. */
+  resetWriter(id: number): Promise<void>;
   closeWriter(id: number, abort?: boolean): Promise<void>;
   revealInFolder(path: string): Promise<void>;
+
+  /** Background conversions run by the bundled ffmpeg. */
+  convert: {
+    status(): Promise<{ available: boolean; probe: boolean }>;
+    inspect(path: string): Promise<InspectResult | null>;
+    /** Starts (or finds) an edit friendly copy of a file the page cannot decode. */
+    prepare(path: string, hints?: { videoDecodable?: boolean }): Promise<DerivedState | null>;
+    /** Starts a proxy if the request and the file call for one. */
+    proxy(path: string, req: ProxyRequest): Promise<DerivedState | null>;
+    /** What the cache already has for these files. */
+    existing(paths: string[]): Promise<Record<string, DerivedState[]>>;
+    cancel(path: string, kind: DerivedKind): void;
+    /** Tells the queue the timeline is playing, so background work backs off. */
+    setPlayback(active: boolean): void;
+    onState(handler: (path: string, state: DerivedState) => void): () => void;
+  };
+
+  /** Exports that ffmpeg encodes from frames the page renders. */
+  ffexport: {
+    open(): Promise<string>;
+    /** Interleaved f32 stereo at 48 kHz. */
+    audio(id: string, data: Uint8Array): Promise<void>;
+    begin(id: string, writerId: number, spec: PipeSpec): Promise<void>;
+    frame(id: string, data: Uint8Array): Promise<void>;
+    finish(id: string, spec: PipeSpec): Promise<void>;
+    cancel(id: string): Promise<void>;
+  };
+
+  relink: {
+    /** Of these paths, the ones that are not files on disk any more. */
+    missing(paths: string[]): Promise<string[]>;
+    auto(missing: MissingFile[]): Promise<(RelinkMatch & { file: FileInfo })[]>;
+    folder(missing: MissingFile[]): Promise<{ folder: string; matches: (RelinkMatch & { file: FileInfo })[] } | null>;
+    file(missing: MissingFile[], targetId: string): Promise<{ matches: (RelinkMatch & { file: FileInfo })[] } | null>;
+  };
 
   projects: {
     dir(): Promise<string>;

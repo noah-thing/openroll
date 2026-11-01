@@ -3,6 +3,7 @@ import { renameProject } from "../../core/edit";
 import { useEditor } from "../lib/hooks";
 import type { Editor } from "../state/editor";
 import { Logo } from "./Home";
+import { useExportJobs } from "../state/export-queue";
 import { Icon } from "./kit/Icon";
 import { InboxButton } from "./Inbox";
 import { RatioPicker } from "./RatioPicker";
@@ -13,6 +14,10 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
   const undoLabel = useEditor(editor, e => e.history.undoLabel);
   const redoLabel = useEditor(editor, e => e.history.redoLabel);
   const [editing, setEditing] = useState(false);
+  const jobs = useExportJobs();
+  const running = jobs.find(j => j.status === "running");
+  const waiting = jobs.filter(j => j.status === "queued").length;
+  const unseen = jobs.filter(j => !j.seen && (j.status === "done" || j.status === "error"));
 
   return (
     <header className="top drag-region">
@@ -52,6 +57,25 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
         <button className="iconbtn" disabled={!redoLabel} onClick={() => editor.redo()} title={redoLabel ? `Redo ${redoLabel.toLowerCase()}` : "Nothing to redo"}>
           <Icon name="redo" />
         </button>
+        {(running || waiting > 0 || unseen.length > 0) && (
+          <button className={"export-chip" + (unseen.some(j => j.status === "error") ? " export-chip-error" : "")} onClick={onExport} title="Show exports">
+            {running ? (
+              <>
+                <span className="export-chip-bar">
+                  <span style={{ transform: `scaleX(${running.progress ? running.progress.frame / running.progress.frames : 0})` }} />
+                </span>
+                {running.progress?.note ?? `Exporting ${running.progress ? Math.floor((running.progress.frame / running.progress.frames) * 100) : 0}%`}
+                {waiting > 0 && ` and ${waiting} waiting`}
+              </>
+            ) : waiting > 0 ? (
+              `${waiting} waiting to export`
+            ) : unseen.some(j => j.status === "error") ? (
+              "Export stopped"
+            ) : (
+              "Export finished"
+            )}
+          </button>
+        )}
         <RatioPicker editor={editor} />
         <button className="export" onClick={onExport}>
           Export

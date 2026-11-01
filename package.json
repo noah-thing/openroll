@@ -12,13 +12,14 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
+    "ffmpeg": "node scripts/fetch-ffmpeg.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "pack": "npm run build && electron-builder --dir",
+    "pack": "node scripts/fetch-ffmpeg.mjs && npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "node scripts/fetch-ffmpeg.mjs --os mac && npm run build && electron-builder --mac",
+    "dist:win": "node scripts/fetch-ffmpeg.mjs --target win-x64 && npm run build && electron-builder --win",
     "dist:win-arm64": "npm run build && electron-builder --win nsis --arm64",
-    "dist:linux": "npm run build && electron-builder --linux --x64",
+    "dist:linux": "node scripts/fetch-ffmpeg.mjs --target linux-x64 && npm run build && electron-builder --linux --x64",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest"

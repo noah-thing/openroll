@@ -686,6 +686,18 @@ export class Compositor {
     }
   }
 
+  /**
+   * Raw RGBA of the last render, rows bottom up, written into `into`. Opaque output is read
+   * from the canvas (background already composited); transparent output from the premultiplied
+   * accumulator, so the background never lands in it.
+   */
+  readRaw(transparent: boolean, into: Uint8Array): void {
+    const gl = this.gl;
+    if (transparent) this.acc.bind();
+    else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, into);
+  }
+
   /** Read the current output back, e.g. for a project thumbnail. */
   snapshot(): ImageData {
     const gl = this.gl;
@@ -719,6 +731,8 @@ export class Compositor {
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
+  // "none" means a transparent project background; where it must be drawn, it is black.
+  if (!/^#?[0-9a-f]{6}/i.test(hex)) return [0, 0, 0];
   const n = parseInt(hex.replace("#", "").padEnd(6, "0").slice(0, 6), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }

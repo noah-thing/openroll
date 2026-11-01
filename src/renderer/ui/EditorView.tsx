@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Editor } from "../state/editor";
 import { MediaCache } from "../state/media-cache";
+import { derived } from "../state/derived-media";
+import { checkMissing } from "../state/relink";
+import { useSettings } from "../state/settings";
 import { useAutoAnalysis } from "../state/auto-analyze";
 import { useAiBackground } from "../state/ai";
 import { useShortcuts } from "../state/shortcuts";
@@ -14,9 +17,19 @@ import { ExportDialog } from "./ExportDialog";
 import { ShortcutSheet } from "./ShortcutSheet";
 
 export function EditorView({ editor, onClose }: { editor: Editor; onClose(): void }) {
-  const cache = useMemo(() => new MediaCache(m => window.openroll.mediaUrl(m.path)), []);
+  const cache = useMemo(() => new MediaCache(m => derived.decodeUrl(m)), []);
   const [exporting, setExporting] = useState(false);
+  const proxyMode = useSettings().proxyMode;
   useEffect(() => () => cache.dispose(), [cache]);
+  useEffect(() => {
+    const stop = derived.subscribe(() => cache.refresh());
+    return () => void stop();
+  }, [cache]);
+  // On open: find missing files, pick up copies made earlier, and start any a reopened project still needs.
+  useEffect(() => {
+    derived.start();
+    void checkMissing(editor).then(() => derived.restore(Object.values(editor.project.media)));
+  }, [editor, proxyMode]);
   useAutoAnalysis(editor, cache);
   useAiBackground(editor);
   useShortcuts(editor, { onExport: () => setExporting(true), onHome: onClose });

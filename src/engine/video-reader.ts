@@ -23,6 +23,9 @@ export class VideoReader {
   private version = 0;
   private seekedTo = -1;
   onFrame: (() => void) | null = null;
+  /** Frames drawn while playing and how many of them were not the exact frame, for spotting sources that decode too slowly. */
+  playedFrames = 0;
+  lateFrames = 0;
   /** Time from a new target to the first exact frame for it, for the stats overlay. */
   onSettle: ((ms: number) => void) | null = null;
   private wantedAt = 0;
@@ -64,6 +67,10 @@ export class VideoReader {
     best ??= this.frames[0] ?? null;
     if (!best) return null;
     const exact = best.timestamp <= t + 1e-4 && t < best.timestamp + Math.max(best.duration, 1 / 120);
+    if (this.playing) {
+      this.playedFrames++;
+      if (!exact) this.lateFrames++;
+    }
     if (exact && !this.settled) {
       this.settled = true;
       this.onSettle?.(performance.now() - this.wantedAt);

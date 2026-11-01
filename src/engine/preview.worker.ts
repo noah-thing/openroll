@@ -2,6 +2,7 @@
 import { ALL_FORMATS, Input, UrlSource, type InputVideoTrack } from "mediabunny";
 import { Compositor, type Layer, type Node } from "./compositor";
 import { VideoReader } from "./video-reader";
+import { decodesTooSlowly } from "./proxy-policy";
 import { rasterText } from "./text";
 import { loadFonts } from "./fonts";
 import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/scene";
@@ -31,9 +32,11 @@ let renderTime = 0;
 interface Source {
   input: Input;
   track: Promise<InputVideoTrack | null>;
+  url: string;
 }
 const sources = new Map<string, Source>();
-const readers = new Map<string, { reader: VideoReader | null; lastUsed: number }>();
+const readers = new Map<string, { reader: VideoReader | null; lastUsed: number; mediaId: string }>();
+const reportedSlow = new Set<string>();
 const images = new Map<string, ImageBitmap | Promise<ImageBitmap | null>>();
 
 const stats = { frames: 0, late: 0, since: performance.now(), worst: 0, settles: [] as number[] };
@@ -108,7 +111,7 @@ function sourceFor(media: MediaRef): Source | null {
   const url = urls[media.id];
   if (!url) return null;
   const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(url) });
-  s = { input, track: input.getPrimaryVideoTrack().catch(() => null) };
+  s = { input, track: input.getPrimaryVideoTrack().catch(() => null), url };
   sources.set(media.id, s);
   return s;
 }
@@ -121,7 +124,7 @@ function readerFor(itemId: string, media: MediaRef): VideoReader | null {
   }
   const src = sourceFor(media);
   if (!src) return null;
-  const slot: { reader: VideoReader | null; lastUsed: number } = { reader: null, lastUsed: performance.now() };
+  const slot: { reader: VideoReader | null; lastUsed: number; mediaId: string } = { reader: null, lastUsed: performance.now(), mediaId: media.id };
   readers.set(itemId, slot);
   void src.track.then(track => {
     if (!track || !readers.has(itemId)) {
@@ -155,8 +158,25 @@ function imageFor(media: MediaRef): ImageBitmap | null {
   return null;
 }
 
+/** A source whose url changed (a proxy finished, a file was relinked) is read afresh from the new place. */
+function dropChangedSources(): void {
+  for (const [id, s] of sources) {
+    if (urls[id] === s.url) continue;
+    for (const [itemId, r] of readers) if (r.mediaId === id) {
+      r.reader?.dispose();
+      readers.delete(itemId);
+    }
+    s.input.dispose();
+    sources.delete(id);
+    const img = images.get(id);
+    if (img instanceof ImageBitmap) img.close();
+    images.delete(id);
+  }
+}
+
 function pruneSources(): void {
   if (!project) return;
+  dropChangedSources();
   const live = new Set<string>();
   const liveItems = new Set<string>();
   for (const t of project.tracks) for (const i of t.items) if (i.type === "media") {
@@ -178,6 +198,7 @@ function pruneSources(): void {
 }
 
 function hexToRgb(hex: string): [number, number, number] {
+  if (!/^#?[0-9a-f]{6}/i.test(hex)) return [0, 0, 0];
   const n = parseInt(hex.replace("#", "").padEnd(6, "0").slice(0, 6), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
@@ -318,8 +339,18 @@ function loop(): void {
     stats.worst = 0;
     stats.since = performance.now();
     collectIdleReaders();
+    reportSlowReaders();
   }
   self.requestAnimationFrame(loop);
+}
+
+function reportSlowReaders(): void {
+  for (const r of readers.values()) {
+    const rd = r.reader;
+    if (!rd || reportedSlow.has(r.mediaId) || !decodesTooSlowly(rd.playedFrames, rd.lateFrames)) continue;
+    reportedSlow.add(r.mediaId);
+    post({ type: "slow-decode", mediaId: r.mediaId });
+  }
 }
 
 function collectIdleReaders(): void {

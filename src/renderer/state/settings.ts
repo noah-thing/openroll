@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SETTINGS, type Settings } from "../../shared/settings";
+import { derived } from "./derived-media";
 
 let current: Settings = DEFAULT_SETTINGS;
 const listeners = new Set<() => void>();
@@ -7,6 +8,7 @@ const listeners = new Set<() => void>();
 function apply(next: Settings): void {
   current = next;
   document.documentElement.dataset.reduceMotion = String(next.reduceMotion);
+  derived.setProxyMode(next.proxyMode);
   for (const fn of listeners) fn();
 }
 

@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import { insertItems, mediaItem, removeMedia } from "../../../core/edit";
 import { mainTrack, projectDuration, type MediaRef } from "../../../core/project";
 import { useEditor } from "../../lib/hooks";
+import { BADGE_TEXT, derived, useDerivedVersion } from "../../state/derived-media";
+import { describe, relinkFromFile, relinkFromFolder, relinkNearby } from "../../state/relink";
 import { shortTime } from "../../lib/format";
 import type { Editor } from "../../state/editor";
 import { importFiles } from "../../state/importer";
@@ -14,7 +16,9 @@ export function MediaPanel({ editor, cache }: { editor: Editor; cache: MediaCach
   const tracks = useEditor(editor, e => e.project.tracks);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  useDerivedVersion();
   const list = Object.values(media);
+  const missing = list.filter(m => derived.isMissing(m)).map(m => ({ id: m.id, path: m.path, name: m.name, size: m.size }));
   const used = new Set(tracks.flatMap(t => t.items.flatMap(i => (i.type === "media" ? [i.mediaId] : []))));
 
   async function pick() {
@@ -29,6 +33,26 @@ export function MediaPanel({ editor, cache }: { editor: Editor; cache: MediaCach
     const item = mediaItem(m, m.kind === "audio" ? editor.time : projectDuration(editor.project));
     editor.apply("Add clip", p => insertItems(p, [item], m.kind === "audio" ? {} : { trackId: mainTrack(p).id }));
     editor.select([item.id]);
+  }
+
+  // Looking beside the old location costs nothing, so it goes first; a folder pick follows only if files are still lost.
+  async function findAll() {
+    setBusy(true);
+    let r = await relinkNearby(editor, missing);
+    if (r.left) {
+      const rest = Object.values(editor.project.media).filter(m => derived.isMissing(m)).map(m => ({ id: m.id, path: m.path, name: m.name, size: m.size }));
+      r = await relinkFromFolder(editor, rest);
+    }
+    setBusy(false);
+    const text = describe(r);
+    if (text) editor.toast(text);
+  }
+
+  async function findOne(id: string) {
+    const rest = Object.values(editor.project.media).filter(m => derived.isMissing(m)).map(m => ({ id: m.id, path: m.path, name: m.name, size: m.size }));
+    const r = await relinkFromFile(editor, rest, id);
+    const text = describe(r);
+    if (text) editor.toast(text);
   }
 
   return (
@@ -56,6 +80,14 @@ export function MediaPanel({ editor, cache }: { editor: Editor; cache: MediaCach
           {busy ? "Importing…" : "Import"}
         </button>
       </div>
+      {missing.length > 0 && (
+        <div className="missing-bar" role="alert">
+          <span>{missing.length === 1 ? "1 file is missing." : `${missing.length} files are missing.`}</span>
+          <button className="textbtn" onClick={findAll} disabled={busy}>
+            Find files
+          </button>
+        </div>
+      )}
       {!list.length ? (
         <button className="panel-empty" onClick={pick}>
           <Icon name="folder" size={22} />
@@ -71,6 +103,7 @@ export function MediaPanel({ editor, cache }: { editor: Editor; cache: MediaCach
               used={used.has(m.id)}
               cache={cache}
               onAdd={() => add(m)}
+              onFind={() => void findOne(m.id)}
               onRemove={() => editor.apply(`Remove ${m.name}`, p => removeMedia(p, m.id))}
             />
           ))}
@@ -80,11 +113,14 @@ export function MediaPanel({ editor, cache }: { editor: Editor; cache: MediaCach
   );
 }
 
-function MediaTile({ media, used, cache, onAdd, onRemove }: { media: MediaRef; used: boolean; cache: MediaCache; onAdd(): void; onRemove(): void }) {
+function MediaTile({ media, used, cache, onAdd, onRemove, onFind }: { media: MediaRef; used: boolean; cache: MediaCache; onAdd(): void; onRemove(): void; onFind(): void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
   const [hover, setHover] = useState(false);
-  const url = window.openroll.mediaUrl(media.path);
+  useDerivedVersion();
+  const url = derived.decodeUrl(media);
+  const badge = derived.badge(media);
+  const percent = derived.progress(media);
   const strip = media.kind === "video" ? cache.filmstrip(media) : null;
 
   // Skim: the pointer picks the moment and the clip plays from there, muted.
@@ -120,8 +156,19 @@ function MediaTile({ media, used, cache, onAdd, onRemove }: { media: MediaRef; u
         onPointerMove={media.kind === "video" ? skim : undefined}
       >
         {media.kind === "image" && <img src={url} alt="" draggable={false} />}
+        {badge && (
+          <span className={"badge badge-" + badge} title={badge === "failed" ? derived.error(media) ?? undefined : undefined}>
+            {BADGE_TEXT[badge]}
+            {percent !== null && (badge === "preparing" || badge === "proxy-building") ? ` ${Math.round(percent * 100)}%` : ""}
+          </span>
+        )}
+        {badge === "missing" && (
+          <button className="tile-find" onClick={onFind}>
+            Find file
+          </button>
+        )}
         {media.kind === "video" && strip && <StripPoster strip={strip} />}
-        {media.kind === "video" && hover && <video ref={videoRef} src={url} muted playsInline preload="auto" className="tile-video" />}
+        {media.kind === "video" && hover && url && !badge?.startsWith("miss") && <video ref={videoRef} src={url} muted playsInline preload="auto" className="tile-video" />}
         {media.kind === "audio" && <Icon name="audio" size={22} />}
         <span className="tile-bar" ref={barRef} />
         {media.kind !== "image" && <span className="tile-dur num">{shortTime(media.duration)}</span>}

@@ -43,9 +43,9 @@ export default async function ({ page, shot }) {
   await shot("export-setup");
   const t0 = Date.now();
   await page.click(".modal .export");
-  await page.waitForSelector(".modal-done, .modal-warn", { timeout: 300000 });
+  await page.waitForSelector(".job .modal-done, .job .modal-warn", { timeout: 300000 });
   const secs = (Date.now() - t0) / 1000;
   await shot("export-done");
-  const text = await page.locator(".modal-body").innerText();
+  const text = await page.locator(".job").first().innerText();
   console.log("export finished in", secs.toFixed(1), "s,", (dur / secs).toFixed(2) + "x real time:", text.replace(/\n/g, " | "));
 }

@@ -13,6 +13,8 @@ import { getSettings, updateSettings } from "./settings";
 import { Updater } from "./updater";
 import { News } from "./news";
 import { Control } from "./control";
+import { registerFfmpegIpc } from "./ffmpeg-ipc";
+import { registerRelinkIpc } from "./relink";
 
 const isDev = !!process.env.OPENROLL_DEV_URL;
 const APP_SCHEME = "openroll-app";
@@ -34,7 +36,11 @@ if (process.platform === "linux") {
   app.commandLine.appendSwitch("enable-features", "AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiVideoDecoder");
 }
 
-const MEDIA_EXT = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mts", "m2ts", "3gp", "mp3", "m4a", "aac", "wav", "ogg", "opus", "flac", "png", "jpg", "jpeg", "webp", "gif", "heic", "bmp"];
+const MEDIA_EXT = [
+  "mp4", "mov", "m4v", "webm", "mkv", "avi", "mts", "m2ts", "3gp", "3g2", "mpg", "mpeg", "m2v", "vob", "ts", "wmv", "asf", "flv", "f4v", "ogv", "mxf", "dv", "divx",
+  "mp3", "m4a", "aac", "wav", "ogg", "opus", "flac", "ac3", "dts", "wma", "aif", "aiff", "caf", "amr",
+  "png", "jpg", "jpeg", "webp", "gif", "heic", "bmp",
+];
 
 let win: BrowserWindow | null = null;
 
@@ -205,7 +211,7 @@ function serveApp(): void {
   });
 }
 
-const writers = new Map<number, { handle: FileHandle; path: string; tmp: string }>();
+const writers = new Map<number, { handle: FileHandle | null; path: string; tmp: string }>();
 let nextWriter = 1;
 
 function registerIpc(): void {
@@ -257,7 +263,7 @@ function registerIpc(): void {
       kind === "audio" ? [{ name: "Audio", extensions: ["m4a", "wav"] }] :
       kind === "subtitles" ? [{ name: "Subtitles", extensions: ["srt", "vtt"] }] :
       kind === "image" ? [{ name: "Image", extensions: ["png", "jpg"] }] :
-      [{ name: "Video", extensions: ["mp4", "mov", "webm"] }];
+      [{ name: "Video", extensions: ["mp4", "mov", "webm", "gif"] }];
     const r = process.env.OPENROLL_QA_OUT
       ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, extname(name) ? name : `${name}.${filters[0].extensions[0]}`) }
       : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
@@ -274,14 +280,21 @@ function registerIpc(): void {
   ipcMain.handle("writer:write", async (_e, id: number, position: number, data: Uint8Array) => {
     const w = writers.get(id);
     if (!w) throw new Error("writer closed");
+    if (!w.handle) throw new Error("writer closed");
     await w.handle.write(data, 0, data.byteLength, position);
+  });
+
+  // A retry with another encoder starts the file over, so nothing of the failed attempt stays behind.
+  ipcMain.handle("writer:reset", async (_e, id: number) => {
+    const w = writers.get(id);
+    if (w?.handle) await w.handle.truncate(0);
   });
 
   ipcMain.handle("writer:close", async (_e, id: number, abort: boolean) => {
     const w = writers.get(id);
     if (!w) return;
     writers.delete(id);
-    await w.handle.close();
+    await w.handle?.close();
     if (abort) await rm(w.tmp, { force: true });
     else {
       await rm(w.path, { force: true });
@@ -289,6 +302,21 @@ function registerIpc(): void {
       allowPath(w.path);
     }
   });
+
+  const media = registerFfmpegIpc({
+    win: () => win,
+    cacheDir,
+    allow: allowPath,
+    takeWriter: async id => {
+      const w = writers.get(id);
+      if (!w) return null;
+      // ffmpeg writes this file itself; the handle would only get in the way on Windows.
+      await w.handle?.close();
+      w.handle = null;
+      return w.tmp;
+    },
+  });
+  registerRelinkIpc(() => win);
 
   ipcMain.handle("shell:reveal", (_e, path: unknown) => {
     if (typeof path === "string" && existsSync(path)) shell.showItemInFolder(path);
@@ -417,6 +445,7 @@ function registerIpc(): void {
   ipcMain.handle("cache:info", async (): Promise<CacheInfo> => ({ dir: cacheDir(), bytes: await folderSize(cacheDir()) }));
   ipcMain.handle("cache:clear", async () => {
     await rm(cacheDir(), { recursive: true, force: true });
+    media.reset();
   });
 
   ipcMain.handle("updates:state", () => updater.getState());

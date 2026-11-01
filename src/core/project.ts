@@ -33,6 +33,8 @@ export interface MediaRef {
   size: number;
   /** File modification time when imported, used to notice changed sources. */
   mtime: number;
+  /** The page cannot decode this file, so a converted copy in the cache stands in for it. The project still points at the original. */
+  prepared?: boolean;
   duration: Micros;
   width?: number;
   height?: number;

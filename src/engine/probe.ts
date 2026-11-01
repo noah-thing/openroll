@@ -7,6 +7,13 @@ const AUDIO = /\.(mp3|m4a|aac|wav|ogg|opus|flac)$/i;
 
 export class UnsupportedMediaError extends Error {}
 
+/** The file is fine but this computer cannot decode it as it is. A converted copy can stand in. */
+export class NeedsPrepError extends UnsupportedMediaError {
+  constructor(message: string, readonly hints: { videoDecodable: boolean }) {
+    super(message);
+  }
+}
+
 export interface ProbeTarget {
   path: string;
   name: string;
@@ -20,12 +27,13 @@ export async function probe(file: ProbeTarget): Promise<MediaRef> {
 
   const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(file.url) });
   try {
-    if (!(await input.canRead())) throw new UnsupportedMediaError(`${file.name} is not a format OpenRoll can read yet.`);
+    if (!(await input.canRead())) throw new NeedsPrepError(`${file.name} is not a format OpenRoll can read yet.`, { videoDecodable: false });
     const [video, audio] = await Promise.all([input.getPrimaryVideoTrack(), input.getPrimaryAudioTrack()]);
     if (!video && !audio) throw new UnsupportedMediaError(`${file.name} has no video or audio in it.`);
 
     const [canVideo, canAudio] = await Promise.all([video?.canDecode() ?? false, audio?.canDecode() ?? false]);
-    if (video && !canVideo && !audio) throw new UnsupportedMediaError(`This computer cannot decode the video in ${file.name} (${video.codec ?? "unknown codec"}).`);
+    if (video && !canVideo) throw new NeedsPrepError(`This computer cannot decode the video in ${file.name} (${video.codec ?? "unknown codec"}).`, { videoDecodable: false });
+    if (audio && !canAudio) throw new NeedsPrepError(`This computer cannot decode the sound in ${file.name} (${audio.codec ?? "unknown codec"}).`, { videoDecodable: !!video && canVideo });
 
     const duration = Math.round((await input.computeDuration()) * 1e6);
     const kind: MediaKind = video && canVideo && !AUDIO.test(file.name) ? "video" : "audio";
