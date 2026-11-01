@@ -27,6 +27,7 @@ export function TrackHead({ editor, track, dragging, onReorderStart, onContextMe
         onReorderStart(e, track);
       }}
       onContextMenu={e => onContextMenu(e, track)}
+      onDoubleClick={e => !(e.target as Element).closest("button, input") && setRenaming(true)}
     >
       <Icon name={icon} size={15} />
       {renaming ? (
@@ -47,7 +48,7 @@ export function TrackHead({ editor, track, dragging, onReorderStart, onContextMe
           }}
         />
       ) : (
-        <span className="tl-head-name" onDoubleClick={() => setRenaming(true)} title="Double click to rename">
+        <span className="tl-head-name" title="Double click to rename">
           {track.name}
         </span>
       )}

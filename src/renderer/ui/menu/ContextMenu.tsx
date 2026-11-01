@@ -50,12 +50,13 @@ export function ContextMenu({ x, y, items, onClose }: MenuState & { onClose(): v
     window.addEventListener("pointerdown", away, true);
     window.addEventListener("blur", quiet);
     window.addEventListener("resize", quiet);
-    window.addEventListener("wheel", quiet, { passive: true });
+    const wheel = (e: WheelEvent) => !(e.target as Element).closest?.(".ctxmenu") && onClose();
+    window.addEventListener("wheel", wheel, { passive: true });
     return () => {
       window.removeEventListener("pointerdown", away, true);
       window.removeEventListener("blur", quiet);
       window.removeEventListener("resize", quiet);
-      window.removeEventListener("wheel", quiet);
+      window.removeEventListener("wheel", wheel);
       (restore.current as HTMLElement | null)?.focus?.({ preventScroll: true });
     };
   }, [onClose]);

@@ -6,7 +6,7 @@
 
 .tl .tl-head { cursor: grab; }
 .tl .tl-head:active { cursor: grabbing; }
-.tl .tl-head-name { cursor: inherit; }
+.tl .tl-head-name { cursor: inherit; flex: 0 1 auto; max-width: 64px; }
 .tl .tl-head-input { flex: 1; min-width: 0; height: 22px; border-radius: 4px; border: 1px solid var(--accent); background: var(--sunk); color: var(--ink); font: inherit; padding: 0 5px; outline: none; }
 .tl .tl-head-drag { opacity: 0.55; }
 .tl .tl-head-tools .iconbtn[aria-pressed="false"] { color: var(--ink-4); }
