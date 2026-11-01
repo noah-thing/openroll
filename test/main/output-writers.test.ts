@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { OutputWriters } from "../../src/main/output-writers";
+import { OutputWriters, withExtension } from "../../src/main/output-writers";
 
 let dir = "";
 beforeEach(() => void (dir = mkdtempSync(join(tmpdir(), "openroll-writers-"))));
@@ -77,5 +77,14 @@ describe("OutputWriters", () => {
     await expect(w.write(id, -1, bytes(1))).rejects.toThrow();
     await w.close(id, true);
     await expect(w.write(id, 0, bytes(1))).rejects.toThrow("writer closed");
+  });
+});
+
+describe("withExtension", () => {
+  it("keeps a name that already ends right and adds the extension to one that does not", () => {
+    expect(withExtension("/v/clip.mp4", "mp4")).toBe("/v/clip.mp4");
+    expect(withExtension("/v/clip.MP4", "mp4")).toBe("/v/clip.MP4");
+    expect(withExtension("/v/clip", "mp4")).toBe("/v/clip.mp4");
+    expect(withExtension("/v/clip.gif", "mp4")).toBe("/v/clip.gif.mp4");
   });
 });

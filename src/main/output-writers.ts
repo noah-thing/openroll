@@ -85,3 +85,8 @@ export class OutputWriters {
     this.writers.clear();
   }
 }
+
+/** A file named .gif that holds MP4 data will not open, so whatever the person typed, the name ends in what is written. */
+export function withExtension(path: string, extension: string): string {
+  return path.toLowerCase().endsWith(`.${extension.toLowerCase()}`) ? path : `${path}.${extension}`;
+}

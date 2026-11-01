@@ -7,7 +7,7 @@ import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
 import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
-import { OutputWriters } from "./output-writers";
+import { OutputWriters, withExtension } from "./output-writers";
 import { Journal } from "./journal";
 import { NamedVersions } from "./versions";
 import { Session } from "./session";
@@ -266,11 +266,15 @@ function registerIpc(): void {
       kind === "subtitles" ? [{ name: "Subtitles", extensions: ["srt", "vtt"] }] :
       kind === "image" ? [{ name: "Image", extensions: ["png", "jpg"] }] :
       [{ name: "Video", extensions: ["mp4", "mov", "webm", "gif"] }];
+    // The format is already chosen, so the dialog offers only its extension.
+    const wanted = extname(name).slice(1).toLowerCase();
+    const offered = filters[0].extensions.includes(wanted) ? [{ name: filters[0].name, extensions: [wanted] }] : filters;
     const r = process.env.OPENROLL_QA_OUT
       ? { canceled: false, filePath: join(process.env.OPENROLL_QA_OUT, extname(name) ? name : `${name}.${filters[0].extensions[0]}`) }
-      : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters });
+      : await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), name), filters: offered });
     if (r.canceled || !r.filePath) return null;
-    return { id: await writers.create(r.filePath), path: r.filePath };
+    const file = offered.length === 1 ? withExtension(r.filePath, wanted) : r.filePath;
+    return { id: await writers.create(file), path: file };
   });
 
   // For AI tools, which name the file themselves. Same temp file and rename as above; no dialog.
