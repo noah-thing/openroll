@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { setSpeed, updateItem } from "../../core/edit";
-import { findItem, IDENTITY, type Item, type MediaItem, type Project, type TextItem } from "../../core/project";
+import { findItem, IDENTITY, type CaptionItem, type Item, type MediaItem, type Project, type TextItem } from "../../core/project";
 import { useEditor } from "../lib/hooks";
 import { span } from "../lib/format";
 import type { Editor } from "../state/editor";
+import { CaptionHighlight } from "./captions/CaptionHighlight";
+import { CaptionTextField } from "./captions/CaptionTextField";
 import { Section, Segmented, Slider, Toggle } from "./kit/Field";
 
 type Tab = "video" | "audio" | "speed" | "animate" | "text";
@@ -42,7 +44,7 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
 
   const set = (label: string, patch: Partial<Item>, group: string) => editor.apply(label, p => updateItem(p, item.id, patch), `${item.id}:${group}`);
   const done = () => editor.endGroup();
-  const name = item.type === "text" ? item.style.text : item.name ?? media?.name ?? "Clip";
+  const name = item.type === "text" ? item.style.text : item.type === "caption" ? item.words.map(w => w.text).join(" ") || "Caption" : item.name ?? media?.name ?? "Clip";
 
   return (
     <>
@@ -85,6 +87,21 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
         {active === "animate" && <AnimateSection item={item} set={set} done={done} />}
 
         {active === "text" && item.type === "text" && <TextSection item={item} set={set} done={done} />}
+
+        {active === "text" && item.type === "caption" && (
+          <TextSection
+            item={item}
+            set={set}
+            done={done}
+            words={
+              <>
+                <CaptionTextField editor={editor} item={item} />
+                <p className="insp-note">Edited words keep their timing. Changing a word leaves the others where they were.</p>
+              </>
+            }
+            extra={<CaptionHighlight item={item} set={set} done={done} />}
+          />
+        )}
       </div>
     </>
   );
@@ -221,21 +238,24 @@ function AnimateSection({ item, set, done }: { item: Item; set: Setter; done(): 
 
 const COLORS = ["#ffffff", "#14130e", "#f2c23a", "#e2674f", "#7fb4e8", "#8fbf8a", "#c9a7e8", "#ff8fb1"];
 
-function TextSection({ item, set, done }: { item: TextItem; set: Setter; done(): void }) {
+function TextSection({ item, set, done, words, extra }: { item: TextItem | CaptionItem; set: Setter; done(): void; words?: React.ReactNode; extra?: React.ReactNode }) {
   const s = item.style;
   const style = (label: string, patch: Partial<TextItem["style"]>, group: string) => set(label, { style: { ...s, ...patch } } as Partial<Item>, group);
   return (
     <>
       <Section title="Words">
-        <textarea
-          className="text-input"
-          value={s.text}
-          rows={3}
-          onChange={e => style("Edit text", { text: e.target.value }, "text")}
-          onBlur={done}
-          placeholder="Type something"
-        />
+        {words ?? (
+          <textarea
+            className="text-input"
+            value={s.text}
+            rows={3}
+            onChange={e => style("Edit text", { text: e.target.value }, "text")}
+            onBlur={done}
+            placeholder="Type something"
+          />
+        )}
       </Section>
+      {extra}
       <Section title="Style">
         <Slider label="Size" value={s.size} min={12} max={400} reset={96} onChange={v => style("Text size", { size: v }, "size")} onCommit={done} />
         <Slider label="Weight" value={s.weight} min={300} max={700} step={100} onChange={v => style("Text weight", { weight: v }, "weight")} onCommit={done} />
