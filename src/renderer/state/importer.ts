@@ -1,5 +1,5 @@
 import { addMedia, insertItems, mediaItem } from "../../core/edit";
-import { mainTrack, projectDuration, type MediaRef, type Micros } from "../../core/project";
+import { mainTrack, projectDuration, type MediaRef, type Micros, type Project } from "../../core/project";
 import { probe, UnsupportedMediaError } from "../../engine/probe";
 import type { FileInfo } from "../../shared/api";
 import type { Editor } from "./editor";
@@ -48,6 +48,7 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   if (refs.length) {
     editor.apply(place ? "Import and place clips" : "Import media", p => {
       let out = addMedia(p, fresh);
+      if (timelineWasEmpty) out = adoptFirstClip(out, refs);
       if (place) {
         let t = opts.at ?? projectDuration(out);
         const items = refs.map(r => {
@@ -75,4 +76,25 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   else if (failures.length > 1) editor.toast(`${failures.length} files could not be imported. ${failures[0]}`, { tone: "error" });
   else if (refs.length && place && timelineWasEmpty) editor.toast(refs.length === 1 ? "Added to the timeline" : `Added ${refs.length} clips to the timeline`, { undo: true });
   return refs;
+}
+
+const COMMON_RATES = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+
+/**
+ * A fresh project takes its frame from the first picture the user brings in, the way
+ * phone editors do: vertical clips make a vertical project. Sizes are capped at 4K and
+ * frame rates snap to the nearest broadcast rate.
+ */
+export function adoptFirstClip(p: Project, refs: MediaRef[]): Project {
+  const first = refs.find(r => r.kind !== "audio" && r.width && r.height);
+  if (!first) return p;
+  let w = first.width!, h = first.height!;
+  if (first.rotation === 90 || first.rotation === 270) [w, h] = [h, w];
+  const k = Math.min(1, 3840 / Math.max(w, h));
+  const width = Math.max(2, Math.round((w * k) / 2) * 2);
+  const height = Math.max(2, Math.round((h * k) / 2) * 2);
+  const rate = first.fps ? COMMON_RATES.reduce((a, b) => (Math.abs(b - first.fps!) < Math.abs(a - first.fps!) ? b : a)) : 30;
+  const fps = Number.isInteger(rate) ? { num: rate, den: 1 } : { num: Math.round(rate * 1001), den: 1001 };
+  if (width === p.settings.width && height === p.settings.height && fps.num / fps.den === p.settings.fps.num / p.settings.fps.den) return p;
+  return { ...p, settings: { ...p.settings, width, height, fps } };
 }
