@@ -31,6 +31,10 @@ export class VideoReader {
   private wantedAt = 0;
   private settled = true;
 
+  /** Samples and decoders held by all readers in this worker, for the soak test. */
+  static openSamples = 0;
+  static openDecoders = 0;
+
   /** Set from user settings before readers are made; a reader that finds hardware unsupported still falls back on its own. */
   static preferHardware = true;
   private hardware = VideoReader.preferHardware;
@@ -139,20 +143,23 @@ export class VideoReader {
 
   private async seek(t: number): Promise<void> {
     await this.closeIter();
+    // dispose() ran while the old iterator was closing; it has nothing left to close
+    if (this.disposed) return;
     this.seekedTo = t;
     this.iter = this.sink.samples(t);
+    VideoReader.openDecoders++;
     this.iterDone = false;
     this.version++;
     const first = await this.iter.next();
     if (this.disposed) {
       if (!first.done) first.value.close();
+      await this.closeIter();
       return;
     }
     // Swap in the new frame only once it exists, so the old picture stays up during the seek.
-    for (const f of this.frames) f.close();
-    this.frames = [];
+    this.dropBefore(this.frames.length);
     if (first.done) this.iterDone = true;
-    else this.frames.push(first.value);
+    else this.keep(first.value);
   }
 
   private async pull(): Promise<boolean> {
@@ -166,25 +173,34 @@ export class VideoReader {
       this.iterDone = true;
       return false;
     }
-    this.frames.push(next.value);
+    this.keep(next.value);
     return true;
   }
 
   private dropBefore(index: number): void {
     if (index <= 0) return;
-    for (const f of this.frames.splice(0, index)) f.close();
+    for (const f of this.frames.splice(0, index)) {
+      VideoReader.openSamples--;
+      f.close();
+    }
+  }
+
+  private keep(sample: VideoSample): void {
+    VideoReader.openSamples++;
+    this.frames.push(sample);
   }
 
   private async closeIter(): Promise<void> {
     const it = this.iter;
     this.iter = null;
-    if (it) await it.return(undefined).catch(() => {});
+    if (!it) return;
+    VideoReader.openDecoders--;
+    await it.return(undefined).catch(() => {});
   }
 
   dispose(): void {
     this.disposed = true;
-    for (const f of this.frames) f.close();
-    this.frames = [];
+    this.dropBefore(this.frames.length);
     void this.closeIter();
   }
 }

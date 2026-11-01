@@ -125,6 +125,8 @@ export class Compositor {
   private projW = 1920;
   private projH = 1080;
   private lost = false;
+  /** The device came back after a loss; every resource here is gone, so the owner builds a new compositor. */
+  onRestored: (() => void) | null = null;
 
   constructor(readonly canvas: OffscreenCanvas | HTMLCanvasElement) {
     const gl = canvas.getContext("webgl2", {
@@ -143,6 +145,7 @@ export class Compositor {
       e.preventDefault();
       this.lost = true;
     });
+    canvas.addEventListener("webglcontextrestored", () => this.onRestored?.());
 
     this.layerProgram = new Program(gl, compile(gl, QUAD_VS, LAYER_FS));
     this.blendProgram = new Program(gl, compile(gl, FULL_VS, BLEND_FS));
