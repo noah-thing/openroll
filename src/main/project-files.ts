@@ -1,5 +1,6 @@
-import { copyFile, open, readdir, rename, rm } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
+import { renameBusy } from "./fs-retry";
+import { copyFile, open, readdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 /** File names top out at 255 bytes; leave room for " 12.openroll.bak" and for four byte characters. */
 const MAX_STEM_BYTES = 180;
@@ -21,13 +22,6 @@ export function projectStem(name: string): string {
   return s || "Untitled";
 }
 
-/** Whether `path` lies inside `dir`, after resolving any dot segments. */
-export function isInside(dir: string, path: string): boolean {
-  const root = resolve(dir);
-  const p = resolve(path);
-  const base = root.endsWith(sep) ? root : root + sep;
-  return p.startsWith(base) && p.length > base.length;
-}
 
 /** Names the home screen lists: real project files, not hidden leftovers like AppleDouble stubs. */
 export function isProjectFileName(name: string): boolean {
@@ -46,7 +40,7 @@ export async function writeFileAtomic(target: string, text: string, backup = fal
       await h.close();
     }
     if (backup) await copyFile(target, target + ".bak").catch(() => {});
-    await rename(tmp, target);
+    await renameBusy(tmp, target);
   } catch (err) {
     await rm(tmp, { force: true });
     throw err;

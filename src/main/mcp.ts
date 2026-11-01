@@ -12,6 +12,7 @@ import { z } from "zod";
 import { GUIDE, GUIDE_TOPICS, PLAYBOOK } from "../shared/agent-guide";
 import type { Method, Reply } from "../shared/agent-protocol";
 import { controlAddress, tokenFile } from "./control";
+import { launcherPath } from "./launch-target";
 
 class Link {
   private socket: Socket | null = null;
@@ -100,7 +101,7 @@ function tryConnect(): Promise<Socket | null> {
 function launchApp(): void {
   const passThrough = process.argv.filter(a => a.startsWith("--user-data-dir="));
   const args = app.isPackaged ? passThrough : [app.getAppPath(), ...passThrough];
-  const child = spawn(process.execPath, args, { detached: true, stdio: "ignore", windowsHide: false });
+  const child = spawn(launcherPath(process.execPath, process.env), args, { detached: true, stdio: "ignore", windowsHide: false });
   child.unref();
 }
 

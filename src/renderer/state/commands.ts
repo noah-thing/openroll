@@ -196,3 +196,9 @@ export function keyCaps(desc: string, mac: boolean): string[] {
 export function keyLabel(desc: string, mac: boolean): string {
   return keyCaps(desc, mac).join(mac ? "" : "+");
 }
+
+/** A tooltip label such as "Duplicate (Ctrl+D)", with the keys of the command as this platform writes them. */
+export function titled(text: string, id: string, mac: boolean): string {
+  const key = commandById(id)?.keys[0];
+  return key ? `${text} (${keyLabel(key, mac)})` : text;
+}

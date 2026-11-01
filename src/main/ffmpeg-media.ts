@@ -1,10 +1,11 @@
 import { cpus } from "node:os";
-import { mkdir, readdir, rename, rm, stat, utimes } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import type { DerivedKind, DerivedState, InspectResult, ProxyRequest, StreamSummary } from "../shared/derived";
 import { proxyReason, proxyShrinks } from "../engine/proxy-policy";
 import { cacheKey, parseEncoders, prepareArgs, proxyArgs, type Encoders } from "./ffmpeg-args";
 import { findBinaries } from "./ffmpeg-binaries";
+import { renameBusy } from "./fs-retry";
 import { fraction } from "./ffmpeg-progress";
 import { keyframeInterval, parseProbe } from "./ffmpeg-probe";
 import { JobQueue } from "./ffmpeg-queue";
@@ -209,8 +210,7 @@ export class MediaService {
             onProgress: p => this.set(path, { kind, status: "running", progress: fraction(p.time, duration), reason }),
           });
           await run.done;
-          await rm(t.file, { force: true });
-          await rename(t.part, t.file);
+          await renameBusy(t.part, t.file);
           // Touch so the oldest-first trim keeps what people are using.
           await utimes(t.file, new Date(), new Date()).catch(() => {});
           this.deps.allow(t.file);

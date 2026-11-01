@@ -1,8 +1,9 @@
 import { app } from "electron";
 import { readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { sanitizeSettings, type Settings } from "../shared/settings";
+import { renameBusy } from "./fs-retry";
 
 let current: Settings | null = null;
 
@@ -27,6 +28,6 @@ export async function updateSettings(patch: unknown): Promise<Settings> {
   await mkdir(app.getPath("userData"), { recursive: true });
   const tmp = file() + ".tmp";
   await writeFile(tmp, JSON.stringify(current, null, 2), "utf8");
-  await rename(tmp, file());
+  await renameBusy(tmp, file());
   return current;
 }

@@ -2,7 +2,7 @@ import { dialog, ipcMain, type BrowserWindow } from "electron";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { FileInfo } from "../shared/api";
-import { baseName, dirName, matchFiles, startFolders, wantedNames, type FoundFile, type MissingFile, type RelinkMatch } from "../shared/relink";
+import { baseName, dirName, matchFiles, nameKey, startFolders, wantedNames, type FoundFile, type MissingFile, type RelinkMatch } from "../shared/relink";
 import { allowPath } from "./media-protocol";
 
 const SKIP = /^(\.|\$|node_modules$|Library$|AppData$|System Volume Information$)/;
@@ -22,7 +22,7 @@ export async function scan(root: string, depth: number, names: Set<string>, foun
     if (budget.files > MAX_FILES || Date.now() > budget.until) break;
     if (e.isDirectory()) {
       if (depth > 0 && !SKIP.test(e.name)) dirs.push(join(root, e.name));
-    } else if (names.has(e.name.toLowerCase())) {
+    } else if (names.has(nameKey(e.name))) {
       budget.files++;
       const s = await stat(join(root, e.name)).catch(() => null);
       if (s?.isFile()) found.push({ path: join(root, e.name), size: s.size });

@@ -9,6 +9,8 @@ import { stat } from "node:fs/promises";
 import { extname } from "node:path";
 import { Readable } from "node:stream";
 import { protocol } from "electron";
+import { pathFromMediaUrl } from "../shared/media-url";
+import { pathKey } from "../shared/paths";
 
 export const SCHEME = "openroll-media";
 
@@ -22,11 +24,7 @@ export function isAllowed(path: string): boolean {
   return allowed.has(normal(path));
 }
 
-function normal(path: string): string {
-  if (process.platform === "win32") return path.replace(/\\/g, "/").toLowerCase();
-  // APFS is case insensitive by default; Linux file systems are not.
-  return process.platform === "darwin" ? path.toLowerCase() : path;
-}
+const normal = (path: string) => pathKey(path, process.platform);
 
 export const mediaScheme: Electron.CustomScheme = {
   scheme: SCHEME,
@@ -42,8 +40,7 @@ const TYPES: Record<string, string> = {
 export function handleMediaProtocol(): void {
   protocol.handle(SCHEME, async request => {
     const url = new URL(request.url);
-    const path = decodeURIComponent(url.pathname.replace(/^\//, ""));
-    const filePath = process.platform === "win32" ? path : "/" + path.replace(/^\/+/, "");
+    const filePath = pathFromMediaUrl(url.pathname, process.platform);
     if (!isAllowed(filePath)) return new Response("not allowed", { status: 403 });
 
     let size: number;

@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clearCacheDir, isInside, isProjectFileName, projectStem, Serial, writeFileAtomic } from "../../src/main/project-files";
+import { clearCacheDir, isProjectFileName, projectStem, Serial, writeFileAtomic } from "../../src/main/project-files";
+import { isInside } from "../../src/shared/paths";
 
 let dir: string;
 beforeEach(async () => {
@@ -33,10 +34,10 @@ describe("projectStem", () => {
 
 describe("isInside", () => {
   it("rejects sibling folders that share a prefix and dot segments", () => {
-    expect(isInside("/home/me/OpenRoll", "/home/me/OpenRoll/a.openroll")).toBe(true);
-    expect(isInside("/home/me/OpenRoll", "/home/me/OpenRoll-old/a.openroll")).toBe(false);
-    expect(isInside("/home/me/OpenRoll", "/home/me/OpenRoll/../Documents/a.openroll")).toBe(false);
-    expect(isInside("/home/me/OpenRoll", "/home/me/OpenRoll")).toBe(false);
+    expect(isInside("/home/me/OpenRoll/a.openroll", "/home/me/OpenRoll", "linux")).toBe(true);
+    expect(isInside("/home/me/OpenRoll-old/a.openroll", "/home/me/OpenRoll", "linux")).toBe(false);
+    expect(isInside("/home/me/OpenRoll/../Documents/a.openroll", "/home/me/OpenRoll", "linux")).toBe(false);
+    expect(isInside("C:\\Videos\\OpenRoll\\..\\x.openroll", "C:\\Videos\\OpenRoll", "win32")).toBe(false);
   });
 });
 
