@@ -4,6 +4,7 @@ import type { Item, MediaRef, Project, Track } from "../../../core/project";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import type { MediaCache } from "../../state/media-cache";
+import { labelHex } from "../../state/timeline-actions";
 
 interface Props {
   item: Item;
@@ -16,12 +17,13 @@ interface Props {
   animate?: boolean;
   cache: MediaCache;
   onPointerDown(e: React.PointerEvent, item: Item, edge: Edge | null): void;
+  onContextMenu?(e: React.MouseEvent, item: Item): void;
 }
 
 /** Extra pixels drawn either side of the viewport so short scrolls never show a blank edge. */
 const OVERDRAW = 300;
 
-export const ClipView = memo(function ClipView({ item, project, track, pps, view, selected, lifted, animate, cache, onPointerDown }: Props) {
+export const ClipView = memo(function ClipView({ item, project, track, pps, view, selected, lifted, animate, cache, onPointerDown, onContextMenu }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const media = item.type === "media" ? project.media[item.mediaId] : undefined;
   const version = useSyncExternalStore(cache.subscribe, () => cache.version);
@@ -67,10 +69,14 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
       className={["clip", kindClass, selected && "sel", lifted && "lift", animate && "clip-anim"].filter(Boolean).join(" ")}
       style={{ transform: `translate3d(${left}px,0,0)`, width }}
       onPointerDown={e => onPointerDown(e, item, null)}
+      onContextMenu={e => onContextMenu?.(e, item)}
       data-id={item.id}
     >
+      {item.color && <span className="clip-tag" style={{ background: labelHex(item.color) }} />}
       {media && <canvas ref={canvasRef} className="clip-canvas" style={{ left: x0, width: Math.max(0, x1 - x0) }} />}
       <div className="clip-label" style={{ left: Math.max(6, view.left - left + 6) }}>
+        {item.type === "media" && item.reversed && <span className="clip-badge">◀</span>}
+        {item.type === "media" && item.freeze && <span className="clip-badge">Still</span>}
         {item.type === "media" && item.speed !== 1 && <span className="clip-badge">{fmtSpeed(item.speed)}</span>}
         {item.transitionIn && <span className="clip-badge">⇄</span>}
         <span className="clip-name">{label}</span>

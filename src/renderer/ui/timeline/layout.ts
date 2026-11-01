@@ -5,6 +5,7 @@ export const HEAD_W = 132;
 export const RULER_H = 28;
 
 export function trackHeight(t: Track): number {
+  if (t.height) return t.height;
   if (t.main) return 68;
   if (t.kind === "audio") return 46;
   if (t.kind === "text") return 30;
@@ -68,4 +69,16 @@ export function rulerStep(pps: number): { major: number; minor: number } {
   const major = steps.find(s => s * pps >= 90) ?? 3600;
   const minorDiv = major >= 60 ? 6 : major >= 1 ? 5 : 2;
   return { major, minor: major / minorDiv };
+}
+
+/** Ids of items whose box touches the rectangle. Times in microseconds, y in content pixels. */
+export function itemsInRect(boxes: LaneBox[], t0: Micros, t1: Micros, y0: number, y1: number): string[] {
+  const out: string[] = [];
+  const [ta, tb] = t0 < t1 ? [t0, t1] : [t1, t0];
+  const [ya, yb] = y0 < y1 ? [y0, y1] : [y1, y0];
+  for (const b of boxes) {
+    if (b.top + b.height < ya || b.top > yb) continue;
+    for (const i of b.track.items) if (i.start < tb && itemEnd(i) > ta) out.push(i.id);
+  }
+  return out;
 }

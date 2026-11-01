@@ -176,6 +176,79 @@ export class AudioEngine {
     }
   }
 
+  private scrubSinks = new Map<string, AudioBufferSink>();
+  private scrubBusy = false;
+  private scrubWanted: { p: Project; t: Micros; urls: Record<string, string> } | null = null;
+  private scrubVoice: GainNode | null = null;
+
+  /**
+   * Sound for one spot while the playhead is dragged: a few tens of milliseconds from
+   * each audible clip under it. Calls arrive faster than decoding, so only the latest
+   * position waits its turn.
+   */
+  scrub(p: Project, t: Micros, urls: Record<string, string>): void {
+    if (this.running) return;
+    this.scrubWanted = { p, t, urls };
+    if (this.scrubBusy) return;
+    this.scrubBusy = true;
+    void this.scrubLoop().finally(() => (this.scrubBusy = false));
+  }
+
+  private async scrubLoop(): Promise<void> {
+    while (this.scrubWanted) {
+      const { p, t, urls } = this.scrubWanted;
+      this.scrubWanted = null;
+      if (this.ctx.state !== "running") await this.ctx.resume();
+      for (const track of p.tracks) {
+        if (track.muted) continue;
+        for (const item of track.items) {
+          if (item.type !== "media" || item.freeze || item.volume <= 0 || t < item.start || t >= itemEnd(item)) continue;
+          const media = p.media[item.mediaId];
+          if (!media?.hasAudio || !urls[media.id]) continue;
+          await this.grain(item, media, urls[media.id], t).catch(() => {});
+        }
+      }
+      await sleep(30);
+    }
+  }
+
+  private async grain(item: MediaItem, media: MediaRef, url: string, t: Micros): Promise<void> {
+    const track = await this.trackFor(media, url);
+    if (!track) return;
+    let sink = this.scrubSinks.get(media.id);
+    if (!sink) {
+      sink = new AudioBufferSink(track);
+      this.scrubSinks.set(media.id, sink);
+    }
+    const local = (t - item.start) * item.speed;
+    const src = (item.reversed ? item.in + item.duration * item.speed - local : item.in + local) / 1e6;
+    const wrapped = await sink.getBuffer(src);
+    if (!wrapped) return;
+    const offset = Math.max(0, src - wrapped.timestamp);
+    const length = Math.min(0.07, wrapped.buffer.duration - offset);
+    if (length <= 0.005) return;
+    // Cut the previous grain short so fast drags do not pile up into a smear.
+    if (this.scrubVoice) {
+      this.scrubVoice.gain.setTargetAtTime(0, this.ctx.currentTime, 0.004);
+      this.scrubVoice = null;
+    }
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    const peak = Math.min(1, item.volume) * 0.9;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(peak, now + 0.006);
+    gain.gain.setValueAtTime(peak, now + Math.max(0.006, length - 0.012));
+    gain.gain.linearRampToValueAtTime(0, now + length);
+    gain.connect(this.master);
+    const node = this.ctx.createBufferSource();
+    node.buffer = wrapped.buffer;
+    node.playbackRate.value = item.reversed ? 1 : item.speed;
+    node.connect(gain);
+    node.onended = () => gain.disconnect();
+    node.start(now, offset, length);
+    this.scrubVoice = gain;
+  }
+
   dispose(): void {
     this.stop();
     if (this.ctx.state !== "closed") void this.ctx.close().catch(() => {});

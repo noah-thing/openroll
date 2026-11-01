@@ -18,10 +18,15 @@ import {
   sourceSpan,
 } from "./project";
 
+/** The main track packs its items unless the user turned that off. */
+export function isMagnetic(track: Track): boolean {
+  return !!track.main && track.magnetic !== false;
+}
+
 /** Smallest item we allow after a trim, so a clip never collapses to nothing. */
 export const MIN_ITEM: Micros = 100_000;
 
-function draft(p: Project): Project {
+export function draft(p: Project): Project {
   const next = structuredClone(p);
   next.modified = Date.now();
   return next;
@@ -29,7 +34,7 @@ function draft(p: Project): Project {
 
 /** Pack the main track: items keep their order and sit edge to edge from zero. */
 export function packMain(track: Track): void {
-  if (!track.main) return;
+  if (!isMagnetic(track)) return;
   track.items.sort((a, b) => a.start - b.start);
   let t = 0;
   for (const item of track.items) {
@@ -38,15 +43,15 @@ export function packMain(track: Track): void {
   }
 }
 
-function sortTrack(track: Track): void {
+export function sortTrack(track: Track): void {
   track.items.sort((a, b) => a.start - b.start);
 }
 
-function overlaps(track: Track, start: Micros, end: Micros, ignore?: string): boolean {
+export function overlaps(track: Track, start: Micros, end: Micros, ignore?: string): boolean {
   return track.items.some(i => i.id !== ignore && i.start < end && itemEnd(i) > start);
 }
 
-function trackKindFor(item: Item, p: Project): TrackKind {
+export function trackKindFor(item: Item, p: Project): TrackKind {
   if (item.type === "text" || item.type === "caption") return "text";
   if (item.type === "media") {
     const m = p.media[item.mediaId];
@@ -60,10 +65,10 @@ function trackKindFor(item: Item, p: Project): TrackKind {
  * for, then the nearest ones above it. Creates a new track when every lane is busy,
  * which is what people expect when they drop a clip onto something.
  */
-function freeTrack(p: Project, kind: TrackKind, start: Micros, end: Micros, preferId?: string, ignore?: string): Track {
+export function freeTrack(p: Project, kind: TrackKind, start: Micros, end: Micros, preferId?: string, ignore?: string): Track {
   const preferred = p.tracks.find(t => t.id === preferId);
-  if (preferred && preferred.kind === kind && !preferred.main && !overlaps(preferred, start, end, ignore)) return preferred;
-  const candidates = p.tracks.filter(t => t.kind === kind && !t.main && !t.locked);
+  if (preferred && preferred.kind === kind && !isMagnetic(preferred) && !overlaps(preferred, start, end, ignore)) return preferred;
+  const candidates = p.tracks.filter(t => t.kind === kind && !isMagnetic(t) && !t.locked);
   for (const t of candidates) if (!overlaps(t, start, end, ignore)) return t;
   const track: Track = { id: newId("t"), kind, name: nameForNewTrack(p, kind), items: [] };
   // Video and text tracks stack above the main track, audio below it.
@@ -73,7 +78,7 @@ function freeTrack(p: Project, kind: TrackKind, start: Micros, end: Micros, pref
   return track;
 }
 
-function nameForNewTrack(p: Project, kind: TrackKind): string {
+export function nameForNewTrack(p: Project, kind: TrackKind): string {
   const base = kind === "audio" ? "Audio" : kind === "text" ? "Text" : "Overlay";
   const n = p.tracks.filter(t => t.kind === kind && !t.main).length + 1;
   return n === 1 ? base : `${base} ${n}`;
@@ -122,7 +127,7 @@ export function insertItems(p: Project, items: Item[], opts: InsertOptions = {})
     const kind = trackKindFor(item, next);
     const named = opts.trackId ? next.tracks.find(t => t.id === opts.trackId) : undefined;
     const target = named ?? (kind === "video" ? main : undefined);
-    if (target && target.main && kind === "video") {
+    if (target && isMagnetic(target) && kind === "video") {
       const index = opts.index ?? indexAtTime(target, item.start);
       target.items.splice(index, 0, item);
       packInOrder(target);
@@ -136,7 +141,7 @@ export function insertItems(p: Project, items: Item[], opts: InsertOptions = {})
   return next;
 }
 
-function indexAtTime(track: Track, t: Micros): number {
+export function indexAtTime(track: Track, t: Micros): number {
   // Dropping in the first half of an item lands before it, second half after it.
   for (let i = 0; i < track.items.length; i++) {
     const it = track.items[i];
@@ -146,7 +151,7 @@ function indexAtTime(track: Track, t: Micros): number {
 }
 
 /** Like packMain, but trusts the array order instead of sorting by start. */
-function packInOrder(track: Track): void {
+export function packInOrder(track: Track): void {
   let t = 0;
   for (const it of track.items) {
     it.start = t;
@@ -175,13 +180,13 @@ export function moveItem(p: Project, id: string, to: MoveTarget): Project {
 
   const dest = next.tracks.find(t => t.id === to.trackId) ?? src.track;
   const kind = trackKindFor(item, next);
-  if (dest.main && kind === "video") {
+  if (isMagnetic(dest) && kind === "video") {
     const index = indexAtTime(dest, to.start);
     dest.items.splice(index, 0, item);
     packInOrder(dest);
   } else {
     item.start = Math.max(0, to.start);
-    const kindOk = dest.kind === kind && !dest.main;
+    const kindOk = dest.kind === kind && !isMagnetic(dest);
     const track = kindOk && !overlaps(dest, item.start, itemEnd(item)) ? dest : freeTrack(next, kind, item.start, itemEnd(item), kindOk ? dest.id : undefined);
     track.items.push(item);
     sortTrack(track);
@@ -191,10 +196,10 @@ export function moveItem(p: Project, id: string, to: MoveTarget): Project {
 }
 
 /** Remove non main tracks that have become empty, so lanes never pile up. */
-function dropEmptyTracks(p: Project): void {
+export function dropEmptyTracks(p: Project): void {
   const kinds = new Set<TrackKind>();
   p.tracks = p.tracks.filter(t => {
-    if (t.main || t.items.length) return true;
+    if (t.main || t.pinned || t.items.length) return true;
     // keep one empty audio lane so there is always somewhere to drop music
     if (t.kind === "audio" && !kinds.has("audio") && !p.tracks.some(o => o !== t && o.kind === "audio")) {
       kinds.add("audio");
@@ -311,10 +316,13 @@ export function trim(p: Project, id: string, edge: Edge, delta: Micros): Project
     let dur = item.duration + delta;
     if (bounded) {
       const it = item as MediaItem;
-      const room = it.reversed ? it.in : media!.duration - it.in;
+      const room = it.reversed ? it.in + sourceSpan(it) : media!.duration - it.in;
       dur = Math.min(dur, Math.floor(room / it.speed));
     }
-    item.duration = Math.max(MIN_ITEM, dur);
+    dur = Math.max(MIN_ITEM, dur);
+    // A reversed item plays its source backwards, so its timeline end is the source in point.
+    if (item.type === "media" && item.reversed && !item.freeze) item.in -= Math.round((dur - item.duration) * item.speed);
+    item.duration = dur;
   } else {
     let d = delta;
     d = Math.min(d, item.duration - MIN_ITEM);
@@ -323,14 +331,14 @@ export function trim(p: Project, id: string, edge: Edge, delta: Micros): Project
       if (!it.reversed) d = Math.max(d, -Math.floor(it.in / it.speed));
       else d = Math.max(d, -Math.floor((media!.duration - it.in - sourceSpan(it)) / it.speed));
     }
-    if (!track.main) d = Math.max(d, -item.start);
+    if (!isMagnetic(track)) d = Math.max(d, -item.start);
     if (item.type === "media" && !item.freeze && !item.reversed) item.in += Math.round(d * item.speed);
     item.duration -= d;
-    if (!track.main) item.start += d;
+    if (!isMagnetic(track)) item.start += d;
     shiftKeyframes(item, -d);
     if (item.type === "caption") item.words = item.words.map(w => ({ ...w, start: w.start - d, end: w.end - d })).filter(w => w.end > 0);
   }
-  if (track.main) packMain(track);
+  if (isMagnetic(track)) packMain(track);
   else resolveOverlap(next, track, item);
   return next;
 }
@@ -341,7 +349,7 @@ function shiftKeyframes(item: Item, by: Micros): void {
 }
 
 /** After an edit on a free track, if the item now overlaps a neighbour, clamp it. */
-function resolveOverlap(_p: Project, track: Track, item: Item): void {
+export function resolveOverlap(_p: Project, track: Track, item: Item): void {
   sortTrack(track);
   const i = track.items.indexOf(item);
   const prev = track.items[i - 1];
@@ -374,7 +382,7 @@ export function setSpeed(p: Project, id: string, speed: number): Project {
   const span = sourceSpan(item);
   item.speed = s;
   item.duration = Math.max(MIN_ITEM, Math.round(span / s));
-  if (track.main) packMain(track);
+  if (isMagnetic(track)) packMain(track);
   else resolveOverlap(next, track, item);
   return next;
 }
@@ -387,7 +395,7 @@ export function duplicateItems(p: Project, ids: string[]): Project {
     const copy = structuredClone(f!.item);
     copy.id = newId("i");
     copy.start = itemEnd(f!.item);
-    next = insertItems(next, [copy], f!.track.main ? { trackId: f!.track.id, index: f!.index + 1 } : { trackId: f!.track.id });
+    next = insertItems(next, [copy], isMagnetic(f!.track) ? { trackId: f!.track.id, index: f!.index + 1 } : { trackId: f!.track.id });
   }
   return next;
 }
@@ -416,7 +424,7 @@ export function relinkMedia(p: Project, mediaId: string, path: string, size: num
 }
 
 /** Transitions only make sense when the previous item ends exactly where this one starts. */
-function pruneTransitions(p: Project): void {
+export function pruneTransitions(p: Project): void {
   for (const t of p.tracks) {
     t.items.forEach((item, i) => {
       if (!item.transitionIn) return;

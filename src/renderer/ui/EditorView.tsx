@@ -9,6 +9,7 @@ import { Toasts } from "./Toasts";
 import { TopBar } from "./TopBar";
 import { Viewer } from "./Viewer";
 import { ExportDialog } from "./ExportDialog";
+import { ShortcutSheet } from "./ShortcutSheet";
 
 export function EditorView({ editor, onClose }: { editor: Editor; onClose(): void }) {
   const cache = useMemo(() => new MediaCache(m => window.openroll.mediaUrl(m.path)), []);
@@ -24,6 +25,7 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
       <Inspector editor={editor} />
       <Timeline editor={editor} cache={cache} />
       <Toasts editor={editor} />
+      <ShortcutSheet />
       {exporting && <ExportDialog editor={editor} onClose={() => setExporting(false)} />}
     </div>
   );
