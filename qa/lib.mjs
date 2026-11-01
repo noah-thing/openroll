@@ -21,12 +21,13 @@ export async function waitForClips(page, timeout = 20000) {
   try {
     await page.waitForSelector(".clip", { timeout });
   } catch (err) {
-    const state = await page.evaluate(() => {
+    const state = await page.evaluate(async () => {
       const p = window.__or?.editor?.project;
       return {
         media: p && Object.values(p.media).map(m => ({ name: m.name, kind: m.kind, duration: m.duration, width: m.width, height: m.height })),
         items: p && p.tracks.flatMap(t => t.items.map(i => ({ start: i.start, duration: i.duration }))),
         clips: [...document.querySelectorAll(".clip")].slice(0, 5).map(c => { const r = c.getBoundingClientRect(); return [c.className, r.x, r.y, r.width, r.height, getComputedStyle(c).display]; }),
+        drawing: await Promise.race([new Promise(r => requestAnimationFrame(() => r(true))), new Promise(r => setTimeout(() => r(false), 2000))]),
         timeline: (() => { const t = document.querySelector(".timeline"); const r = t?.getBoundingClientRect(); return r && [r.width, r.height]; })(),
       };
     }).catch(e => String(e));

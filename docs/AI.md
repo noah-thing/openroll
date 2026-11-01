@@ -9,9 +9,11 @@ Settings, AI tools, shows the exact command for this computer. For a typical ins
 ```sh
 # macOS
 claude mcp add openroll -- /Applications/OpenRoll.app/Contents/MacOS/OpenRoll --mcp
-# Windows
-claude mcp add openroll -- "C:\Users\you\AppData\Local\Programs\OpenRoll\OpenRoll.exe" --mcp
+# Linux (AppImage)
+claude mcp add openroll -- ~/Applications/OpenRoll.AppImage --mcp
 ```
+
+Windows is not supported yet: Electron's main process cannot read standard input there, which is how MCP talks. It is next on the list.
 
 `OpenRoll --mcp` starts no window. It finds the running app, or starts it, and passes calls through a private socket in your user folder. Each connection proves itself with a token stored next to that socket. Nothing listens on the network. Turn it off in Settings, AI tools.
 

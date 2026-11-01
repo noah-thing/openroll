@@ -13,7 +13,7 @@ const userData = await mkdtemp(join(tmpdir(), "openroll-qa-"));
 if (process.env.QA_SEED) await cp(process.env.QA_SEED, userData, { recursive: true });
 const app = await electron.launch({
   // CI Linux runners have no setuid sandbox helper.
-  args: [resolve("."), `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : []), ...(process.env.QA_NO_GPU ? ["--use-gl=angle", "--use-angle=swiftshader"] : []), ...(process.env.QA_NO_HW_DECODE ? ["--disable-accelerated-video-decode"] : [])],
+  args: [resolve("."), `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : []), ...(process.env.QA_NO_GPU ? ["--use-gl=angle", "--use-angle=swiftshader"] : []), ...(process.env.QA_NO_HW_DECODE ? ["--disable-accelerated-video-decode"] : []), ...(process.env.CI && process.platform === "win32" ? ["--disable-features=CalculateNativeWinOcclusion"] : [])],
   env: { ...process.env, OPENROLL_QA: "1", OPENROLL_PROJECTS_DIR: join(userData, "projects") },
 });
 const page = await app.firstWindow();
