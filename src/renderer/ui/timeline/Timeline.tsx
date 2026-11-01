@@ -6,6 +6,7 @@ import { useEditor, useFrame } from "../../lib/hooks";
 import type { Editor } from "../../state/editor";
 import { importFiles } from "../../state/importer";
 import type { MediaCache } from "../../state/media-cache";
+import { keyLabel } from "../../state/commands";
 import { zoomEvents } from "../../state/events";
 import { renameItem } from "../../state/timeline-actions";
 import { Icon } from "../kit/Icon";
@@ -42,6 +43,7 @@ function previewOf(g: Gesture | null): Project | null {
   return g && "preview" in g ? g.preview : null;
 }
 
+const mac = window.openroll.platform === "darwin";
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clampPps = (v: number) => Math.min(MAX_PPS, Math.max(MIN_PPS, v));
 
@@ -645,25 +647,25 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
   return (
     <section className="tl">
       <div className="tl-bar">
-        <button className="iconbtn" title="Split at playhead (S)" onClick={() => editor.splitAtPlayhead()}>
+        <button className="iconbtn" title={`Split at playhead (${keyLabel("s", mac)})`} onClick={() => editor.splitAtPlayhead()}>
           <Icon name="split" />
         </button>
-        <button className="iconbtn" title="Delete (Delete)" disabled={!selection.length} onClick={() => editor.deleteSelection()}>
+        <button className="iconbtn" title={`Delete (${keyLabel("delete", mac)})`} disabled={!selection.length} onClick={() => editor.deleteSelection()}>
           <Icon name="trash" />
         </button>
-        <button className="iconbtn" title="Duplicate (⌘D)" disabled={!selection.length} onClick={() => editor.duplicateSelection()}>
+        <button className="iconbtn" title={`Duplicate (${keyLabel("mod+d", mac)})`} disabled={!selection.length} onClick={() => editor.duplicateSelection()}>
           <Icon name="duplicate" />
         </button>
         <span className="sep" />
-        <button className="iconbtn" title="Snapping (N)" aria-pressed={snapping} onClick={() => setSnapping(s => !s)}>
+        <button className="iconbtn" title={`Snapping (${keyLabel("n", mac)})`} aria-pressed={snapping} onClick={() => setSnapping(s => !s)}>
           <Icon name="snap" />
         </button>
-        <button className="textbtn" title="Keep the playhead in view while playing (Option F)" aria-pressed={follow} onClick={() => setFollow(f => !f)}>
+        <button className="textbtn" title={`Keep the playhead in view while playing (${keyLabel("alt+f", mac)})`} aria-pressed={follow} onClick={() => setFollow(f => !f)}>
           Follow
         </button>
         <span className="spacer" />
         {rate && <span className="tl-rate num" aria-live="polite">{rate}</span>}
-        <button className="iconbtn" title="Zoom out (⌘−)" onClick={() => zoomBy(1 / 1.5)}>
+        <button className="iconbtn" title={`Zoom out (${keyLabel("mod+-", mac)})`} onClick={() => zoomBy(1 / 1.5)}>
           <Icon name="zoomOut" />
         </button>
         <input
@@ -675,10 +677,10 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
           onChange={e => zoomNow(MIN_PPS * (MAX_PPS / MIN_PPS) ** (Number(e.target.value) / 1000))}
           aria-label="Timeline zoom"
         />
-        <button className="iconbtn" title="Zoom in (⌘=)" onClick={() => zoomBy(1.5)}>
+        <button className="iconbtn" title={`Zoom in (${keyLabel("mod+=", mac)})`} onClick={() => zoomBy(1.5)}>
           <Icon name="zoomIn" />
         </button>
-        <button className="textbtn" title="Fit (Shift Z)" onClick={fit}>
+        <button className="textbtn" title={`Fit (${keyLabel("shift+z", mac)})`} onClick={fit}>
           Fit
         </button>
       </div>
