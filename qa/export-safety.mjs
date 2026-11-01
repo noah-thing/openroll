@@ -101,6 +101,29 @@ export default async function ({ page }) {
   check("a stopped export leaves no temp file", !listing().some(f => f.endsWith(".openroll-part")), listing().join(", "));
   await closeDialog();
 
+  // The same through ffmpeg: its process must go too, and nothing may be left of the half written file.
+  await open();
+  const listedMov = await page.locator(".job").count();
+  await page.click('.modal .seg button:has-text("ProRes 422"), .modal [role=radio]:has-text("ProRes 422")');
+  await page.click(".modal .export");
+  await page.waitForSelector(".job .progress");
+  await page.waitForTimeout(1500);
+  await page.click('.job:has(.progress) button:has-text("Stop")');
+  await page.waitForFunction(n => document.querySelectorAll(".job").length === n, listedMov, { timeout: 60000 });
+  await page.waitForTimeout(500);
+  check("a stopped ProRes export leaves no temp file", !listing().some(f => f.endsWith(".openroll-part")), listing().join(", "));
+  if (process.platform !== "win32") {
+    // ffmpeg gets a moment to wind down after the stop.
+    let running = "";
+    for (let i = 0; i < 12; i++) {
+      running = spawnSync("pgrep", ["-f", `prores_ks.*${OUT}.*openroll-part`], { encoding: "utf8" }).stdout.trim();
+      if (!running) break;
+      await page.waitForTimeout(500);
+    }
+    check("ffmpeg is not left running", running === "", running && spawnSync("ps", ["-o", "pid,etime,state,command", "-p", running.split("\n")[0]], { encoding: "utf8" }).stdout.slice(0, 400));
+  }
+  await closeDialog();
+
   // 4. Two exports queued to the same name each finish; the file at the end is whole.
   rmSync(join(OUT, "Untitled.mp4"));
   await open(3_000_000);
