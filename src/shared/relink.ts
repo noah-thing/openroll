@@ -20,6 +20,11 @@ export interface RelinkMatch {
 
 const SEP = /[\\/]/;
 
+/** A name as comparable text. macOS may store Å as A plus a ring, Windows and Linux as one letter; they are the same file. */
+export function nameKey(name: string): string {
+  return name.normalize("NFC").toLowerCase();
+}
+
 export function baseName(path: string): string {
   const parts = path.split(SEP);
   return parts[parts.length - 1] ?? path;
@@ -27,6 +32,8 @@ export function baseName(path: string): string {
 
 export function dirName(path: string): string {
   const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  // The folder of C:\clip.mov is C:\, not C:, which Windows reads as the current folder of that drive.
+  if (i === 2 && path[1] === ":") return path.slice(0, 3);
   return i <= 0 ? path.slice(0, i + 1) : path.slice(0, i);
 }
 
@@ -44,7 +51,7 @@ export function sharedDepth(a: string, b: string): number {
 
 /** Names worth looking for, in lower case, so a scan only keeps files that could match. */
 export function wantedNames(missing: MissingFile[]): Set<string> {
-  return new Set(missing.map(m => m.name.toLowerCase()));
+  return new Set(missing.map(m => nameKey(m.name)));
 }
 
 /**
@@ -55,7 +62,7 @@ export function wantedNames(missing: MissingFile[]): Set<string> {
 export function matchFiles(missing: MissingFile[], found: FoundFile[]): RelinkMatch[] {
   const byName = new Map<string, FoundFile[]>();
   for (const f of found) {
-    const key = baseName(f.path).toLowerCase();
+    const key = nameKey(baseName(f.path));
     const list = byName.get(key);
     if (list) list.push(f);
     else byName.set(key, [f]);
@@ -63,7 +70,7 @@ export function matchFiles(missing: MissingFile[], found: FoundFile[]): RelinkMa
   const taken = new Set<string>();
   const out: RelinkMatch[] = [];
   for (const m of missing) {
-    const candidates = (byName.get(m.name.toLowerCase()) ?? []).filter(f => f.size === m.size && !taken.has(f.path));
+    const candidates = (byName.get(nameKey(m.name)) ?? []).filter(f => f.size === m.size && !taken.has(f.path));
     if (!candidates.length) continue;
     candidates.sort((a, b) => sharedDepth(b.path, m.path) - sharedDepth(a.path, m.path));
     out.push({ id: m.id, path: candidates[0].path });

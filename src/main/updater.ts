@@ -2,11 +2,12 @@ import { app, net } from "electron";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
-import { access, chmod, constants, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, chmod, constants, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { UpdateState, WhatsNew } from "../shared/api";
+import { renameBusy } from "./fs-retry";
 import { LATEST_RELEASE_API, releaseByTagApi } from "../shared/links";
 import { checksumsAsset, isNewer, packagingFor, parseChecksums, parseRelease, pickAsset, type Packaging, type Release, type ReleaseAsset } from "../shared/update-logic";
 
@@ -216,7 +217,7 @@ export class Updater {
       await rm(part, { force: true });
       throw new Error("download did not match its checksum");
     }
-    await rename(part, file);
+    await renameBusy(part, file);
   }
 
   private async stage(version: string, packaging: Packaging, file: string, folder: string): Promise<Staged | null> {

@@ -15,6 +15,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { unzipCommand } from "./unzip-command.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outRoot = join(root, "resources", "ffmpeg");
@@ -93,7 +94,8 @@ async function download(url, dest) {
 
 function unzip(archive, into) {
   // Windows 10 and later ship bsdtar, which reads zip; elsewhere unzip is everywhere.
-  const r = process.platform === "win32" ? spawnSync("tar", ["-xf", archive, "-C", into], { windowsHide: true }) : spawnSync("unzip", ["-oq", archive, "-d", into], { windowsHide: true });
+  const { command, args } = unzipCommand(process.platform, process.env, archive, into);
+  const r = spawnSync(command, args, { windowsHide: true });
   if (r.status !== 0) throw new Error(`could not unpack ${basename(archive)}: ${r.stderr?.toString() ?? r.error}`);
 }
 

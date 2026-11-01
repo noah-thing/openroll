@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, rm, type FileHandle } from "node:fs/promises";
+import { mkdir, open, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import type { Writable } from "node:stream";
 import type { PipeSpec } from "../shared/ffexport";
 import { pipeArgs } from "./ffmpeg-export-args";
 import { findBinaries } from "./ffmpeg-binaries";
+import { removeBusy } from "./fs-retry";
 import type { JobQueue } from "./ffmpeg-queue";
 import { start, type Run } from "./ffmpeg-runner";
 
@@ -127,7 +128,7 @@ export class PipeExports {
     if (s.held) this.queue.release(id);
     await s.audio?.close().catch(() => {});
     await s.raw?.close().catch(() => {});
-    await rm(s.dir, { recursive: true, force: true });
+    await removeBusy(s.dir);
   }
 }
 

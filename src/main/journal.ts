@@ -1,6 +1,8 @@
-import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HistoryEntry } from "../shared/api";
+import { samePath } from "../shared/paths";
+import { renameBusy } from "./fs-retry";
 
 /** Versions kept per project. */
 export const KEEP = 20;
@@ -20,7 +22,7 @@ interface Meta {
 const SAFE_ID = /^[\w.-]{1,80}$/;
 
 export class Journal {
-  constructor(private root: string) {}
+  constructor(private root: string, private platform: string = process.platform) {}
 
   private dirFor(id: string): string {
     return join(this.root, id);
@@ -68,7 +70,7 @@ export class Journal {
   private async writeAtomic(path: string, text: string): Promise<void> {
     const tmp = path + ".tmp";
     await writeFile(tmp, text, "utf8");
-    await rename(tmp, path);
+    await renameBusy(tmp, path);
   }
 
   private async versions(dir: string): Promise<Version[]> {
@@ -100,7 +102,7 @@ export class Journal {
     let best: { id: string; time: number } | null = null;
     for (const id of names) {
       const meta = await readFile(join(this.dirFor(id), "meta.json"), "utf8").then(t => JSON.parse(t) as Meta).catch(() => null);
-      if (meta?.path !== projectPath) continue;
+      if (!meta || typeof meta.path !== "string" || !samePath(meta.path, projectPath, this.platform)) continue;
       const time = (await stat(join(this.dirFor(id), "meta.json")).catch(() => null))?.mtimeMs ?? 0;
       if (!best || time > best.time) best = { id, time };
     }

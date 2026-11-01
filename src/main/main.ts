@@ -2,11 +2,14 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, 
 import { arch, release, type } from "node:os";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
+import { copyFile, mkdir, open, readdir, readFile, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
 import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
+import { isInside, safeFileName, samePath } from "../shared/paths";
+import { renameBusy } from "./fs-retry";
+import { launcherPath } from "./launch-target";
 import { Journal } from "./journal";
 import { NamedVersions } from "./versions";
 import { Session } from "./session";
@@ -260,7 +263,7 @@ function registerIpc(): void {
   ipcMain.handle("media:stat", async (_e, path: unknown) => (typeof path === "string" && isAllowed(path) ? info(path) : null));
 
   ipcMain.handle("writer:create", async (_e, suggested: unknown, kind: unknown) => {
-    const name = typeof suggested === "string" ? suggested.replace(/[\\/:*?"<>|]/g, "_") : "Export";
+    const name = typeof suggested === "string" ? safeFileName(suggested, "Export") : "Export";
     const filters =
       kind === "audio" ? [{ name: "Audio", extensions: ["m4a", "wav"] }] :
       kind === "subtitles" ? [{ name: "Subtitles", extensions: ["srt", "vtt"] }] :
@@ -284,7 +287,7 @@ function registerIpc(): void {
     const ok = /\.(mp4|mov|webm|gif|m4a|wav|srt|vtt|png|jpg)$/i;
     let path = typeof target === "string" && target ? target : "";
     if (!path) {
-      const name = String(fallbackName || "Export").replace(/[\\/:*?"<>|]/g, "_");
+      const name = safeFileName(String(fallbackName || "Export"), "Export");
       path = join(app.getPath("videos"), ok.test(name) ? name : `${name}.mp4`);
     }
     if (!isAbsolute(path) || !ok.test(path)) throw new Error("Give an absolute file path ending in a video, audio, image or subtitle extension.");
@@ -330,8 +333,7 @@ function registerIpc(): void {
     await w.handle?.close();
     if (abort) await rm(w.tmp, { force: true });
     else {
-      await rm(w.path, { force: true });
-      await rename(w.tmp, w.path);
+      await renameBusy(w.tmp, w.path);
       allowPath(w.path);
     }
   });
@@ -396,22 +398,22 @@ function registerIpc(): void {
     try {
       let target = typeof path === "string" && path.endsWith(".openroll") ? path : await freshProjectPath(String(name || "Untitled"));
       // A renamed project gets a matching file name, but only inside our own projects folder.
-      const wanted = String(name || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+      const wanted = name ? safeFileName(String(name), "") : "";
       const current = basename(target, ".openroll");
       const matches = current === wanted || (current.startsWith(wanted + " ") && /^\d+$/.test(current.slice(wanted.length + 1)));
-      if (wanted && !matches && dirname(target) === projectsDir() && existsSync(target)) {
+      if (wanted && !matches && samePath(dirname(target), projectsDir(), process.platform) && existsSync(target)) {
         const renamed = await freshProjectPath(wanted);
-        await rename(target, renamed);
+        await renameBusy(target, renamed);
         await rm(target + ".bak", { force: true });
         const oldThumb = join(thumbsDir(), hash(target) + ".jpg");
-        if (existsSync(oldThumb)) await rename(oldThumb, join(thumbsDir(), hash(renamed) + ".jpg")).catch(() => {});
+        if (existsSync(oldThumb)) await renameBusy(oldThumb, join(thumbsDir(), hash(renamed) + ".jpg")).catch(() => {});
         target = renamed;
       }
       await mkdir(dirname(target), { recursive: true });
       const tmp = target + ".tmp";
       await writeFile(tmp, json, "utf8");
       if (existsSync(target)) await copyFile(target, target + ".bak").catch(() => {});
-      await rename(tmp, target);
+      await renameBusy(tmp, target);
       session.setProject(target);
       void journal.record(json, { path: target, name: basename(target, ".openroll") }).catch(() => {});
       return { ok: true, path: target };
@@ -427,7 +429,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("projects:remove", async (_e, path: unknown) => {
-    if (typeof path !== "string" || !path.endsWith(".openroll") || !(path.startsWith(projectsDir()) || path.startsWith(defaultProjectsDir()))) return;
+    if (typeof path !== "string" || !path.endsWith(".openroll") || !(isInside(path, projectsDir(), process.platform) || isInside(path, defaultProjectsDir(), process.platform))) return;
     // Removing goes to the system trash, never straight to deletion.
     await shell.trashItem(path).catch(() => {});
   });
@@ -441,7 +443,7 @@ function registerIpc(): void {
     if (typeof name !== "string" || ext !== "wav" || !(data instanceof Uint8Array) || data.byteLength > 2 ** 31) return null;
     const dir = recordingsDir();
     await mkdir(dir, { recursive: true });
-    const clean = name.replace(/[\\/:*?"<>|]/g, "_").trim() || "Recording";
+    const clean = safeFileName(name, "Recording");
     let path = join(dir, `${clean}.${ext}`);
     for (let n = 2; existsSync(path); n++) path = join(dir, `${clean} ${n}.${ext}`);
     await writeFile(path, data);
@@ -493,7 +495,7 @@ function registerIpc(): void {
   ipcMain.handle("agent:clients", () => control.list());
   ipcMain.handle("agent:disconnect", (_e, id: unknown) => typeof id === "number" && control.disconnect(id));
   ipcMain.handle("agent:connect-info", () => ({
-    executable: process.execPath,
+    executable: launcherPath(process.execPath, process.env),
     args: app.isPackaged ? ["--mcp"] : [app.getAppPath(), "--mcp"],
   }));
   ipcMain.handle("news:mark-read", (_e, ids: unknown) => news.markRead(ids));
@@ -563,7 +565,7 @@ async function folderSize(dir: string): Promise<number> {
 async function freshProjectPath(name: string): Promise<string> {
   const dir = projectsDir();
   await mkdir(dir, { recursive: true });
-  const clean = name.replace(/[\\/:*?"<>|]/g, "_").trim() || "Untitled";
+  const clean = safeFileName(name, "Untitled");
   let path = join(dir, clean + ".openroll");
   for (let n = 2; existsSync(path); n++) path = join(dir, `${clean} ${n}.openroll`);
   return path;

@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { VersionEntry } from "../shared/api";
+import { renameBusy } from "./fs-retry";
 import { Journal } from "./journal";
 
 /** Named versions kept per project. The automatic journal keeps its own, rolling, list. */
@@ -33,7 +34,7 @@ export class NamedVersions {
   private async writeIndex(dir: string, entries: VersionEntry[]): Promise<void> {
     const tmp = join(dir, "index.json.tmp");
     await writeFile(tmp, JSON.stringify(entries), "utf8");
-    await rename(tmp, join(dir, "index.json"));
+    await renameBusy(tmp, join(dir, "index.json"));
   }
 
   async save(json: string, name: string, now = Date.now()): Promise<VersionEntry | null> {
