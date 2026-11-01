@@ -1,0 +1,18 @@
+# Manual only: can Electron's main process on Windows read stdin the way an MCP client writes it?
+name: probe-stdin
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node qa/probe-stdin/run.mjs
