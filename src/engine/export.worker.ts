@@ -19,6 +19,9 @@ import { rasterText } from "./text";
 import { loadFonts } from "./fonts";
 import { buildScene, type Visual } from "../core/scene";
 import { layerFields, syncLuts } from "./layer-look";
+import { aiLayerFields, nextFrameTime, temporalLayer, temporalPlan } from "./ai/apply";
+import { AiStore } from "./ai/store";
+import type { AiSync } from "./ai/protocol";
 import type { MediaRef, Project } from "../core/project";
 import { projectDuration } from "../core/project";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
@@ -34,7 +37,7 @@ const post = (m: ExportOut, transfer: Transferable[] = []) => self.postMessage(m
 
 self.onmessage = (e: MessageEvent<ExportIn>) => {
   const m = e.data;
-  if (m.type === "start") void run(m.project, m.urls, m.settings).catch(err => post({ type: "error", message: (err as Error).message }));
+  if (m.type === "start") void run(m.project, m.urls, m.settings, m.ai ?? []).catch(err => post({ type: "error", message: (err as Error).message }));
   else if (m.type === "cancel") cancelled = true;
   else if (m.type === "written") writeAcks.get(m.req)?.();
   else if (m.type === "audio") audioWaiters.get(m.req)?.(m.planes ? { planes: m.planes, frames: m.frames } : null);
@@ -91,8 +94,10 @@ class SequentialReader {
   }
 }
 
-async function run(project: Project, urls: Record<string, string>, s: ExportSettings): Promise<void> {
+async function run(project: Project, urls: Record<string, string>, s: ExportSettings, aiSync: AiSync[]): Promise<void> {
   cancelled = false;
+  const aiStore = new AiStore();
+  for (const m of aiSync) aiStore.sync(m);
   await loadFonts(self.fonts);
   const duration = projectDuration(project);
   const fps = s.fps;
@@ -175,6 +180,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       const frames: VideoFrame[] = [];
       const layerFor = async (v: Visual): Promise<Layer | null> => {
         const base = layerFields(v.place);
+        const ai = v.kind === "media" ? aiLayerFields(aiStore, project, v, t) : {};
         if (v.kind === "color") return { ...base, color: hex(v.item.color) };
         if (v.kind === "text") {
           const userScale = v.place.width / project.settings.width;
@@ -187,7 +193,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
             bmp = await createImageBitmap(await (await fetch(urls[v.media.id])).blob(), { imageOrientation: "from-image" });
             images.set(v.media.id, bmp);
           }
-          return { ...base, source: { key: "img:" + v.media.id, pixels: bmp, version: 1, width: bmp.width, height: bmp.height } };
+          return { ...base, ...ai, source: { key: "img:" + v.media.id, pixels: bmp, version: 1, width: bmp.width, height: bmp.height } };
         }
         let reader = readers.get(v.item.id);
         if (!reader) {
@@ -200,7 +206,28 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
         if (!sample) return null;
         const f = sample.toVideoFrame();
         frames.push(f);
-        return { ...base, source: { key: v.item.id, pixels: f, version: t, width: f.codedWidth, height: f.codedHeight, rotation: sample.rotation } };
+        const big = v.item.enhance?.upscale ? await upscaled(v.item.id, sample.timestamp, f) : null;
+        const layer: Layer = big
+          ? { ...base, ...ai, source: { key: v.item.id, pixels: big, version: `${t}u`, width: big.width, height: big.height, rotation: sample.rotation } }
+          : { ...base, ...ai, source: { key: v.item.id, pixels: f, version: t, width: f.codedWidth, height: f.codedHeight, rotation: sample.rotation } };
+        const plan = temporalPlan(v.item, v.media);
+        if (plan) {
+          const key = v.item.id + "#n";
+          let ahead = readers.get(key);
+          if (!ahead) {
+            const track = await trackOf(v.media);
+            if (track) readers.set(key, (ahead = new SequentialReader(track)));
+          }
+          const seconds = v.sourceTime / 1e6;
+          const other = await ahead?.frameAt(nextFrameTime(v.media, seconds));
+          if (other && other.timestamp > sample.timestamp) {
+            const g = other.toVideoFrame();
+            frames.push(g);
+            const bigNext = v.item.enhance?.upscale ? await upscaled(key, other.timestamp, g) : null;
+            layer.temporal = temporalLayer(plan, sample, other, seconds, bigNext ? { key, pixels: bigNext, version: `${t}u`, width: bigNext.width, height: bigNext.height, rotation: other.rotation } : { key, pixels: g, version: t, width: g.codedWidth, height: g.codedHeight, rotation: other.rotation });
+          }
+        }
+        return layer;
       };
 
       const nodes: Node[] = [];
@@ -235,6 +262,29 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
     for (const b of images.values()) b.close();
     compositor.dispose();
   }
+}
+
+/** Pictures already run through the upscaler, so a frame shown for several output frames is only enhanced once. */
+const enlarged = new Map<string, OffscreenCanvas>();
+const LARGEST_SOURCE = 960;
+
+/** Four times larger with the on device model. Sources that are already big are left alone. */
+async function upscaled(owner: string, timestamp: number, frame: VideoFrame): Promise<OffscreenCanvas | null> {
+  if (Math.max(frame.codedWidth, frame.codedHeight) > LARGEST_SOURCE) return null;
+  const key = `${owner}@${timestamp}`;
+  const hit = enlarged.get(key);
+  if (hit) return hit;
+  const { upscale } = await import("./ai/superres");
+  const small = new OffscreenCanvas(frame.codedWidth, frame.codedHeight);
+  const ctx = small.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(frame, 0, 0);
+  const px = ctx.getImageData(0, 0, small.width, small.height);
+  const out = await upscale({ width: px.width, height: px.height, data: px.data }, undefined, () => cancelled);
+  const canvas = new OffscreenCanvas(out.width, out.height);
+  canvas.getContext("2d")!.putImageData(new ImageData(out.data, out.width, out.height), 0, 0);
+  enlarged.set(key, canvas);
+  while (enlarged.size > 4) enlarged.delete(enlarged.keys().next().value!);
+  return canvas;
 }
 
 function hex(h: string): [number, number, number] {

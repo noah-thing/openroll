@@ -128,7 +128,7 @@ export function pasteItems(p: Project, clip: Clip, t: Micros, opts: { trackId?: 
   return { project: next, ids: fresh.map(f => f.item.id) };
 }
 
-const MEDIA_LOOK = ["blend", "adjust", "filter", "effects", "crop", "mask", "chroma", "cutout", "audio"] as const;
+const MEDIA_LOOK = ["blend", "adjust", "filter", "effects", "crop", "mask", "chroma", "cutout", "stabilize", "enhance", "slowMotion", "motionBlur", "audio"] as const;
 
 /**
  * Copy the look of `source` onto other items: transform, colour, effects, masks and

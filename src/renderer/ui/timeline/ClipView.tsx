@@ -7,6 +7,7 @@ import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import type { MediaCache } from "../../state/media-cache";
 import { labelHex } from "../../state/timeline-actions";
+import { usePreparing } from "../../state/ai";
 
 interface Props {
   item: Item;
@@ -29,6 +30,7 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const media = item.type === "media" ? project.media[item.mediaId] : undefined;
   const version = useSyncExternalStore(cache.subscribe, () => cache.version);
+  const preparing = usePreparing(item);
   const [imageTick, imageLoaded] = useReducer((n: number) => n + 1, 0);
 
   const left = (item.start / 1e6) * pps;
@@ -85,6 +87,12 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
         <span className="clip-name">{label}</span>
         {width > 90 && <span className="clip-dur num">{span(item.duration)}</span>}
       </div>
+      {preparing && (
+        <span className="clip-prep">
+          <span className="ai-spin" aria-hidden />
+          Preparing
+        </span>
+      )}
       {selected && item.keyframes && keyTimes(item.keyframes).map(t => <span key={t} className="clip-key" style={{ left: (t / 1e6) * pps }} />)}
       {width > 14 && (
         <>

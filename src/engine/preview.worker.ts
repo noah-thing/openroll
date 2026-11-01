@@ -6,6 +6,8 @@ import { rasterText } from "./text";
 import { loadFonts } from "./fonts";
 import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/scene";
 import { layerFields, syncLuts } from "./layer-look";
+import { aiLayerFields, nextFrameTime, temporalLayer, temporalPlan } from "./ai/apply";
+import { AiStore } from "./ai/store";
 import type { MediaRef, Project } from "../core/project";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
 
@@ -23,6 +25,8 @@ let rate = 1;
 let stillT = 0;
 let dirty = true;
 let fontsReady = false;
+const aiStore = new AiStore();
+let renderTime = 0;
 
 interface Source {
   input: Input;
@@ -65,6 +69,10 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
     case "size":
       outW = m.width;
       outH = m.height;
+      dirty = true;
+      break;
+    case "ai":
+      aiStore.sync(m.sync);
       dirty = true;
       break;
     case "decode":
@@ -155,7 +163,7 @@ function pruneSources(): void {
     live.add(i.mediaId);
     liveItems.add(i.id);
   }
-  for (const [id, r] of readers) if (!liveItems.has(id)) {
+  for (const [id, r] of readers) if (!liveItems.has(id.replace(/#n$/, ""))) {
     r.reader?.dispose();
     readers.delete(id);
   }
@@ -190,10 +198,11 @@ function toLayer(v: Visual, p: Project, scale: number): Layer | null {
       source: { key: v.item.id, pixels: raster.canvas, version: raster.key, width: raster.canvas.width, height: raster.canvas.height, premultiplied: false },
     };
   }
+  const ai = aiLayerFields(aiStore, p, v, renderTime);
   if (v.media.kind === "image") {
     const bmp = imageFor(v.media);
     if (!bmp) return null;
-    return { ...base, source: { key: "img:" + v.media.id, pixels: bmp, version: 1, width: bmp.width, height: bmp.height } };
+    return { ...base, ...ai, source: { key: "img:" + v.media.id, pixels: bmp, version: 1, width: bmp.width, height: bmp.height } };
   }
   const reader = readerFor(v.item.id, v.media);
   if (!reader) return null;
@@ -208,10 +217,31 @@ function toLayer(v: Visual, p: Project, scale: number): Layer | null {
     return null;
   }
   pendingClose.push(frame);
-  return {
+  const layer: Layer = {
     ...base,
+    ...ai,
     source: { key: v.item.id, pixels: frame, version: f.version, width: frame.codedWidth, height: frame.codedHeight, rotation: f.sample.rotation },
   };
+  const plan = base.opacity > 0 ? temporalPlan(v.item, v.media) : null;
+  if (plan) {
+    // a second reader sits one source frame ahead; until it has that frame the picture is drawn as is
+    const ahead = readerFor(v.item.id + "#n", v.media);
+    const t = v.sourceTime / 1e6;
+    if (ahead) {
+      ahead.want(nextFrameTime(v.media, t), playing);
+      const g = ahead.frame();
+      if (g && g.exact && g.sample.timestamp > f.sample.timestamp) {
+        try {
+          const next = g.sample.toVideoFrame();
+          pendingClose.push(next);
+          layer.temporal = temporalLayer(plan, f.sample, g.sample, t, { key: v.item.id + "#n", pixels: next, version: g.version, width: next.codedWidth, height: next.codedHeight, rotation: g.sample.rotation });
+        } catch {
+          /* the frame went away mid read; draw without it */
+        }
+      }
+    }
+  }
+  return layer;
 }
 
 const pendingClose: VideoFrame[] = [];
@@ -253,11 +283,12 @@ function renderAt(t: number, live: boolean): void {
   if (!compositor || !project) return;
   const p = project;
   const scale = outW / p.settings.width;
+  renderTime = t;
   syncLuts(compositor, p);
   compositor.resize(outW, outH, p.settings.width, p.settings.height);
   const scene = buildScene(p, t);
   onScreen.clear();
-  for (const id of frameNeeds(scene).keys()) onScreen.add(id);
+  for (const id of frameNeeds(scene).keys()) onScreen.add(id), onScreen.add(id + "#n");
   const nodes = toNodes(scene, p, scale);
   compositor.render(nodes, hexToRgb(p.settings.background));
   while (pendingClose.length) pendingClose.pop()!.close();

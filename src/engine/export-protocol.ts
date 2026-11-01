@@ -1,4 +1,5 @@
 import type { Project } from "../core/project";
+import type { AiSync } from "./ai/protocol";
 
 export interface ExportSettings {
   width: number;
@@ -11,7 +12,7 @@ export interface ExportSettings {
 }
 
 export type ExportIn =
-  | { type: "start"; project: Project; urls: Record<string, string>; settings: ExportSettings }
+  | { type: "start"; project: Project; urls: Record<string, string>; settings: ExportSettings; ai?: AiSync[] }
   | { type: "cancel" }
   | { type: "written"; req: number }
   | { type: "audio"; req: number; planes: Float32Array[] | null; frames: number };

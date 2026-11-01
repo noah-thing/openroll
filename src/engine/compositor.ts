@@ -5,6 +5,7 @@ import { bakeCurves, curvesAreFlat } from "../core/look/curves";
 import { effectIndex } from "../core/look/effects";
 import { filterPreset } from "../core/look/filters";
 import type { BlendMode, ChromaKey, Crop, Curves, Fill, Hsl, Mask } from "../core/project";
+import { AiPasses, type TemporalMode } from "./ai/gpu";
 import { HSL_BANDS } from "../core/project";
 
 export type Pixels = VideoFrame | ImageBitmap | OffscreenCanvas | HTMLCanvasElement | HTMLImageElement;
@@ -46,6 +47,25 @@ export interface Layer {
   time?: number;
   radius?: number;
   feather?: number;
+  /** Alpha matte for the picture, one small greyscale image per source frame. */
+  matte?: MatteSource;
+  /** Steadying: shift and roll of the picture in frame widths and radians, then a zoom that hides the edges. */
+  stab?: { dx: number; dy: number; rot: number; zoom: number };
+  /** The next source frame, to build the picture between two frames. */
+  temporal?: { mode: TemporalMode; next: LayerSource; mix: number; length: number };
+  enhance?: { denoise: number; sharpen: number };
+  /** Motion blur: the box at several moments inside the shutter, drawn and averaged. */
+  trail?: { x: number; y: number; width: number; height: number; rotation: number }[];
+}
+
+export interface MatteSource {
+  key: string;
+  pixels: Uint8Array;
+  version: number | string;
+  width: number;
+  height: number;
+  /** 0..1, how firmly soft matte values are pushed to solid or clear. */
+  edge: number;
 }
 
 export interface LayerEffect {
@@ -76,6 +96,7 @@ interface CachedTexture {
   tex: WebGLTexture;
   version: number | string;
   used: number;
+  size?: number;
 }
 
 export class Compositor {
@@ -95,6 +116,8 @@ export class Compositor {
   private flatCurves!: WebGLTexture;
   private vao: WebGLVertexArrayObject;
   private textures = new Map<string, CachedTexture>();
+  private matteTextures = new Map<string, CachedTexture>();
+  private ai: AiPasses;
   private acc!: Target;
   private accSwap!: Target;
   private scratch: Target[] = [];
@@ -129,6 +152,7 @@ export class Compositor {
     this.blurProgram = new Program(gl, compile(gl, FULL_VS, BLUR_FS));
     this.copyProgram = new Program(gl, compile(gl, FULL_VS, COPY_FS));
 
+    this.ai = new AiPasses(gl);
     this.vao = gl.createVertexArray()!;
     gl.bindVertexArray(this.vao);
     const buf = gl.createBuffer();
@@ -426,11 +450,12 @@ export class Compositor {
   /** Draw one layer into `into`. With `clear`, `into` holds only this layer afterwards. */
   private drawLayer(layer: Layer, into: Target, clear = true): void {
     const gl = this.gl;
+    // the AI passes draw into their own targets, so they run before this layer's target is bound
+    const sourceTex = layer.source ? this.textureFor(layer.source) : null;
+    const tex = sourceTex && layer.opacity > 0 ? this.processedTexture(layer, sourceTex) : sourceTex;
     if (clear) into.clear();
     else into.bind();
     if (layer.opacity <= 0) return;
-
-    const tex = layer.source ? this.textureFor(layer.source) : null;
     if (layer.source && !tex) return;
 
     const p = this.layerProgram.use();
@@ -461,6 +486,7 @@ export class Compositor {
     if (m) p.f("u_maskRect", m.x, m.y, m.width, m.height).f("u_maskParams", (m.rotation * Math.PI) / 180, m.feather, m.invert ? 1 : 0);
 
     p.i("u_tex", 0).i("u_lut", 1).i("u_curves", 2);
+    this.setAi(p, layer);
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, curved ? this.curvesTexture(layer.curves!) : this.flatCurves);
     gl.activeTexture(gl.TEXTURE0);
@@ -470,8 +496,67 @@ export class Compositor {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     }
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    const trail = clear && layer.trail && layer.trail.length > 1 ? layer.trail : null;
+    if (trail) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      for (const moment of trail) {
+        const at = { ...layer, ...moment };
+        p.m3("u_matrix", this.matrixFor(at));
+        p.f("u_boxPx", at.width * visW, at.height * visH).f("u_opacity", layer.opacity / trail.length);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+    } else gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.disable(gl.BLEND);
+  }
+
+  /** The source texture after in between frames and cleanup, ready to draw. */
+  private processedTexture(layer: Layer, tex: WebGLTexture): WebGLTexture {
+    const src = layer.source!;
+    let current = { tex, width: src.width, height: src.height, id: `${src.key}@${src.version}` };
+    const t = layer.temporal;
+    if (t) {
+      const nextTex = this.textureFor(t.next);
+      if (nextTex) {
+        const next = { tex: nextTex, width: t.next.width, height: t.next.height, id: `${t.next.key}@${t.next.version}` };
+        current = { tex: this.ai.interpolate(current, next, t.mode, t.mix, t.length), width: current.width, height: current.height, id: `${current.id}+${next.id}@${t.mix.toFixed(3)}` };
+      }
+    }
+    if (layer.enhance) current = { ...current, tex: this.ai.enhance(current, layer.enhance.denoise, layer.enhance.sharpen) };
+    return current.tex;
+  }
+
+  private setAi(p: Program, layer: Layer): void {
+    const gl = this.gl;
+    const stab = layer.stab;
+    const src = layer.source;
+    p.f("u_stab", stab?.dx ?? 0, stab?.dy ?? 0, stab?.rot ?? 0, stab?.zoom ?? 0);
+    p.f("u_stabAspect", src ? src.width / src.height : 1);
+    const m = layer.matte;
+    p.i("u_matteOn", m ? 1 : 0);
+    if (!m) return;
+    p.i("u_matte", 3).f("u_matteEdge", m.edge);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, this.matteTexture(m));
+  }
+
+  private matteTexture(m: MatteSource): WebGLTexture {
+    const gl = this.gl;
+    let cached = this.matteTextures.get(m.key);
+    if (!cached) {
+      cached = { tex: makeTexture(gl), version: -1, used: 0 };
+      this.matteTextures.set(m.key, cached);
+    }
+    cached.used = this.frame;
+    if (cached.version !== m.version || cached.size !== m.width * m.height) {
+      gl.bindTexture(gl.TEXTURE_2D, cached.tex);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, m.width, m.height, 0, gl.RED, gl.UNSIGNED_BYTE, m.pixels);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      cached.version = m.version;
+      cached.size = m.width * m.height;
+    }
+    return cached.tex;
   }
 
   private setFilter(p: Program, layer: Layer): void {
@@ -593,6 +678,12 @@ export class Compositor {
         this.textures.delete(key);
       }
     }
+    for (const [key, t] of this.matteTextures) {
+      if (this.frame - t.used > 240) {
+        this.gl.deleteTexture(t.tex);
+        this.matteTextures.delete(key);
+      }
+    }
   }
 
   /** Read the current output back, e.g. for a project thumbnail. */
@@ -612,6 +703,9 @@ export class Compositor {
   dispose(): void {
     for (const t of this.textures.values()) this.gl.deleteTexture(t.tex);
     this.textures.clear();
+    for (const t of this.matteTextures.values()) this.gl.deleteTexture(t.tex);
+    this.matteTextures.clear();
+    this.ai.dispose();
     this.acc?.dispose();
     this.accSwap?.dispose();
     for (const t of this.scratch) t?.dispose();
