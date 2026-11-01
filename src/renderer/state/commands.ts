@@ -117,8 +117,6 @@ export function commandById(id: string): Command | undefined {
   return COMMANDS.find(c => c.id === id);
 }
 
-// ---------------------------------------------------------------- key matching
-
 interface Parsed {
   mod: boolean;
   shift: boolean;
@@ -168,8 +166,6 @@ export function matches(p: Parsed, e: KeyboardEvent, mac: boolean): boolean {
   const stray = mac ? e.ctrlKey : e.metaKey;
   return !stray && mod === p.mod && e.shiftKey === p.shift && e.altKey === p.alt && eventKey(e) === p.key;
 }
-
-// ---------------------------------------------------------------- display
 
 const MAC_GLYPH: Record<string, string> = { backspace: "⌫", delete: "⌦", left: "←", right: "→", up: "↑", down: "↓", escape: "Esc", space: "Space", home: "Home", end: "End", enter: "↩" };
 const WIN_NAME: Record<string, string> = { backspace: "Backspace", delete: "Del", left: "←", right: "→", up: "↑", down: "↓", escape: "Esc", space: "Space", home: "Home", end: "End", enter: "Enter" };

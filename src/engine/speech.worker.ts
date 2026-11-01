@@ -84,8 +84,6 @@ async function job(req: Extract<SpeechRequest, { kind: "run" }>): Promise<void> 
   }
 }
 
-// ---------------------------------------------------------------- model
-
 async function loadModel(req: { id: number }, model: SpeechModel, wanted: SpeechDevice) {
   // WebGPU measured the same speed as WASM with the base model (7.7 against 7.1 times real time on ten
   // minutes) and took the renderer down with the small one, so it is opt in.
@@ -142,8 +140,6 @@ async function loadModel(req: { id: number }, model: SpeechModel, wanted: Speech
   return loaded;
 }
 
-// ---------------------------------------------------------------- audio
-
 /** Decode the range to mono 16 kHz. Workers have no AudioBuffer, so planes are read directly. */
 async function decode(req: Extract<SpeechRequest, { kind: "run" }>, check: () => void): Promise<Float32Array> {
   const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(req.url) });
@@ -193,8 +189,6 @@ async function decode(req: Extract<SpeechRequest, { kind: "run" }>, check: () =>
     input.dispose();
   }
 }
-
-// ---------------------------------------------------------------- listening
 
 function frameLevels(pcm: Float32Array): Float32Array {
   const frames = Math.ceil(pcm.length / FRAME);

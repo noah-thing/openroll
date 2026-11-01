@@ -96,7 +96,7 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
     return clientX - el.getBoundingClientRect().left + el.scrollLeft;
   };
 
-  // ---- zoom. Every change keeps one time under one screen x, so nothing slides away.
+  // Every change keeps one time under one screen x, so nothing slides away.
   const anim = useRef(0);
   const zoomTarget = useRef<number | null>(null);
   const pendingScroll = useRef<{ t: number; x: number } | null>(null);
@@ -247,7 +247,6 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
     };
   }, []);
 
-  // ---- playhead, moved without React on every frame
   useFrame(() => {
     const el = scrollRef.current, ph = playheadRef.current;
     if (!el || !ph) return;
@@ -259,7 +258,6 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
     }
   });
 
-  // ---- gestures
   const points = useCallback((exclude: string[]) => (snapping ? snapPoints(editor.project, editor.time, new Set(exclude)) : []), [editor, snapping]);
   const tol = () => (SNAP_PX / ppsRef.current) * 1e6;
 
@@ -564,7 +562,6 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
   }
   useEffect(() => () => stopAuto(), []);
 
-  // ---- context menus
   function onClipMenu(e: React.MouseEvent, item: Item) {
     if (!editor.selection.includes(item.id)) editor.select([item.id]);
     menu.open(e, clipMenu(editor, item, { rename: setRenamingClip }));
@@ -592,7 +589,6 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
     if (label !== (m.label ?? "")) editor.apply("Rename marker", p => updateMarker(p, m.id, { label }));
   }
 
-  // ---- drops from the library and from the file system
   function onDragOver(e: React.DragEvent) {
     const fromLibrary = e.dataTransfer.types.includes(MEDIA_DRAG_TYPE) || e.dataTransfer.types.includes(TEXT_DRAG_TYPE);
     if (!fromLibrary && !e.dataTransfer.types.includes("Files")) return;

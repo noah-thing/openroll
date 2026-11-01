@@ -16,8 +16,6 @@ export interface Cue {
   text: string;
 }
 
-// ---------------------------------------------------------------- grouping
-
 export interface ChunkOptions {
   maxWords: number;
   maxChars: number;
@@ -127,8 +125,6 @@ export function spreadWords(tokens: string[], from: Micros, to: Micros): Caption
   return out;
 }
 
-// ---------------------------------------------------------------- editing text
-
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 export function captionText(item: CaptionItem): string {
@@ -213,8 +209,6 @@ export function retimeWords(old: CaptionWord[], text: string, duration: Micros):
   }
   return out;
 }
-
-// ---------------------------------------------------------------- SRT and VTT
 
 function stamp(t: Micros, comma: boolean): string {
   const ms = Math.max(0, Math.round(t / 1000));
@@ -308,8 +302,6 @@ export function captionsFromCues(cues: Cue[], template: CaptionTemplate): Captio
     animationIn: template.animationIn,
   }));
 }
-
-// ---------------------------------------------------------------- project edits
 
 export const CAPTION_TRACK = "Captions";
 

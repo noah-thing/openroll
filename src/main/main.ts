@@ -194,8 +194,6 @@ function serveApp(): void {
   });
 }
 
-// ---------------------------------------------------------------- IPC
-
 const writers = new Map<number, { handle: FileHandle; path: string; tmp: string }>();
 let nextWriter = 1;
 
@@ -468,8 +466,6 @@ async function freshProjectPath(name: string): Promise<string> {
   return path;
 }
 
-// ---------------------------------------------------------------- menu
-
 function buildMenu(): void {
   const send = (cmd: string) => () => win?.webContents.send("menu", cmd);
   // Shortcuts are handled by the page so they can respect focus (typing in a text box
@@ -556,8 +552,6 @@ function buildMenu(): void {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
-
-// ---------------------------------------------------------------- lifecycle
 
 /** The microphone is the only device the page may ask for, and only from our own pages. */
 function guardMicrophone(): void {

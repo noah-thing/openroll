@@ -39,8 +39,6 @@ import {
   type TrackKind,
 } from "./project";
 
-// ---------------------------------------------------------------- selection
-
 /** Items that end after `t`, optionally on one track: "select forward from the playhead". */
 export function itemsFrom(p: Project, t: Micros, trackId?: string): string[] {
   const out: string[] = [];
@@ -54,8 +52,6 @@ export function itemsFrom(p: Project, t: Micros, trackId?: string): string[] {
 export function trackItemIds(p: Project, trackId: string): string[] {
   return p.tracks.find(t => t.id === trackId)?.items.map(i => i.id) ?? [];
 }
-
-// ---------------------------------------------------------------- clipboard
 
 export interface ClipEntry {
   item: Item;
@@ -171,8 +167,6 @@ export function pasteStyle(p: Project, source: Item, ids: string[]): Project {
   }
   return next;
 }
-
-// ---------------------------------------------------------------- ripple, reverse, freeze
 
 /** Delete items and pull later items on the same track left by the same amount. */
 export function rippleDeleteItems(p: Project, ids: string[]): Project {
@@ -295,8 +289,6 @@ export function setItemColor(p: Project, ids: string[], color: string | null): P
   return next;
 }
 
-// ---------------------------------------------------------------- gaps
-
 export interface Gap {
   start: Micros;
   end: Micros;
@@ -342,8 +334,6 @@ export function closeAllGaps(p: Project, trackId: string): Project {
   pruneTransitions(next);
   return next;
 }
-
-// ---------------------------------------------------------------- moving groups
 
 export interface GroupMove {
   /** How far the dragged item moved, applied to every free item of the group. */
@@ -399,8 +389,6 @@ export function moveGroup(p: Project, ids: string[], move: GroupMove): Project {
   pruneTransitions(next);
   return next;
 }
-
-// ---------------------------------------------------------------- trimming
 
 function startRoom(item: MediaItem, media: MediaRef): number {
   if (media.kind === "image" || item.freeze) return Infinity;
@@ -502,8 +490,6 @@ export function trimToTime(p: Project, t: Micros, edge: Edge, ids?: string[]): P
   return next;
 }
 
-// ---------------------------------------------------------------- markers
-
 export function updateMarker(p: Project, id: string, patch: { t?: Micros; label?: string; color?: string | null }): Project {
   if (!p.markers.some(x => x.id === id)) return p;
   const next = draft(p);
@@ -532,8 +518,6 @@ export function neighbourMarker(p: Project, t: Micros, dir: -1 | 1) {
   const eps = 1000;
   return dir > 0 ? p.markers.find(m => m.t > t + eps) : [...p.markers].reverse().find(m => m.t < t - eps);
 }
-
-// ---------------------------------------------------------------- tracks
 
 export function addTrack(p: Project, kind: TrackKind, id = newId("t")): Project {
   const next = draft(p);
