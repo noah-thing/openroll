@@ -5,7 +5,7 @@
 
 import { ALL_FORMATS, AudioSampleSink, CanvasSink, Input, UrlSource } from "mediabunny";
 import { AudioAnalyzer } from "../core/analyze";
-import { PEAKS_PER_SECOND, THUMB_H, type MediaJob, type MediaJobResult } from "./media-protocol";
+import { PEAKS_PER_SECOND, STRIP_COLUMNS, STRIP_MAX_FRAMES, THUMB_H, type MediaJob, type MediaJobResult } from "./media-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -53,9 +53,14 @@ async function filmstrip(job: Extract<MediaJob, { kind: "filmstrip" }>): Promise
     const tw = Math.max(8, Math.round((w / h) * th));
     w = tw;
     h = th;
-    const step = duration <= 30 ? 0.5 : duration <= 600 ? 1 : duration / 600;
-    const count = Math.max(1, Math.ceil(duration / step));
-    const sheet = new OffscreenCanvas(tw * count, th);
+    let step = duration <= 30 ? 0.5 : 1;
+    let count = Math.max(1, Math.ceil(duration / step));
+    if (count > STRIP_MAX_FRAMES) {
+      count = STRIP_MAX_FRAMES;
+      step = duration / count;
+    }
+    const cols = Math.min(count, STRIP_COLUMNS);
+    const sheet = new OffscreenCanvas(tw * cols, th * Math.ceil(count / cols));
     const g = sheet.getContext("2d")!;
     const sink = new CanvasSink(track, { width: w, height: h, fit: "cover", poolSize: 2 });
 
@@ -66,7 +71,7 @@ async function filmstrip(job: Extract<MediaJob, { kind: "filmstrip" }>): Promise
     let sinceSend = 0;
     for await (const wrapped of sink.canvasesAtTimestamps(order.map(i => Math.min(duration - 0.01, i * step)))) {
       const i = order[k++];
-      if (wrapped) g.drawImage(wrapped.canvas, i * tw, 0, tw, th);
+      if (wrapped) g.drawImage(wrapped.canvas, (i % cols) * tw, Math.floor(i / cols) * th, tw, th);
       sinceSend++;
       if (sinceSend >= Math.max(6, count / 4)) {
         await send();
@@ -80,7 +85,7 @@ async function filmstrip(job: Extract<MediaJob, { kind: "filmstrip" }>): Promise
       // transferToImageBitmap clears the canvas; draw it back so later passes add to it
       g.drawImage(bmp, 0, 0);
       const copy = await createImageBitmap(bmp);
-      post({ id: job.id, kind: "filmstrip", sheet: copy, frameWidth: tw / 2, frameHeight: th / 2, step, count, final, jpeg: final ? await jpegOf(bmp) : undefined }, [copy]);
+      post({ id: job.id, kind: "filmstrip", sheet: copy, frameWidth: tw / 2, frameHeight: th / 2, step, count, cols, final, jpeg: final ? await jpegOf(bmp) : undefined }, [copy]);
       bmp.close();
     }
   } finally {

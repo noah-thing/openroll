@@ -10,7 +10,7 @@ import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/sce
 import { layerFields, syncLuts } from "./layer-look";
 import { aiLayerFields, nextFrameTime, temporalLayer, temporalPlan } from "./ai/apply";
 import { AiStore } from "./ai/store";
-import type { MediaRef, Project } from "../core/project";
+import { findItem, sourceTime, type MediaRef, type Project } from "../core/project";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -29,6 +29,8 @@ let dirty = true;
 let fontsReady = false;
 const aiStore = new AiStore();
 let renderTime = 0;
+let lostReported = false;
+let lastError = "";
 
 interface Source {
   input: Input;
@@ -38,6 +40,8 @@ interface Source {
 const sources = new Map<string, Source>();
 const readers = new Map<string, { reader: VideoReader | null; lastUsed: number; mediaId: string }>();
 const reportedSlow = new Set<string>();
+/** Readers kept warm for clips that are not on screen. Every one holds a decoder, and hardware decoders run out fast. */
+const OFFSCREEN_READERS = 6;
 const images = new Map<string, ImageBitmap | Promise<ImageBitmap | null>>();
 
 const stats = { frames: 0, late: 0, since: performance.now(), worst: 0, settles: [] as number[] };
@@ -54,7 +58,7 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
   switch (m.type) {
     case "init":
       try {
-        compositor = new Compositor(m.canvas);
+        compositor = makeCompositor(m.canvas);
         void loadFonts(self.fonts).then(() => {
           fontsReady = true;
           dirty = true;
@@ -101,6 +105,20 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
   }
 };
 
+function makeCompositor(canvas: OffscreenCanvas): Compositor {
+  const c = new Compositor(canvas);
+  c.onRestored = () => {
+    try {
+      compositor = makeCompositor(canvas);
+      lostReported = false;
+      dirty = true;
+    } catch (err) {
+      post({ type: "error", message: (err as Error).message });
+    }
+  };
+  return c;
+}
+
 function sourceFor(media: MediaRef): Source | null {
   let s = sources.get(media.id);
   if (s) return s;
@@ -123,8 +141,8 @@ function readerFor(itemId: string, media: MediaRef): VideoReader | null {
   const slot: { reader: VideoReader | null; lastUsed: number; mediaId: string } = { reader: null, lastUsed: performance.now(), mediaId: media.id };
   readers.set(itemId, slot);
   void src.track.then(track => {
-    if (!track || !readers.has(itemId)) {
-      readers.delete(itemId);
+    if (!track || readers.get(itemId) !== slot) {
+      if (readers.get(itemId) === slot) readers.delete(itemId);
       return;
     }
     slot.reader = new VideoReader(track, media.duration / 1e6);
@@ -290,9 +308,11 @@ function prewarm(p: Project, t: number): void {
     const needs = frameNeeds(buildScene(p, t + ahead));
     for (const [itemId, need] of needs) {
       if (need.media.kind !== "video") continue;
-      // An idle reader parked on its first frame costs one decode and makes the cut instant.
+      // An idle reader parked on the clip's first frame costs one decode and makes the cut instant.
+      // Parking where the clip would be a moment from now instead would make it seek back at the cut.
       const r = readerFor(itemId, need.media);
-      if (r && !onScreen.has(itemId)) r.want(need.sourceTime / 1e6, false);
+      const item = findItem(p, itemId)?.item;
+      if (r && item?.type === "media" && !onScreen.has(itemId)) r.want(sourceTime(item, item.start, need.media.duration) / 1e6, false, true);
     }
   }
 }
@@ -311,10 +331,24 @@ function renderAt(t: number, live: boolean): void {
   const scene = buildScene(p, t);
   onScreen.clear();
   for (const id of frameNeeds(scene).keys()) onScreen.add(id), onScreen.add(id + "#n");
-  const nodes = toNodes(scene, p, scale);
-  compositor.render(nodes, hexToRgb(p.settings.background));
-  while (pendingClose.length) pendingClose.pop()!.close();
+  try {
+    compositor.render(toNodes(scene, p, scale), hexToRgb(p.settings.background));
+  } finally {
+    while (pendingClose.length) pendingClose.pop()!.close();
+  }
   if (live && playing) prewarm(p, t);
+  trimReaders();
+}
+
+/** Scrubbing across hundreds of clips opens a decoder per clip; keep only the most recent few of those off screen. */
+function trimReaders(): void {
+  const parked = [...readers].filter(([id]) => !onScreen.has(id));
+  if (parked.length <= OFFSCREEN_READERS) return;
+  parked.sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+  for (const [id, r] of parked.slice(0, parked.length - OFFSCREEN_READERS)) {
+    r.reader?.dispose();
+    readers.delete(id);
+  }
 }
 
 let snapshotting = false;
@@ -360,13 +394,21 @@ function settled(t: number): boolean {
 
 function loop(): void {
   const start = performance.now();
-  if (compositor?.isLost) {
+  if (compositor?.isLost && !lostReported) {
+    lostReported = true;
     post({ type: "error", message: "The graphics device was reset." });
-    compositor = null;
   }
   if ((playing || dirty) && !snapshotting) {
     dirty = false;
-    renderAt(currentTime(), true);
+    try {
+      renderAt(currentTime(), true);
+      lastError = "";
+    } catch (err) {
+      // One bad frame must not end the render loop; say it once, not sixty times a second.
+      const message = (err as Error).message;
+      if (message !== lastError) post({ type: "error", message });
+      lastError = message;
+    }
     stats.frames++;
     stats.worst = Math.max(stats.worst, performance.now() - start);
   }
@@ -374,7 +416,7 @@ function loop(): void {
     const settles = stats.settles.sort((a, b) => a - b);
     const seekMs = settles.length ? Math.round(settles[Math.floor(settles.length / 2)]) : 0;
     const seekP95 = settles.length ? Math.round(settles[Math.floor(settles.length * 0.95)]) : 0;
-    post({ type: "stats", fps: stats.frames, late: stats.late, worstMs: Math.round(stats.worst * 10) / 10, readers: readers.size, seekMs, seekP95, seeks: settles.length });
+    post({ type: "stats", fps: stats.frames, late: stats.late, worstMs: Math.round(stats.worst * 10) / 10, readers: readers.size, open: VideoReader.openSamples, decoders: VideoReader.openDecoders, seekMs, seekP95, seeks: settles.length });
     stats.settles = [];
     stats.frames = 0;
     stats.late = 0;

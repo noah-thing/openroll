@@ -6,7 +6,7 @@ import { PEAKS_PER_SECOND } from "../../engine/media-protocol";
 import { recall } from "../ui/captions/CaptionsPanel";
 import { captionService } from "./captions";
 import type { Editor } from "./editor";
-import type { Filmstrip, MediaCache } from "./media-cache";
+import { framePlace, type Filmstrip, type MediaCache } from "./media-cache";
 import { requestOpen } from "./smart-events";
 
 export interface ShortsSource {
@@ -68,14 +68,14 @@ async function until<T>(read: () => T | null, cache: MediaCache, ms: number): Pr
 
 /** Mean absolute difference between neighbouring filmstrip frames, as 0..1. Null while the strip is still filling in. */
 export function filmstripDifferences(strip: Filmstrip): Float32Array | null {
-  const frame = strip.sheet.width / strip.count;
   const w = 24, h = 14;
   const canvas = new OffscreenCanvas(w, h);
   const g = canvas.getContext("2d", { willReadFrequently: true })!;
   const luma: Float32Array[] = [];
   for (let i = 0; i < strip.count; i++) {
     g.clearRect(0, 0, w, h);
-    g.drawImage(strip.sheet, i * frame, 0, frame, strip.sheet.height, 0, 0, w, h);
+    const f = framePlace(strip, i);
+    g.drawImage(strip.sheet, f.x, f.y, f.w, f.h, 0, 0, w, h);
     const px = g.getImageData(0, 0, w, h).data;
     // A frame that has not been drawn yet is fully transparent.
     if (px[3] === 0 && px[(w * h - 1) * 4 + 3] === 0) return null;

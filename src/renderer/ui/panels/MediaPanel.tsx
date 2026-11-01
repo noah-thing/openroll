@@ -7,7 +7,7 @@ import { describe, relinkFromFile, relinkFromFolder, relinkNearby } from "../../
 import { shortTime } from "../../lib/format";
 import type { Editor } from "../../state/editor";
 import { importFiles } from "../../state/importer";
-import type { MediaCache } from "../../state/media-cache";
+import { framePlace, type Filmstrip, type MediaCache } from "../../state/media-cache";
 import { Icon } from "../kit/Icon";
 import { MEDIA_DRAG_TYPE } from "../timeline/Timeline";
 
@@ -187,15 +187,16 @@ function MediaTile({ media, used, cache, onAdd, onRemove, onFind }: { media: Med
   );
 }
 
-function StripPoster({ strip }: { strip: { sheet: ImageBitmap; frameWidth: number; frameHeight: number; count: number } }) {
+function StripPoster({ strip }: { strip: Filmstrip }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const draw = (c: HTMLCanvasElement | null) => {
     ref.current = c;
     if (!c) return;
     const idx = Math.min(strip.count - 1, Math.floor(strip.count * 0.25));
-    c.width = strip.frameWidth * 2;
-    c.height = strip.frameHeight * 2;
-    c.getContext("2d")!.drawImage(strip.sheet, idx * c.width, 0, c.width, c.height, 0, 0, c.width, c.height);
+    const f = framePlace(strip, idx);
+    c.width = f.w;
+    c.height = f.h;
+    c.getContext("2d")!.drawImage(strip.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
   };
   return <canvas ref={draw} className="tile-poster" />;
 }

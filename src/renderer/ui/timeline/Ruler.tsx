@@ -26,10 +26,12 @@ export function Ruler({ pps, left, width, markers, range, renaming, onPointerDow
     const c = ref.current!;
     const dpr = window.devicePixelRatio || 1;
     const h = c.clientHeight;
-    c.width = Math.ceil(width * dpr);
-    c.height = Math.ceil(h * dpr);
+    // Resizing reallocates the bitmap; this runs on every scroll step, so only do it when the size changed.
+    if (c.width !== Math.ceil(width * dpr)) c.width = Math.ceil(width * dpr);
+    if (c.height !== Math.ceil(h * dpr)) c.height = Math.ceil(h * dpr);
     const g = c.getContext("2d")!;
-    g.scale(dpr, dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, width, h);
     const css = getComputedStyle(c);
     const ink = css.getPropertyValue("--ink-3");
     const label = css.getPropertyValue("--ink-2");

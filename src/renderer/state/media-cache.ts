@@ -9,6 +9,14 @@ export interface Filmstrip {
   /** Seconds of source between frames. */
   step: number;
   count: number;
+  /** Frames per row of the sheet. */
+  cols: number;
+}
+
+/** Where a frame sits in the sheet, in sheet pixels. Sheets hold frames at twice their display size. */
+export function framePlace(s: Pick<Filmstrip, "frameWidth" | "frameHeight" | "cols">, index: number): { x: number; y: number; w: number; h: number } {
+  const w = s.frameWidth * 2, h = s.frameHeight * 2;
+  return { x: (index % s.cols) * w, y: Math.floor(index / s.cols) * h, w, h };
 }
 
 type Listener = () => void;
@@ -78,7 +86,7 @@ export class MediaCache {
         try {
           const info = JSON.parse(new TextDecoder().decode(meta));
           const sheet = await createImageBitmap(new Blob([jpeg as BlobPart], { type: "image/jpeg" }));
-          this.strips.set(m.id, { sheet, ...info });
+          this.strips.set(m.id, { sheet, cols: info.count, ...info });
           this.bump();
           return;
         } catch {
@@ -120,9 +128,9 @@ export class MediaCache {
     const key = this.keys.get(r.id);
     if (r.kind === "filmstrip") {
       this.strips.get(mediaId)?.sheet.close();
-      this.strips.set(mediaId, { sheet: r.sheet, frameWidth: r.frameWidth, frameHeight: r.frameHeight, step: r.step, count: r.count });
+      this.strips.set(mediaId, { sheet: r.sheet, frameWidth: r.frameWidth, frameHeight: r.frameHeight, step: r.step, count: r.count, cols: r.cols });
       if (r.final && r.jpeg && key) {
-        const meta = { frameWidth: r.frameWidth, frameHeight: r.frameHeight, step: r.step, count: r.count };
+        const meta = { frameWidth: r.frameWidth, frameHeight: r.frameHeight, step: r.step, count: r.count, cols: r.cols };
         void window.openroll.cache.put(key + ".json", new TextEncoder().encode(JSON.stringify(meta)));
         void window.openroll.cache.put(key + ".jpg", r.jpeg);
       }

@@ -8,6 +8,9 @@ export interface PreviewStats {
   late: number;
   worstMs: number;
   readers: number;
+  /** Decoded frames and decoders held, for spotting leaks. */
+  open: number;
+  decoders: number;
   seekMs: number;
   seekP95: number;
   seeks: number;
@@ -29,7 +32,7 @@ export class Player {
   private listeners = new Set<Listener>();
   private snapshots = new Map<number, (img: ImageData) => void>();
   private nextSnapshot = 1;
-  stats: PreviewStats = { fps: 0, late: 0, worstMs: 0, readers: 0, seekMs: 0, seekP95: 0, seeks: 0 };
+  stats: PreviewStats = { fps: 0, late: 0, worstMs: 0, readers: 0, open: 0, decoders: 0, seekMs: 0, seekP95: 0, seeks: 0 };
   onError: ((message: string) => void) | null = null;
   /** A reader could not keep up while playing, so its source is a candidate for a proxy. */
   onSlowDecode: ((mediaId: string) => void) | null = null;

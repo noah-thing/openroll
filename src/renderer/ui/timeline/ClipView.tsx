@@ -5,7 +5,7 @@ import { itemBeats } from "../../../core/audio-edit";
 import { keyTimes } from "../../../core/look/keyframes";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
-import type { MediaCache } from "../../state/media-cache";
+import { framePlace, type MediaCache } from "../../state/media-cache";
 import { labelHex } from "../../state/timeline-actions";
 import { usePreparing } from "../../state/ai";
 import { BADGE_TEXT, derived, useDerivedVersion } from "../../state/derived-media";
@@ -26,6 +26,8 @@ interface Props {
 
 /** Extra pixels drawn either side of the viewport so short scrolls never show a blank edge. */
 const OVERDRAW = 300;
+/** The drawn span moves in steps this big, so a scroll redraws a clip once per step instead of once per pixel. */
+const STEP = 300;
 
 export const ClipView = memo(function ClipView({ item, project, track, pps, view, selected, lifted, animate, cache, onPointerDown, onContextMenu }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,8 +40,8 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
 
   const left = (item.start / 1e6) * pps;
   const width = Math.max(2, (item.duration / 1e6) * pps);
-  const x0 = Math.max(0, view.left - left - OVERDRAW);
-  const x1 = Math.min(width, view.left + view.width - left + OVERDRAW);
+  const x0 = Math.floor(Math.max(0, view.left - left - OVERDRAW) / STEP) * STEP;
+  const x1 = Math.min(width, Math.ceil((view.left + view.width - left + OVERDRAW) / STEP) * STEP);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -121,7 +123,8 @@ function drawFilm(g: CanvasRenderingContext2D, cache: MediaCache, media: MediaRe
   for (let x = first; x < x0 + w; x += tileW) {
     const src = freeze ? srcAt(0) : srcAt(x + tileW / 2);
     const idx = Math.min(strip.count - 1, Math.max(0, Math.round(src / 1e6 / strip.step)));
-    g.drawImage(strip.sheet, idx * strip.frameWidth * 2, 0, strip.frameWidth * 2, strip.frameHeight * 2, x - x0, 0, tileW, h);
+    const f = framePlace(strip, idx);
+    g.drawImage(strip.sheet, f.x, f.y, f.w, f.h, x - x0, 0, tileW, h);
   }
 }
 
