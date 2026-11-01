@@ -1,0 +1,67 @@
+# Manual only: builds OpenRoll on Windows and Linux and runs the real app through the QA
+# scenarios there. Started by hand before a release, so it never spends minutes on its own.
+name: verify
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: win-x64, ffdir: resources/ffmpeg/win-x64, package: "--win nsis portable --x64" }
+          - { os: ubuntu-latest, target: linux-x64, ffdir: resources/ffmpeg/linux-x64, package: "--linux AppImage --x64" }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      OPENROLL_TESTMEDIA: ${{ github.workspace }}/testmedia
+      OPENROLL_QA_OUT: ${{ github.workspace }}/qa-out
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y espeak-ng xvfb libgbm1 libasound2t64
+      - run: npm ci
+      - run: node scripts/fetch-ffmpeg.mjs --target ${{ matrix.target }}
+      - run: npm run build
+      - run: npm test
+      - name: Test media
+        run: OPENROLL_FFMPEG_DIR="${{ github.workspace }}/${{ matrix.ffdir }}" node qa/make-media.mjs "$OPENROLL_TESTMEDIA"
+      - name: Scenarios in the real app
+        run: |
+          mkdir -p qa/shots "$OPENROLL_QA_OUT"
+          py=$(command -v python3 || command -v python)
+          (cd qa/fixtures/news && "$py" -m http.server 4599 >/dev/null 2>&1 &)
+          run() {
+            echo "::group::$1"
+            if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node qa/launch.mjs "qa/$1.mjs"; else node qa/launch.mjs "qa/$1.mjs"; fi 2>&1 | tee "qa/shots/$1.log"
+            echo "::endgroup::"
+          }
+          run smoke
+          run export
+          run export-formats
+          run mcp
+          run tl-gestures
+          run captions
+          QA_SEED=qa/fixtures/seed-updated OPENROLL_NEWS_FEED=http://127.0.0.1:4599/feed.json run news
+          ! grep -h "^FAIL\|pageerror" qa/shots/*.log
+      - name: Package
+        run: |
+          npx electron-builder ${{ matrix.package }} --publish never
+          ls -la dist
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-${{ matrix.target }}
+          path: |
+            qa/shots
+            qa-out/*.srt
+          retention-days: 7

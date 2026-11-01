@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DIR = join(homedir(), "openroll-research/testmedia");
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 const OUT = process.env.OPENROLL_QA_OUT;
 
 const captions = page =>

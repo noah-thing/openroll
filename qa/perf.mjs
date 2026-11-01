@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DIR = join(homedir(), "openroll-research/testmedia");
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 
 export default async function ({ page }) {
   await page.waitForSelector(".home");

@@ -1,7 +1,8 @@
+import { homedir } from "node:os";
 // Drag an effect onto a clip, keyframe by hand through the inspector, curves and colour mix.
 import { join } from "node:path";
 
-const STILLS = "/Users/noahmalekani/openroll/design/directions/footage";
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
 
 export default async function ({ page, shot }) {
   page.setDefaultTimeout(8000);

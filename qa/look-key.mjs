@@ -1,9 +1,10 @@
+import { homedir } from "node:os";
 // Chroma key with the viewer eyedropper, then an imported LUT and the curves editor.
 // usage: LOOK_KEY_IMAGE=/path/to/greenscreen.png LOOK_LUT=/path/to/file.cube node qa/launch.mjs qa/look-key.mjs
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const STILLS = "/Users/noahmalekani/openroll/design/directions/footage";
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
 
 export default async function ({ page, shot }) {
   await page.setViewportSize?.({ width: 1440, height: 900 });

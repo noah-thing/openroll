@@ -7,7 +7,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const exe = process.argv[2];
-const clip = join(homedir(), "openroll-research/testmedia/prores_ac3_720p.mov");
+const clip = join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"), "prores_ac3_720p.mov");
 const userData = await mkdtemp(join(tmpdir(), "openroll-pkg-"));
 const port = 9334;
 // A bare PATH proves the app is not borrowing a system ffmpeg.

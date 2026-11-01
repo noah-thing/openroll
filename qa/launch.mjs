@@ -11,7 +11,8 @@ const userData = await mkdtemp(join(tmpdir(), "openroll-qa-"));
 // QA_SEED: a folder copied into the fresh profile first, e.g. to fake the run before an update.
 if (process.env.QA_SEED) await cp(process.env.QA_SEED, userData, { recursive: true });
 const app = await electron.launch({
-  args: [resolve("."), `--user-data-dir=${userData}`],
+  // CI Linux runners have no setuid sandbox helper.
+  args: [resolve("."), `--user-data-dir=${userData}`, ...(process.env.CI && process.platform === "linux" ? ["--no-sandbox"] : [])],
   env: { ...process.env, OPENROLL_QA: "1", OPENROLL_PROJECTS_DIR: join(userData, "projects") },
 });
 const page = await app.firstWindow();

@@ -1,7 +1,8 @@
+import { homedir } from "node:os";
 // Layers with effects and a fill, inside a transition window.
 import { join } from "node:path";
 
-const STILLS = "/Users/noahmalekani/openroll/design/directions/footage";
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
 
 export default async function ({ page }) {
   page.setDefaultTimeout(8000);

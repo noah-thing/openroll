@@ -1,8 +1,9 @@
+import { homedir } from "node:os";
 // A heavily graded clip, rendered once in the preview and once by the exporter, so the two can be compared.
 // usage: mkdir -p /tmp/orx && OPENROLL_QA_OUT=/tmp/orx node qa/launch.mjs qa/look-export.mjs
 import { join } from "node:path";
 
-const STILLS = "/Users/noahmalekani/openroll/design/directions/footage";
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
 
 export default async function ({ page }) {
   await page.waitForSelector(".home");

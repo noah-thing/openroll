@@ -2,7 +2,7 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DIR = join(homedir(), "openroll-research/testmedia");
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 
 export default async function ({ page, shot }) {
   await page.setViewportSize?.({ width: 1440, height: 900 });

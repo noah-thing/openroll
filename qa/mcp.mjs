@@ -7,8 +7,8 @@ import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-const MEDIA = join(homedir(), "openroll-research/testmedia");
-const STILLS = join(homedir(), "openroll/design/directions/footage");
+const MEDIA = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
+const STILLS = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll/design/directions/footage"));
 
 export default async function ({ page, userData, shot }) {
   const check = (name, ok, extra = "") => console.log(`${ok ? "PASS" : "FAIL"} ${name} ${extra}`);

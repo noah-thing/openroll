@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { check } from "./lib.mjs";
 
-const DIR = join(homedir(), "openroll-research/testmedia");
+const DIR = (process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"));
 
 // Stats arrive once a second with a median over that second, so collect every report while jumping around.
 const jumps = page =>

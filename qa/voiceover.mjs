@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 export default async function ({ page, shot }) {
   await page.waitForSelector(".home");
-  const infos = await page.evaluate(p => window.openroll.qa.allow(p), [join(homedir(), "openroll-research/testmedia/h264_1080p30_60s.mp4")]);
+  const infos = await page.evaluate(p => window.openroll.qa.allow(p), [join(process.env.OPENROLL_TESTMEDIA ?? join(homedir(), "openroll-research/testmedia"), "h264_1080p30_60s.mp4")]);
   await page.evaluate(i => window.__or.newProject(i), infos);
   await page.waitForSelector(".clip");
   await page.evaluate(() => window.__or.editor.seek(4_000_000));
