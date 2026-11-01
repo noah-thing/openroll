@@ -53,8 +53,7 @@ jobs:
           run smoke
           run export
           run export-formats
-          # MCP over stdio is Mac and Linux for now, see docs/AI.md.
-          if [ "$RUNNER_OS" != "Windows" ]; then run mcp; fi
+          run mcp
           run tl-gestures
           run captions
           QA_SEED=qa/fixtures/seed-updated OPENROLL_NEWS_FEED=http://127.0.0.1:4599/feed.json run news

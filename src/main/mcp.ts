@@ -4,6 +4,7 @@
 
 import { app } from "electron";
 import { spawn } from "node:child_process";
+import { createReadStream, createWriteStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { connect, type Socket } from "node:net";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -236,10 +237,15 @@ export async function runMcp(): Promise<void> {
     if (info?.name) link.clientName = prettyClient(info.name);
   };
 
-  const transport = new StdioServerTransport();
+  // On Windows, Electron's process.stdin ends at once with nothing read, while the raw handles
+  // carry the client's pipe fine (checked on a GitHub Windows runner, qa/probe-stdin).
+  const win = process.platform === "win32";
+  const input = win ? createReadStream("", { fd: 0, autoClose: false }) : process.stdin;
+  const output = win ? createWriteStream("", { fd: 1, autoClose: false }) : process.stdout;
+  const transport = new StdioServerTransport(input, output);
   transport.onclose = () => app.exit(0);
   await server.connect(transport);
-  process.stdin.on("end", () => app.exit(0));
+  input.on("end", () => app.exit(0));
 }
 
 function prettyClient(name: string): string {
