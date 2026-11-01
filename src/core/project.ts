@@ -42,6 +42,8 @@ export interface MediaRef {
   audioCodec?: string;
   sampleRate?: number;
   channels?: number;
+  /** Beat times in microseconds, filled in by beat detection. */
+  beats?: Micros[];
 }
 
 export type TrackKind = "video" | "audio" | "text";
@@ -85,6 +87,41 @@ export interface Adjust {
   highlights: number;
   shadows: number;
   vignette: number;
+}
+
+export interface Effect {
+  id: string;
+  kind: string;
+  /** 0..1 strength; kinds read extra values from params. */
+  amount: number;
+  params?: Record<string, number>;
+}
+
+export interface Mask {
+  shape: "rect" | "ellipse" | "linear" | "mirror";
+  /** Centre offset from the item centre and size, as fractions of the item box. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  feather: number;
+  invert: boolean;
+}
+
+export interface ChromaKey {
+  color: string;
+  similarity: number;
+  smoothness: number;
+  spill: number;
+}
+
+export interface AudioCleanup {
+  denoise?: number;
+  voice?: boolean;
+  normalize?: boolean;
+  /** Lower this item's volume while speech plays on other tracks. */
+  duckUnder?: boolean;
 }
 
 export type Easing = "linear" | "ease" | "easeIn" | "easeOut" | "hold";
@@ -151,6 +188,12 @@ export interface MediaItem extends ItemBase {
   blend?: BlendMode;
   adjust?: Partial<Adjust>;
   filter?: { id: string; amount: number };
+  effects?: Effect[];
+  mask?: Mask;
+  chroma?: ChromaKey;
+  /** Remove the background with the on device matting model. */
+  cutout?: boolean;
+  audio?: AudioCleanup;
   freeze?: boolean;
 }
 
