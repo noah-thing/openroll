@@ -1,5 +1,6 @@
 import { AudioEngine } from "./audio";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
+import type { AiSync } from "./ai/protocol";
 import { projectDuration, type Micros, type Project } from "../core/project";
 
 export interface PreviewStats {
@@ -80,6 +81,11 @@ export class Player {
     // Edits while playing restart audio from where we are, so what you hear matches what you see.
     if (this.playing && was !== p) this.restart();
     if (!this.playing && this.still > this.duration) this.seek(this.duration);
+  }
+
+  /** Hand the render worker a matte or a camera path as it becomes available. */
+  syncAi(sync: AiSync): void {
+    this.send({ type: "ai", sync });
   }
 
   setSize(width: number, height: number): void {

@@ -12,6 +12,7 @@ import { useAnim } from "./inspector/anim";
 import { BlendSection, CanvasSection, KeySection, MaskSection, TransformSection } from "./inspector/FrameSections";
 import { KeyframeList, KeyNav } from "./inspector/Keyframes";
 import { LookTab } from "./inspector/LookTab";
+import { AiSpeedSections, AiVideoSections } from "./ai/AiSections";
 
 type Tab = "video" | "look" | "audio" | "speed" | "animate" | "text";
 
@@ -75,6 +76,7 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
             {item.type === "media" && media?.kind !== "audio" && (
               <>
                 <CanvasSection editor={editor} item={item} everyClip={() => fillEveryClip(editor, item)} />
+                <AiVideoSections editor={editor} item={item} project={project} />
                 <MaskSection editor={editor} item={item} />
                 <KeySection editor={editor} item={item} />
                 <BlendSection editor={editor} item={item} />
@@ -87,7 +89,12 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
 
         {active === "audio" && item.type === "media" && <AudioInspector editor={editor} item={item} project={project} />}
 
-        {active === "speed" && item.type === "media" && <SpeedSection editor={editor} item={item} />}
+        {active === "speed" && item.type === "media" && (
+          <>
+            <SpeedSection editor={editor} item={item} />
+            <AiSpeedSections editor={editor} item={item} />
+          </>
+        )}
 
         {active === "animate" && (
           <>

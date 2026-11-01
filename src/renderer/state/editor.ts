@@ -10,6 +10,8 @@ export interface Toast {
   message: string;
   undo?: boolean;
   tone?: "error";
+  /** A button on the toast, e.g. offering to reframe clips. */
+  action?: { label: string; run(): void };
 }
 
 const SAVE_DELAY = 400;
@@ -195,7 +197,7 @@ export class Editor {
     setTimeout(() => {
       this.toasts = this.toasts.filter(x => x !== t);
       this.emit();
-    }, opts.tone === "error" ? 6000 : 3200);
+    }, opts.action ? 10_000 : opts.tone === "error" ? 6000 : 3200);
   }
 
   private scheduleSave(): void {

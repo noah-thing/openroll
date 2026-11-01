@@ -9,6 +9,11 @@ export function Toasts({ editor }: { editor: Editor }) {
       {toasts.map(t => (
         <div key={t.id} className={"toast" + (t.tone === "error" ? " toast-error" : "")}>
           <span>{t.message}</span>
+          {t.action && (
+            <button className="toast-undo" onClick={() => t.action!.run()}>
+              {t.action.label}
+            </button>
+          )}
           {t.undo && (
             <button className="toast-undo" onClick={() => editor.undo()}>
               Undo <kbd>{mod}Z</kbd>

@@ -53,6 +53,13 @@ uniform bool u_keyOn;
 uniform vec3 u_keyColor;
 uniform vec3 u_keyParams; // similarity, smoothness, spill
 
+uniform vec4 u_uv;          // the vertex shader's crop rectangle, to zoom about its centre
+uniform vec4 u_stab;        // steadying: shift and roll in frame widths and radians, zoom (0 = off)
+uniform float u_stabAspect;
+uniform bool u_matteOn;
+uniform sampler2D u_matte;
+uniform float u_matteEdge;
+
 uniform int u_maskShape;  // 0 off, 1 rect, 2 ellipse, 3 linear, 4 mirror
 uniform vec4 u_maskRect;  // centre x, y, width, height as box fractions
 uniform vec3 u_maskParams; // rotation (radians), feather, invert
@@ -137,11 +144,31 @@ float maskCoverage() {
   return u_maskParams.z > 0.5 ? 1.0 - inside : inside;
 }
 
+// Where in the source this pixel reads from once camera shake is taken out.
+vec2 steadyUv(vec2 uv) {
+  if (u_stab.w <= 0.0) return uv;
+  vec2 mid = 0.5 * (u_uv.xy + u_uv.zw);
+  vec2 span = u_uv.zw - u_uv.xy;
+  vec2 p = (uv - mid) / span;
+  p.y /= u_stabAspect;
+  p -= u_stab.xy;
+  float c = cos(u_stab.z), s = sin(u_stab.z);
+  vec2 q = vec2(c * p.x + s * p.y, -s * p.x + c * p.y) / u_stab.w;
+  q.y *= u_stabAspect;
+  return mid + q * span;
+}
+
 void main() {
-  vec4 c = u_tintColor.a > 0.5 ? vec4(u_tintColor.rgb, 1.0) : texture(u_tex, v_uv);
+  vec2 suv = steadyUv(v_uv);
+  vec4 c = u_tintColor.a > 0.5 ? vec4(u_tintColor.rgb, 1.0) : texture(u_tex, suv);
   if (u_premultiplied && c.a > 0.0) c.rgb /= c.a;
   vec3 rgb = c.rgb;
   float alpha = c.a;
+  if (u_matteOn) {
+    float m = texture(u_matte, suv).r;
+    float lo = 0.5 * u_matteEdge * 0.9, hi = 1.0 - lo;
+    alpha *= smoothstep(lo, max(hi, lo + 0.01), m);
+  }
 
   if (u_keyOn) {
     float thr = u_keyParams.x * 0.4;

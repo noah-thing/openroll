@@ -5,6 +5,7 @@ import { Exporter, type ExportProgress } from "../../engine/exporter";
 import type { ExportSettings } from "../../engine/export-protocol";
 import { bytes, span } from "../lib/format";
 import type { Editor } from "../state/editor";
+import { aiFor } from "../state/ai";
 import { Segmented } from "./kit/Field";
 import { Icon } from "./kit/Icon";
 
@@ -13,7 +14,7 @@ type Quality = "small" | "balanced" | "best";
 /** Bits per pixel per frame for H.264; HEVC gets about 60% of this for the same look. */
 const BPP: Record<Quality, number> = { small: 0.06, balanced: 0.1, best: 0.16 };
 
-type Phase = { kind: "setup" } | { kind: "running"; progress: ExportProgress | null } | { kind: "done"; path: string; bytes: number; seconds: number } | { kind: "error"; message: string };
+type Phase = { kind: "setup" } | { kind: "preparing"; label: string; done: number; total: number } | { kind: "running"; progress: ExportProgress | null } | { kind: "done"; path: string; bytes: number; seconds: number } | { kind: "error"; message: string };
 
 export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
   const p = editor.project;
@@ -45,7 +46,17 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
     const writer = await window.openroll.createWriter(p.name, "video");
     if (!writer) return;
     const settings: ExportSettings = { width, height, fps, codec, bitrate, hardware: true, audio: true };
-    const ex = new Exporter(p, editor.urls(), writer.id);
+    const ai = aiFor(editor);
+    setPhase({ kind: "preparing", label: "Preparing", done: 0, total: 1 });
+    try {
+      // sharper mattes for the final picture, when any clip removes its background
+      await ai.prepareForExport((label, done, total) => setPhase({ kind: "preparing", label, done, total }));
+    } catch (err) {
+      await window.openroll.closeWriter(writer.id, true);
+      setPhase({ kind: "error", message: (err as Error).message });
+      return;
+    }
+    const ex = new Exporter(p, editor.urls(), writer.id, ai.snapshot());
     exporter.current = ex;
     setPhase({ kind: "running", progress: null });
     try {
@@ -63,7 +74,7 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
     }
   }
 
-  const running = phase.kind === "running";
+  const running = phase.kind === "running" || phase.kind === "preparing";
   return (
     <div className="modal-back" onPointerDown={e => e.target === e.currentTarget && !running && onClose()}>
       <div className="modal" role="dialog" aria-label="Export">
@@ -113,6 +124,22 @@ export function ExportDialog({ editor, onClose }: { editor: Editor; onClose(): v
               <button className="export" disabled={!duration} onClick={start}>
                 Export video
               </button>
+            </div>
+          </div>
+        )}
+
+        {phase.kind === "preparing" && (
+          <div className="modal-body">
+            <div className="progress">
+              <div className="progress-bar">
+                <span style={{ transform: `scaleX(${phase.done / Math.max(1, phase.total)})` }} />
+              </div>
+              <div className="progress-meta num">
+                <span>{phase.label}</span>
+                <span>
+                  {phase.done} of {phase.total}
+                </span>
+              </div>
             </div>
           </div>
         )}

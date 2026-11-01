@@ -3,6 +3,7 @@ import { audible } from "../core/audio-plan";
 import { itemEnd, type MediaItem, type Project } from "../core/project";
 import { buildChain, calibrate, createBus, loadWorklet, needsWorklet } from "./audio-graph";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
+import type { AiSync } from "./ai/protocol";
 
 export interface ExportProgress {
   frame: number;
@@ -29,7 +30,7 @@ export class Exporter {
   private worker = new Worker(new URL("./export.worker.ts", import.meta.url), { type: "module" });
   private tracks = new Map<string, Promise<InputAudioTrack | null>>();
 
-  constructor(private project: Project, private urls: Record<string, string>, private writerId: number) {}
+  constructor(private project: Project, private urls: Record<string, string>, private writerId: number, private ai: AiSync[] = []) {}
 
   run(settings: ExportSettings, h: ExportHandlers): Promise<{ bytes: number; seconds: number }> {
     return new Promise((resolve, reject) => {
@@ -63,7 +64,7 @@ export class Exporter {
         }
       };
       this.worker.onerror = e => reject(new Error(e.message || "The export worker stopped."));
-      this.send({ type: "start", project: this.project, urls: this.urls, settings });
+      this.send({ type: "start", project: this.project, urls: this.urls, settings, ai: this.ai });
     });
   }
 

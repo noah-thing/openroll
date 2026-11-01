@@ -256,6 +256,14 @@ export interface MediaItem extends ItemBase {
   fill?: Fill;
   /** Remove the background with the on device matting model. */
   cutout?: boolean;
+  /** Smooth out camera shake. Strength runs 0..1 and sets how still the result is. */
+  stabilize?: { strength: number };
+  /** Clean up and sharpen a soft or noisy clip; `upscale` runs the super resolution model on export. */
+  enhance?: { amount: number; upscale?: boolean };
+  /** How frames are made up when the clip plays slower than the source. */
+  slowMotion?: "blend" | "flow";
+  /** Shutter amount, 0..1 of a frame, blurring fast moving content. */
+  motionBlur?: { amount: number };
   audio?: AudioCleanup;
   /** Preset effect chain applied after cleanup. */
   voiceFx?: VoiceFx;
