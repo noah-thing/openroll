@@ -48,10 +48,10 @@ export class VideoReader {
     return new VideoSampleSink(this.track, { hardwareAcceleration: this.hardware ? "prefer-hardware" : VideoReader.preferHardware ? "no-preference" : "prefer-software", optimizeForLatency: true });
   }
 
-  /** Source time in seconds. */
-  want(t: number, playing: boolean): void {
+  /** Source time in seconds. A background want only warms the decoder and is not a seek anyone waits on. */
+  want(t: number, playing: boolean, background = false): void {
     const next = Math.min(Math.max(0, t), Math.max(0, this.duration - 1e-3));
-    if (next !== this.target && !playing) {
+    if (next !== this.target && !playing && !background) {
       this.wantedAt = performance.now();
       this.settled = false;
     }

@@ -10,7 +10,7 @@ import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/sce
 import { layerFields, syncLuts } from "./layer-look";
 import { aiLayerFields, nextFrameTime, temporalLayer, temporalPlan } from "./ai/apply";
 import { AiStore } from "./ai/store";
-import type { MediaRef, Project } from "../core/project";
+import { findItem, sourceTime, type MediaRef, type Project } from "../core/project";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -308,9 +308,11 @@ function prewarm(p: Project, t: number): void {
     const needs = frameNeeds(buildScene(p, t + ahead));
     for (const [itemId, need] of needs) {
       if (need.media.kind !== "video") continue;
-      // An idle reader parked on its first frame costs one decode and makes the cut instant.
+      // An idle reader parked on the clip's first frame costs one decode and makes the cut instant.
+      // Parking where the clip would be a moment from now instead would make it seek back at the cut.
       const r = readerFor(itemId, need.media);
-      if (r && !onScreen.has(itemId)) r.want(need.sourceTime / 1e6, false);
+      const item = findItem(p, itemId)?.item;
+      if (r && item?.type === "media" && !onScreen.has(itemId)) r.want(sourceTime(item, item.start, need.media.duration) / 1e6, false, true);
     }
   }
 }

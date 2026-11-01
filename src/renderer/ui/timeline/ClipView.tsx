@@ -26,6 +26,8 @@ interface Props {
 
 /** Extra pixels drawn either side of the viewport so short scrolls never show a blank edge. */
 const OVERDRAW = 300;
+/** The drawn span moves in steps this big, so a scroll redraws a clip once per step instead of once per pixel. */
+const STEP = 300;
 
 export const ClipView = memo(function ClipView({ item, project, track, pps, view, selected, lifted, animate, cache, onPointerDown, onContextMenu }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,8 +40,8 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
 
   const left = (item.start / 1e6) * pps;
   const width = Math.max(2, (item.duration / 1e6) * pps);
-  const x0 = Math.max(0, view.left - left - OVERDRAW);
-  const x1 = Math.min(width, view.left + view.width - left + OVERDRAW);
+  const x0 = Math.floor(Math.max(0, view.left - left - OVERDRAW) / STEP) * STEP;
+  const x1 = Math.min(width, Math.ceil((view.left + view.width - left + OVERDRAW) / STEP) * STEP);
 
   useEffect(() => {
     const canvas = canvasRef.current;

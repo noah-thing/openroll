@@ -90,6 +90,33 @@ export default async function ({ app, page }) {
   }
   await sample("after edits");
 
+  console.log("-- cuts every half second");
+  await page.evaluate(() => {
+    window.__or.editor.apply("Cuts", p => {
+      const next = structuredClone(p);
+      const main = next.tracks.find(t => t.main);
+      const base = main.items.find(i => p.media[i.mediaId].width === 1920 && p.media[i.mediaId].height === 1080);
+      main.items.length = 0;
+      for (let i = 0; i < 120; i++) main.items.push({ ...structuredClone(base), id: "c" + i, start: i * 500_000, in: (i * 997_000) % 50_000_000, duration: 500_000 });
+      return next;
+    });
+  });
+  await page.evaluate(() => window.__or.editor.seek(0));
+  await page.waitForTimeout(800);
+  await page.evaluate(() => window.__or.editor.player.play());
+  let late = 0, fpsMin = 99, worst = 0;
+  for (let i = 0; i < 15; i++) {
+    await page.waitForTimeout(1000);
+    const s = await page.evaluate(() => window.__or.editor.player.stats);
+    late += s.late;
+    fpsMin = Math.min(fpsMin, s.fps);
+    worst = Math.max(worst, s.worstMs);
+    if (process.env.SOAK_VERBOSE) console.log(`    t+${i + 1}s fps ${s.fps} late ${s.late} readers ${s.readers}`);
+  }
+  await page.evaluate(() => window.__or.editor.player.pause());
+  console.log(`  15 s over 30 cuts: ${late} late frames, slowest second ${fpsMin} fps, worst frame ${worst} ms`);
+  await sample("after cuts");
+
   console.log("-- 500 clips");
   await fill(500);
   await page.waitForTimeout(800);
