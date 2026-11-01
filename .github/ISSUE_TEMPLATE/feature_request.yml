@@ -1,0 +1,12 @@
+name: Feature request
+description: An idea for something OpenRoll should do.
+body:
+  - type: textarea
+    attributes:
+      label: What you are trying to do
+      description: The edit you were making and where OpenRoll got in the way.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What would help

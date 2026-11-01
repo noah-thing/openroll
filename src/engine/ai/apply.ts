@@ -78,7 +78,7 @@ export function temporalLayer(plan: TemporalPlan, a: { timestamp: number }, b: {
   return { mode: plan.mode, next, mix, length: plan.length };
 }
 
-// ---------------------------------------------------------------- motion blur from animation
+// Motion blur from animation
 
 const TRAIL_MIN = 3;
 const TRAIL_MAX = 48;

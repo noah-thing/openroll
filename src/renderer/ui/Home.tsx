@@ -173,13 +173,15 @@ export function Home({ onOpen, onNew }: Props) {
 }
 
 export function Logo() {
+  // Same drawing as the app icon: a strip of film folded into a play button.
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.2" />
-      <circle cx="12" cy="12" r="2.2" />
-      <circle cx="12" cy="6.6" r="1.6" />
-      <circle cx="16.7" cy="14.7" r="1.6" />
-      <circle cx="7.3" cy="14.7" r="1.6" />
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M5.2 4.3c0-1.1 1.2-1.8 2.2-1.2l12.7 7.6c.5.3.7.8.7 1.3H5.2V4.3Zm2 1.8v2h2.1v-2H7.2Zm0 3.2v1.7h2.1V9.3H7.2Z"
+      />
+      <path fill="#4b8bf5" d="M5.2 12h15.6c0 .5-.2 1-.7 1.3L7.4 20.9c-1 .6-2.2-.1-2.2-1.2V12Z" />
     </svg>
   );
 }

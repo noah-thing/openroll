@@ -120,7 +120,7 @@ export function shiftAt(c: Correction, sourceSeconds: number): StabilizeShift {
   return { dx: mix(c.dx), dy: mix(c.dy), rot: mix(c.rot), zoom: c.zoom };
 }
 
-// ---------------------------------------------------------------- reframing
+// Reframing
 
 /** Where the main subject sits in the source frame, 0..1 on both axes. */
 export interface SubjectSample {
@@ -227,7 +227,7 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
-// ---------------------------------------------------------------- what a clip asks of the engine
+// What a clip asks of the engine
 
 /** Fields that decide which analyses a clip needs, so unchanged edits never trigger new work. */
 export function wantsCutout(i: MediaItem): boolean {
@@ -247,7 +247,7 @@ export function wantsMotionBlur(i: MediaItem): boolean {
   return (i.motionBlur?.amount ?? 0) > 0.01;
 }
 
-// ---------------------------------------------------------------- cache container
+// Cache container
 
 /** A JSON header plus raw arrays in one file. The cache stores bytes, so analysis results use this. */
 export function pack(meta: unknown, ...arrays: ArrayBufferView[]): Uint8Array {

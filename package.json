@@ -6,6 +6,11 @@
   "description": "A free, open source video editor for macOS, Windows and Linux.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/noah-thing/openroll",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noah-thing/openroll.git"
+  },
+  "bugs": "https://github.com/noah-thing/openroll/issues",
   "author": "Noah",
   "type": "module",
   "main": "out/main/main.js",

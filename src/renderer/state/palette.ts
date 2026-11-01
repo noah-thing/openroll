@@ -132,7 +132,7 @@ export function buildActions(editor: Editor): Action[] {
   return out;
 }
 
-// ---------------------------------------------------------------- recent commands
+// Recent commands
 
 const STORE = "openroll.recent-commands";
 const KEEP = 10;

@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work the way it should.
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Import a clip
+        2. Split it at the playhead
+        3. ...
+  - type: input
+    attributes:
+      label: OpenRoll version
+      description: Shown in About OpenRoll.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: System
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Anything else
+      description: Screenshots, a short screen recording, or the report from Help, Report a problem.

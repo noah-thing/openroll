@@ -1,12 +1,7 @@
-node_modules
+node_modules/
 out/
 dist/
+resources/ffmpeg/
+qa/shots/
 *.log
 .DS_Store
-design/footage/*.png
-.playwright-mcp/
-qa/shots/
-resources/ffmpeg/
-research/
-design/
-.claude/

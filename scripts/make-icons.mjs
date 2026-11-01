@@ -1,7 +1,7 @@
-// Builds the placeholder icon set in build/: icon.png, icon.icns, icon.ico.
-// Electron is only used to rasterise; the container formats are written by hand so this runs on any OS.
+// Builds build/icon.icns and build/icon.ico from the 1024 px artwork in build/icon.png.
+// Electron only scales the images; the container formats are written by hand so this runs on any OS.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import electron from "electron";
@@ -9,12 +9,10 @@ import electron from "electron";
 const out = "build";
 const work = mkdtempSync(join(tmpdir(), "openroll-icon-"));
 const sizes = [16, 32, 48, 64, 128, 256, 512, 1024];
-const r = spawnSync(electron, ["scripts/icon-render.cjs", work, ...sizes], { stdio: "inherit" });
+const r = spawnSync(electron, ["scripts/icon-render.cjs", join(out, "icon.png"), work, ...sizes], { stdio: "inherit" });
 if (r.status) process.exit(r.status);
 
 const png = s => readFileSync(join(work, `icon-${s}.png`));
-mkdirSync(out, { recursive: true });
-writeFileSync(join(out, "icon.png"), png(1024));
 
 // icns is 'icns', total length, then (type, length, PNG) entries. Modern macOS reads PNG for all of them.
 const icnsTypes = { 16: "icp4", 32: "icp5", 64: "icp6", 128: "ic07", 256: "ic08", 512: "ic09", 1024: "ic10" };
@@ -51,4 +49,4 @@ const images = icoSizes.map((s, i) => {
 });
 writeFileSync(join(out, "icon.ico"), Buffer.concat([dir, ...images]));
 rmSync(work, { recursive: true, force: true });
-console.log("wrote build/icon.png, icon.icns, icon.ico");
+console.log("wrote build/icon.icns and build/icon.ico");
