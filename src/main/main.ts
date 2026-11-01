@@ -283,7 +283,10 @@ function registerIpc(): void {
   ipcMain.handle("writer:create-at", async (_e, target: unknown, fallbackName: unknown) => {
     const ok = /\.(mp4|mov|webm|gif|m4a|wav|srt|vtt|png|jpg)$/i;
     let path = typeof target === "string" && target ? target : "";
-    if (!path) path = join(app.getPath("videos"), `${String(fallbackName || "Export").replace(/[\\/:*?"<>|]/g, "_")}.mp4`);
+    if (!path) {
+      const name = String(fallbackName || "Export").replace(/[\\/:*?"<>|]/g, "_");
+      path = join(app.getPath("videos"), ok.test(name) ? name : `${name}.mp4`);
+    }
     if (!isAbsolute(path) || !ok.test(path)) throw new Error("Give an absolute file path ending in a video, audio, image or subtitle extension.");
     await mkdir(dirname(path), { recursive: true });
     const tmp = path + ".openroll-part";

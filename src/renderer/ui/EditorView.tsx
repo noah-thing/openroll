@@ -18,12 +18,19 @@ import { ShortcutSheet } from "./ShortcutSheet";
 import { CommandBar } from "./CommandBar";
 import { HistoryPanel } from "./HistoryPanel";
 import { VersionsDialog } from "./VersionsDialog";
+import { agentContext } from "../agent/host";
 
 export function EditorView({ editor, onClose }: { editor: Editor; onClose(): void }) {
   const cache = useMemo(() => new MediaCache(m => derived.decodeUrl(m)), []);
   const [exporting, setExporting] = useState(false);
   const proxyMode = useSettings().proxyMode;
-  useEffect(() => () => cache.dispose(), [cache]);
+  useEffect(() => {
+    agentContext.cache = cache;
+    return () => {
+      if (agentContext.cache === cache) agentContext.cache = null;
+      cache.dispose();
+    };
+  }, [cache]);
   useEffect(() => {
     const stop = derived.subscribe(() => cache.refresh());
     return () => void stop();

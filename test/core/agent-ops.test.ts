@@ -76,6 +76,18 @@ describe("applyOps", () => {
     expect(mainTrack(project).items.map(i => i.duration / S)).toEqual([1, 1, 7]);
   });
 
+  it("notices music running past the picture and black gaps", () => {
+    const { project } = applyOps(base(), [
+      { op: "add_clip", media: "a", duration: 4 },
+      { op: "add_clip", media: "song", at: 0 },
+      { op: "add_track", kind: "video", as: "over" },
+      { op: "add_text", text: "Hi", at: 0, y: 2000 },
+    ]);
+    const n = summarize(project).notes;
+    expect(n.some(x => x.startsWith("Sound runs 56 s past the last picture"))).toBe(true);
+    expect(n.some(x => /frame edge/.test(x))).toBe(true);
+  });
+
   it("changes the frame by ratio", () => {
     const { project } = applyOps(base(), [{ op: "project", ratio: "9:16", fps: 60, name: "Vertical cut" }]);
     expect(project.settings).toMatchObject({ width: 1080, height: 1920, fps: { num: 60, den: 1 } });

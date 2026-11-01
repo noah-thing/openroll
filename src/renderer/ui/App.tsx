@@ -6,6 +6,7 @@ import { startSettings } from "../state/settings";
 import { openEvents, type OpenRequest } from "../state/smart-events";
 import { importLut } from "../state/lut-import";
 import type { FileInfo, SessionNotice } from "../../shared/api";
+import { agentContext, startAgentHost } from "../agent/host";
 import { EditorView } from "./EditorView";
 import { HistoryDialog } from "./HistoryDialog";
 import { Home } from "./Home";
@@ -72,6 +73,15 @@ export function App() {
       else setNotice(n);
     });
   }, [reopen]);
+
+  useEffect(() => {
+    agentContext.open = (p, path) => open(p, path);
+    startAgentHost();
+  }, [open]);
+
+  useEffect(() => {
+    agentContext.editor = editor;
+  }, [editor]);
 
   useEffect(() => {
     // The editor screen saves and answers this itself; without one there is nothing to save.

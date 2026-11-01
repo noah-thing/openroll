@@ -1,3 +1,4 @@
+import { AgentConnect } from "./AgentSettings";
 import { useEffect, useState } from "react";
 import type { CacheInfo } from "../../shared/api";
 import type { PreviewQuality } from "../../shared/settings";
@@ -123,6 +124,17 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             </div>
           </section>
 
+          <section>
+            <h3>AI tools</h3>
+            <div className="set-row">
+              <div>
+                <b>Let AI tools edit with you</b>
+                <small>Claude Code, Codex, Cursor and others on this computer can edit the open project. You see every change and can undo it. Nothing listens on the network.</small>
+              </div>
+              <Switch label="Let AI tools edit with you" value={s.aiControl} onChange={aiControl => updateSettings({ aiControl })} />
+            </div>
+            {s.aiControl && <AgentConnect />}
+          </section>
           <section>
             <h3>General</h3>
             <div className="set-row">

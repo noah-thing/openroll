@@ -18,11 +18,16 @@ import {
   type MediaItem,
   type Micros,
   type Project,
+  type ShapeKind,
   type TextItem,
   type TextStyle,
   type TrackKind,
 } from "../project";
 import { TRANSITIONS } from "../../engine/shaders";
+import { cutToBeat } from "../beat-edit";
+import { placeIn, LAYOUTS, type Layout } from "../layouts";
+import { newShape, placeOverlay } from "../shapes";
+import { STICKERS } from "../stickers";
 
 export type Op =
   | { op: "add_clip"; media: string; at?: number; track?: string; in?: number; duration?: number; as?: string }
@@ -41,7 +46,10 @@ export type Op =
   | { op: "marker"; at: number; label?: string }
   | { op: "track"; id: string; muted?: boolean; hidden?: boolean; locked?: boolean; name?: string }
   | { op: "add_track"; kind: TrackKind; name?: string; as?: string }
-  | { op: "project"; width?: number; height?: number; ratio?: string; fps?: number; background?: string; name?: string };
+  | { op: "project"; width?: number; height?: number; ratio?: string; fps?: number; background?: string; name?: string }
+  | { op: "add_shape"; kind: ShapeKind; sticker?: string; at: number; duration?: number; color?: string; x?: number; y?: number; scale?: number; as?: string }
+  | { op: "layout"; id: string; layout: Layout }
+  | { op: "cut_to_beat"; clips: string[]; music: string; every?: 1 | 2 | 4; muteClips?: boolean };
 
 export interface OpResult {
   op: string;
@@ -250,6 +258,35 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
         case "project":
           p = setProject(p, o);
           break;
+        case "add_shape": {
+          if (!["rect", "ellipse", "line", "sticker"].includes(o.kind)) throw new Error("kind is rect, ellipse, line or sticker");
+          if (o.kind === "sticker" && !STICKERS.some(st => st.id === o.sticker)) throw new Error(`unknown sticker ${o.sticker}; see the catalog`);
+          const shape = newShape(p, us(o.at, "at"), { kind: o.kind, sticker: o.sticker, ...(o.color ? { color: o.color } : {}) });
+          shape.duration = us(o.duration ?? 3, "duration");
+          shape.transform = { ...shape.transform, x: o.x ?? shape.transform.x, y: o.y ?? shape.transform.y, scale: o.scale ?? shape.transform.scale };
+          p = placeOverlay(p, shape);
+          result.id = shape.id;
+          name(o.as, shape.id);
+          break;
+        }
+        case "layout": {
+          const it = item(o.id);
+          if (it.type !== "media") throw new Error("layouts apply to video and image clips");
+          if (!LAYOUTS.some(l => l.id === o.layout)) throw new Error(`layout is one of ${LAYOUTS.map(l => l.id).join(", ")}`);
+          const placed = placeIn(p, p.media[it.mediaId], o.layout);
+          p = updateItem(p, it.id, { transform: { ...it.transform, x: placed.x, y: placed.y, scale: placed.scale }, crop: placed.crop } as Partial<Item>);
+          result.id = it.id;
+          break;
+        }
+        case "cut_to_beat": {
+          const music = item(o.music);
+          if (music.type !== "media" || !p.media[music.mediaId]?.beats?.length) throw new Error("the music needs beats; call analyze_media on it first");
+          const r = cutToBeat(p, o.clips.map(ref), music.id, o.every ?? 2, o.muteClips ?? true);
+          if (!r.pieces) throw new Error("nothing to cut; pass video clips and a music clip with beats");
+          p = r.project;
+          result.ids = [String(r.pieces)];
+          break;
+        }
         default:
           throw new Error(`unknown op ${(o as { op: string }).op}; see the catalog`);
       }

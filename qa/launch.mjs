@@ -22,7 +22,7 @@ page.on("pageerror", e => console.log("[pageerror]", e.stack ?? e.message));
 await page.waitForLoadState("domcontentloaded");
 try {
   const run = (await import(resolve(scenario))).default;
-  await run({ app, page, shot: name => page.screenshot({ path: `qa/shots/${name}.png` }) });
+  await run({ app, page, userData, shot: name => page.screenshot({ path: `qa/shots/${name}.png` }) });
 } finally {
   if (!keep) await app.close();
 }

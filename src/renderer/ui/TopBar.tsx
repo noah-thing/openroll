@@ -6,6 +6,7 @@ import { Logo } from "./Home";
 import { useExportJobs } from "../state/export-queue";
 import { Icon } from "./kit/Icon";
 import { InboxButton } from "./Inbox";
+import { AgentChip } from "./AgentChip";
 import { RatioPicker } from "./RatioPicker";
 import { HistoryButton } from "./HistoryPanel";
 
@@ -51,6 +52,7 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
       </div>
       <div className="spacer" />
       <div className="top-actions no-drag">
+        <AgentChip />
         <InboxButton />
         <button className="iconbtn" disabled={!undoLabel} onClick={() => editor.undo()} title={undoLabel ? `Undo ${undoLabel.toLowerCase()}` : "Nothing to undo"}>
           <Icon name="undo" />
