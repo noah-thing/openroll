@@ -2,6 +2,7 @@ import { History } from "../../core/history";
 import { deleteItems, duplicateItems, split } from "../../core/edit";
 import { createProject, findItem, itemEnd, type MediaRef, type Micros, type Project } from "../../core/project";
 import { Player } from "../../engine/player";
+import { derived } from "./derived-media";
 
 export type Listener = () => void;
 
@@ -36,7 +37,7 @@ export class Editor {
   private listeners = new Set<Listener>();
   private saveTimer = 0;
   private toastId = 0;
-  private urlCache = new Map<string, string>();
+  private stopDerived: (() => void) | null = null;
 
   constructor(project?: Project, path: string | null = null) {
     this.project = project ?? createProject();
@@ -55,18 +56,38 @@ export class Editor {
   attachPlayer(player: Player): void {
     this.player = player;
     player.setProject(this.project, this.urls());
+    player.onSlowDecode = mediaId => {
+      const m = this.project.media[mediaId];
+      if (m) void derived.maybeProxy(m, true);
+    };
+    // A finished proxy or prepared copy changes which file the preview reads.
+    this.stopDerived?.();
+    const stopUrls = derived.subscribe(() => this.player?.setProject(this.project, this.urls()));
+    // Background conversions back off to one at a time while the timeline plays.
+    let wasPlaying = false;
+    const stopPlay = player.subscribe(() => {
+      if (player.playing === wasPlaying) return;
+      wasPlaying = player.playing;
+      window.openroll.convert.setPlayback(wasPlaying);
+    });
+    this.stopDerived = () => {
+      stopUrls();
+      stopPlay();
+      if (wasPlaying) window.openroll.convert.setPlayback(false);
+    };
   }
 
+  /** What the preview reads: a proxy or prepared copy when there is one. */
   urls(): Record<string, string> {
     const out: Record<string, string> = {};
-    for (const m of Object.values(this.project.media)) {
-      let u = this.urlCache.get(m.path);
-      if (!u) {
-        u = window.openroll.mediaUrl(m.path);
-        this.urlCache.set(m.path, u);
-      }
-      out[m.id] = u;
-    }
+    for (const m of Object.values(this.project.media)) out[m.id] = derived.previewUrl(m);
+    return out;
+  }
+
+  /** What an export reads: the original, or the prepared copy where the original cannot be decoded. Never a proxy. */
+  exportUrls(project: Project = this.project): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const m of Object.values(project.media)) out[m.id] = derived.decodeUrl(m);
     return out;
   }
 
@@ -228,6 +249,7 @@ export class Editor {
   }
 
   dispose(): void {
+    this.stopDerived?.();
     void this.save();
     this.player = null;
     this.listeners.clear();

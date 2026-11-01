@@ -2,6 +2,7 @@ import { allCaptions, captionsFromWords, placeCaptions, type TimedWord } from ".
 import { templateFor, type CaptionChoice } from "../../core/caption-styles";
 import { itemEnd, sourceSpan, SECOND, type MediaItem, type MediaRef, type Micros, type Project } from "../../core/project";
 import type { SpeechModel } from "../../engine/speech-protocol";
+import { derived } from "./derived-media";
 import type { Editor } from "./editor";
 import { SpeechCancelled, SpeechClient } from "./speech";
 
@@ -125,7 +126,7 @@ export class CaptionService {
         const base = done / total;
         listenStart = 0;
         const run = this.speech.run(
-          { url: window.openroll.mediaUrl(media.path), from: from / SECOND, to: to / SECOND, model: settings.model, language: settings.language, device: window.openroll.qa ? qaDevice() : undefined },
+          { url: derived.decodeUrl(media), from: from / SECOND, to: to / SECOND, model: settings.model, language: settings.language, device: window.openroll.qa ? qaDevice() : undefined },
           p => {
             if (p.stage === "listen" && !listenStart) listenStart = performance.now();
             const eta = p.stage === "listen" && p.fraction > 0.04 ? ((performance.now() - listenStart) * (1 - p.fraction)) / p.fraction / 1000 : null;

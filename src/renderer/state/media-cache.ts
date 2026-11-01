@@ -32,6 +32,11 @@ export class MediaCache {
     return () => this.listeners.delete(fn);
   };
 
+  /** Something outside changed which file a source reads from. */
+  refresh(): void {
+    this.bump();
+  }
+
   private bump(): void {
     this.version++;
     for (const fn of this.listeners) fn();
@@ -62,6 +67,8 @@ export class MediaCache {
   private async load(m: MediaRef, kind: MediaJob["kind"]): Promise<void> {
     const id = `${kind}:${m.id}`;
     if (this.pending.has(id)) return;
+    // A converted copy that is still being made has no url yet; the next bump asks again.
+    if (!this.url(m)) return;
     this.pending.add(id);
     const key = await diskKey(m, kind);
     this.keys.set(id, key);
@@ -106,6 +113,8 @@ export class MediaCache {
     const [kind, mediaId] = r.id.split(/:(.*)/s);
     if (r.kind === "error") {
       console.warn(`${kind} failed for ${mediaId}: ${r.message}`);
+      // Forget it, so relinking the file or finishing its conversion lets the next look try again.
+      this.pending.delete(r.id);
       return;
     }
     const key = this.keys.get(r.id);

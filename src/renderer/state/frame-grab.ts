@@ -1,5 +1,6 @@
 import { ALL_FORMATS, Input, UrlSource, VideoSampleSink } from "mediabunny";
 import type { MediaRef } from "../../core/project";
+import { derived } from "./derived-media";
 
 export const GRAB_W = 480;
 export const GRAB_H = 270;
@@ -14,7 +15,7 @@ const stills = new Map<string, Promise<ImageBitmap | null>>();
 function sinkFor(media: MediaRef): Promise<VideoSampleSink | null> {
   let o = opened.get(media.id);
   if (!o) {
-    const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(window.openroll.mediaUrl(media.path)) });
+    const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(derived.decodeUrl(media)) });
     o = { sink: input.getPrimaryVideoTrack().then(t => (t ? new VideoSampleSink(t) : null)).catch(() => null) };
     opened.set(media.id, o);
   }
@@ -33,7 +34,7 @@ export async function grabFrame(media: MediaRef, seconds: number): Promise<Offsc
   if (media.kind === "image") {
     let p = stills.get(media.id);
     if (!p) {
-      p = fetch(window.openroll.mediaUrl(media.path))
+      p = fetch(derived.decodeUrl(media))
         .then(r => r.blob())
         .then(b => createImageBitmap(b, { imageOrientation: "from-image" }))
         .catch(() => null);

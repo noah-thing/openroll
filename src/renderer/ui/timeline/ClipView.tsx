@@ -7,6 +7,7 @@ import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import type { MediaCache } from "../../state/media-cache";
 import { labelHex } from "../../state/timeline-actions";
+import { BADGE_TEXT, derived, useDerivedVersion } from "../../state/derived-media";
 
 interface Props {
   item: Item;
@@ -30,6 +31,8 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
   const media = item.type === "media" ? project.media[item.mediaId] : undefined;
   const version = useSyncExternalStore(cache.subscribe, () => cache.version);
   const [imageTick, imageLoaded] = useReducer((n: number) => n + 1, 0);
+  useDerivedVersion();
+  const badge = media ? derived.badge(media) : null;
 
   const left = (item.start / 1e6) * pps;
   const width = Math.max(2, (item.duration / 1e6) * pps);
@@ -82,6 +85,7 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
         {item.type === "media" && item.freeze && <span className="clip-badge">Still</span>}
         {item.type === "media" && item.speed !== 1 && <span className="clip-badge">{fmtSpeed(item.speed)}</span>}
         {item.transitionIn && <span className="clip-badge">⇄</span>}
+        {badge && <span className={"clip-badge clip-badge-" + badge}>{BADGE_TEXT[badge]}</span>}
         <span className="clip-name">{label}</span>
         {width > 90 && <span className="clip-dur num">{span(item.duration)}</span>}
       </div>

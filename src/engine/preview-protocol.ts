@@ -14,4 +14,6 @@ export type PreviewOut =
   | { type: "ready" }
   | { type: "error"; message: string }
   | { type: "stats"; fps: number; late: number; worstMs: number; readers: number; seekMs: number; seekP95: number; seeks: number }
-  | { type: "snapshot"; id: number; image: ImageData };
+  | { type: "snapshot"; id: number; image: ImageData }
+  /** Playback drew many late frames from this source: it decodes slower than it plays. */
+  | { type: "slow-decode"; mediaId: string };

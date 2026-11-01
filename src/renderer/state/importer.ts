@@ -1,8 +1,10 @@
 import { addMedia, insertItems, mediaItem } from "../../core/edit";
 import { mainTrack, projectDuration, type MediaRef, type Micros, type Project } from "../../core/project";
-import { probe, UnsupportedMediaError } from "../../engine/probe";
+import { NeedsPrepError, probe, UnsupportedMediaError } from "../../engine/probe";
 import type { FileInfo } from "../../shared/api";
+import { derived } from "./derived-media";
 import type { Editor } from "./editor";
+import { importViaConverter } from "./prepare-import";
 
 export interface ImportOptions {
   /** Place the new clips on the timeline at this time. */
@@ -34,6 +36,13 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
       try {
         results[i] = await probe({ ...f, url: window.openroll.mediaUrl(f.path) });
       } catch (err) {
+        if (err instanceof NeedsPrepError) {
+          const ref = await importViaConverter(f, err.hints).catch(() => null);
+          if (ref) {
+            results[i] = ref;
+            continue;
+          }
+        }
         failures.push(err instanceof UnsupportedMediaError ? err.message : `${f.name} could not be read.`);
       }
     }
@@ -42,6 +51,7 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
 
   const refs = results.filter((r): r is MediaRef => !!r);
   const fresh = refs.filter(r => !editor.project.media[r.id]);
+  for (const r of fresh) void derived.maybeProxy(r);
   const timelineWasEmpty = projectDuration(editor.project) === 0;
   const place = opts.at !== undefined || timelineWasEmpty;
 

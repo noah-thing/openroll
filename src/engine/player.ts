@@ -30,6 +30,8 @@ export class Player {
   private nextSnapshot = 1;
   stats: PreviewStats = { fps: 0, late: 0, worstMs: 0, readers: 0, seekMs: 0, seekP95: 0, seeks: 0 };
   onError: ((message: string) => void) | null = null;
+  /** A reader could not keep up while playing, so its source is a candidate for a proxy. */
+  onSlowDecode: ((mediaId: string) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.worker = new Worker(new URL("./preview.worker.ts", import.meta.url), { type: "module" });
@@ -45,6 +47,7 @@ export class Player {
   private receive(m: PreviewOut): void {
     if (m.type === "stats") this.stats = m;
     else if (m.type === "error") this.onError?.(m.message);
+    else if (m.type === "slow-decode") this.onSlowDecode?.(m.mediaId);
     else if (m.type === "snapshot") {
       this.snapshots.get(m.id)?.(m.image);
       this.snapshots.delete(m.id);

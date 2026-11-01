@@ -3,6 +3,7 @@ import type { CacheInfo } from "../../shared/api";
 import type { PreviewQuality } from "../../shared/settings";
 import { bytes } from "../lib/format";
 import { updateSettings, useSettings } from "../state/settings";
+import type { ProxyMode } from "../../engine/proxy-policy";
 import { Segmented } from "./kit/Field";
 import { Icon } from "./kit/Icon";
 
@@ -11,6 +12,12 @@ const QUALITIES: { value: PreviewQuality; label: string }[] = [
   { value: "full", label: "Full" },
   { value: "half", label: "Half" },
   { value: "quarter", label: "Quarter" },
+];
+
+const PROXIES: { value: ProxyMode; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "auto", label: "Auto" },
+  { value: "always", label: "Always" },
 ];
 
 export function SettingsDialog({ onClose }: { onClose(): void }) {
@@ -61,6 +68,13 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
                 <small>Lower quality plays smoother on slower computers. Exports are never affected.</small>
               </div>
               <Segmented<PreviewQuality> options={QUALITIES} value={s.previewQuality} onChange={previewQuality => updateSettings({ previewQuality })} />
+            </div>
+            <div className="set-row">
+              <div>
+                <b>Proxies</b>
+                <small>Small stand ins for heavy video, made in the background while you edit. Auto only does it for long GOP footage above 1080p and anything that plays choppily. Exports always use the originals.</small>
+              </div>
+              <Segmented<ProxyMode> options={PROXIES} value={s.proxyMode} onChange={proxyMode => updateSettings({ proxyMode })} />
             </div>
             <div className="set-row">
               <div>

@@ -1,8 +1,12 @@
+import type { ProxyMode } from "../engine/proxy-policy";
+
 export type PreviewQuality = "auto" | "full" | "half" | "quarter";
 
 export interface Settings {
   previewQuality: PreviewQuality;
   hardwareDecoding: boolean;
+  /** Small stand ins for heavy video, used only while editing. Exports always read the originals. */
+  proxyMode: ProxyMode;
   /** Null means the default folder inside Videos. */
   projectsDir: string | null;
   autoUpdate: boolean;
@@ -12,11 +16,13 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   previewQuality: "auto",
   hardwareDecoding: true,
+  proxyMode: "auto",
   projectsDir: null,
   autoUpdate: true,
   reduceMotion: false,
 };
 
+const PROXY_MODES: ProxyMode[] = ["off", "auto", "always"];
 const QUALITIES: PreviewQuality[] = ["auto", "full", "half", "quarter"];
 
 /** Fraction of project resolution the preview draws at. Auto fits the screen instead. */
@@ -29,6 +35,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   return {
     previewQuality: QUALITIES.includes(r.previewQuality as PreviewQuality) ? (r.previewQuality as PreviewQuality) : d.previewQuality,
     hardwareDecoding: typeof r.hardwareDecoding === "boolean" ? r.hardwareDecoding : d.hardwareDecoding,
+    proxyMode: PROXY_MODES.includes(r.proxyMode as ProxyMode) ? (r.proxyMode as ProxyMode) : d.proxyMode,
     projectsDir: typeof r.projectsDir === "string" && r.projectsDir.length ? r.projectsDir : null,
     autoUpdate: typeof r.autoUpdate === "boolean" ? r.autoUpdate : d.autoUpdate,
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
