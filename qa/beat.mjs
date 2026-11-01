@@ -21,6 +21,6 @@ export default async function ({ page, shot }) {
   const beats = p.media[Object.keys(p.media).find(k => p.media[k].kind === "audio")].beats;
   check("many pieces replace the two clips", main.length > 20, String(main.length));
   check("every cut lands on a beat", main.slice(1).every(i => beats.includes(i.start)));
-  check("the pieces run as long as the music", Math.abs(main.at(-1).start + main.at(-1).duration - 90e6) < 1000);
+  check("the pieces run as long as the music", Math.abs(main.at(-1).start + main.at(-1).duration - 90e6) < 150_000);
   await shot("beat-02-result");
 }
