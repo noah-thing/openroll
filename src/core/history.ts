@@ -46,6 +46,11 @@ export class History {
     return e;
   }
 
+  /** Every step by name, oldest first, and how many of them are applied. */
+  get timeline(): { labels: string[]; applied: number } {
+    return { labels: [...this.past.map(e => e.label), ...this.future.map(e => e.label).reverse()], applied: this.past.length };
+  }
+
   get undoLabel(): string | null {
     return this.past.at(-1)?.label ?? null;
   }

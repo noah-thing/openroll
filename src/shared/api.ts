@@ -55,6 +55,14 @@ export interface HistoryEntry {
   bytes: number;
 }
 
+/** A version the person saved on purpose, with a name. */
+export interface VersionEntry {
+  file: string;
+  name: string;
+  time: number;
+  bytes: number;
+}
+
 /** What main remembers about the last run when the window comes up. */
 export interface SessionNotice {
   reason: "crash" | "unclean";
@@ -179,6 +187,13 @@ export interface OpenRollApi {
     list(projectPath: string): Promise<HistoryEntry[]>;
     /** Puts an earlier version back. The current file is kept as a version first, so this can be undone. */
     restore(projectPath: string, file: string): Promise<boolean>;
+  };
+  snapshots: {
+    /** Keep this project text under a name. Null if it has no usable id. */
+    save(name: string, json: string): Promise<VersionEntry | null>;
+    list(projectId: string): Promise<VersionEntry[]>;
+    read(projectId: string, file: string): Promise<string | null>;
+    remove(projectId: string, file: string): Promise<boolean>;
   };
   session: {
     /** The crash or unclean exit main wants the page to deal with, once. */

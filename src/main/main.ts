@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
 import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
 import { Journal } from "./journal";
+import { NamedVersions } from "./versions";
 import { Session } from "./session";
 import { getSettings, updateSettings } from "./settings";
 import { Updater } from "./updater";
@@ -53,6 +54,7 @@ function defaultProjectsDir(): string {
 }
 
 const journal = new Journal(join(app.getPath("userData"), "history"));
+const versions = new NamedVersions(join(app.getPath("userData"), "versions"));
 const session = new Session(join(app.getPath("userData"), "session.json"));
 const updater = new Updater(
   state => win?.webContents.send("updates:state", state),
@@ -498,6 +500,11 @@ function registerIpc(): void {
     typeof path === "string" && typeof file === "string" && path.endsWith(".openroll") ? journal.restore(path, file) : false,
   );
 
+  ipcMain.handle("versions:save", (_e, name: unknown, json: unknown) => (typeof name === "string" && typeof json === "string" ? versions.save(json, name) : null));
+  ipcMain.handle("versions:list", (_e, id: unknown) => (typeof id === "string" ? versions.list(id) : []));
+  ipcMain.handle("versions:read", (_e, id: unknown, file: unknown) => (typeof id === "string" && typeof file === "string" ? versions.read(id, file) : null));
+  ipcMain.handle("versions:remove", (_e, id: unknown, file: unknown) => (typeof id === "string" && typeof file === "string" ? versions.remove(id, file) : false));
+
   ipcMain.handle("session:take", () => session.take());
   ipcMain.on("session:project-closed", () => session.setProject(null));
 
@@ -610,6 +617,11 @@ function buildMenu(): void {
       submenu: [
         item("Undo", "undo", "CmdOrCtrl+Z"),
         item("Redo", "redo", "Shift+CmdOrCtrl+Z"),
+        item("Undo History…", "history"),
+        item("Save a Version…", "save-version"),
+        item("Versions…", "versions"),
+        { type: "separator" },
+        item("Command Bar…", "palette", "CmdOrCtrl+K"),
         { type: "separator" },
         { role: "cut" },
         { role: "copy" },

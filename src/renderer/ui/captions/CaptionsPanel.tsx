@@ -15,13 +15,13 @@ type View = "styles" | "transcript" | "cut";
 
 const STORE = "openroll.captions";
 
-interface Remembered {
+export interface Remembered {
   choice: CaptionChoice;
   language: string;
   model: SpeechModel;
 }
 
-function recall(): Remembered {
+export function recall(): Remembered {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE) ?? "null");
     if (raw?.choice && raw.model) return raw;

@@ -7,6 +7,7 @@ import { useExportJobs } from "../state/export-queue";
 import { Icon } from "./kit/Icon";
 import { InboxButton } from "./Inbox";
 import { RatioPicker } from "./RatioPicker";
+import { HistoryButton } from "./HistoryPanel";
 
 export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome(): void; onExport(): void }) {
   const name = useEditor(editor, e => e.project.name);
@@ -57,6 +58,7 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
         <button className="iconbtn" disabled={!redoLabel} onClick={() => editor.redo()} title={redoLabel ? `Redo ${redoLabel.toLowerCase()}` : "Nothing to redo"}>
           <Icon name="redo" />
         </button>
+        <HistoryButton editor={editor} />
         {(running || waiting > 0 || unseen.length > 0) && (
           <button className={"export-chip" + (unseen.some(j => j.status === "error") ? " export-chip-error" : "")} onClick={onExport} title="Show exports">
             {running ? (

@@ -11,10 +11,12 @@ import { AudioInspector, ReadAloudSection } from "./panels/AudioInspector";
 import { useAnim } from "./inspector/anim";
 import { BlendSection, CanvasSection, KeySection, MaskSection, TransformSection } from "./inspector/FrameSections";
 import { KeyframeList, KeyNav } from "./inspector/Keyframes";
+import { LayoutSection } from "./inspector/LayoutSection";
 import { LookTab } from "./inspector/LookTab";
 import { AiSpeedSections, AiVideoSections } from "./ai/AiSections";
+import { ShapeInspector } from "./inspector/ShapeInspector";
 
-type Tab = "video" | "look" | "audio" | "speed" | "animate" | "text";
+type Tab = "video" | "look" | "audio" | "speed" | "animate" | "text" | "shape";
 
 export function Inspector({ editor }: { editor: Editor }) {
   const project = useEditor(editor, e => e.project);
@@ -40,7 +42,9 @@ export function Inspector({ editor }: { editor: Editor }) {
 function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; project: Project }) {
   const media = item.type === "media" ? project.media[item.mediaId] : undefined;
   const tabs: { id: Tab; label: string }[] =
-    item.type === "text" || item.type === "caption"
+    item.type === "shape"
+      ? [{ id: "shape", label: "Shape" }, { id: "video", label: "Place" }, { id: "animate", label: "Animate" }]
+      : item.type === "text" || item.type === "caption"
       ? [{ id: "text", label: "Text" }, { id: "video", label: "Place" }, { id: "animate", label: "Animate" }]
       : media?.kind === "audio"
         ? [{ id: "audio", label: "Audio" }, { id: "speed", label: "Speed" }]
@@ -51,7 +55,7 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
   const anim = useAnim(editor, item);
   const set = (label: string, patch: Partial<Item>, group: string) => editor.apply(label, p => updateItem(p, item.id, patch), `${item.id}:${group}`);
   const done = () => editor.endGroup();
-  const name = item.type === "text" ? item.style.text : item.type === "caption" ? item.words.map(w => w.text).join(" ") || "Caption" : item.name ?? media?.name ?? "Clip";
+  const name = item.type === "shape" ? item.name ?? "Shape" : item.type === "text" ? item.style.text : item.type === "caption" ? item.words.map(w => w.text).join(" ") || "Caption" : item.name ?? media?.name ?? "Clip";
 
   return (
     <>
@@ -75,6 +79,7 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
             <TransformSection editor={editor} item={item} anim={anim} width={project.settings.width} height={project.settings.height} />
             {item.type === "media" && media?.kind !== "audio" && (
               <>
+                <LayoutSection editor={editor} item={item} />
                 <CanvasSection editor={editor} item={item} everyClip={() => fillEveryClip(editor, item)} />
                 <AiVideoSections editor={editor} item={item} project={project} />
                 <MaskSection editor={editor} item={item} />
@@ -84,6 +89,8 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
             )}
           </>
         )}
+
+        {active === "shape" && item.type === "shape" && <ShapeInspector editor={editor} item={item} />}
 
         {active === "look" && item.type === "media" && <LookTab editor={editor} item={item} project={project} />}
 

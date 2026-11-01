@@ -3,7 +3,7 @@
 // exporter both draw from this, so they cannot disagree about a frame.
 
 import { sample, valueAt } from "./animate";
-import type { BlendMode, CaptionItem, ChromaKey, ColorItem, Crop, Curves, Fill, Hsl, Item, Mask, MediaItem, MediaRef, Micros, Project, TextItem, Track } from "./project";
+import type { BlendMode, CaptionItem, ChromaKey, ColorItem, Crop, Curves, Fill, Hsl, Item, Mask, MediaItem, MediaRef, Micros, Project, ShapeItem, TextItem, Track } from "./project";
 import { itemEnd } from "./project";
 
 export interface Placement {
@@ -40,7 +40,8 @@ export interface PlacedEffect {
 export type Visual =
   | { kind: "media"; item: MediaItem; media: MediaRef; sourceTime: Micros; place: Placement }
   | { kind: "text"; item: TextItem | CaptionItem; place: Placement; text: string; highlight: number }
-  | { kind: "color"; item: ColorItem; place: Placement };
+  | { kind: "color"; item: ColorItem; place: Placement }
+  | { kind: "shape"; item: ShapeItem; place: Placement };
 
 export type SceneNode =
   | { kind: "visual"; visual: Visual }
@@ -89,6 +90,7 @@ function visualFor(p: Project, item: Item, t: Micros, overrun: boolean): Visual 
     return { kind: "media", item, media, sourceTime: sourceAt(item, media, local, overrun), place };
   }
   if (item.type === "color") return { kind: "color", item, place: placement(p, item, local) };
+  if (item.type === "shape") return { kind: "shape", item, place: placement(p, item, local) };
   if (item.type === "text") return { kind: "text", item, place: placement(p, item, local), text: item.style.text, highlight: -1 };
   const words = item.words;
   const highlight = words.findIndex(w => local >= w.start && local < w.end);
@@ -119,7 +121,7 @@ export function effectKey(id: string, field: "amount"): string {
 }
 
 function placement(p: Project, item: Item, local: Micros, media?: MediaRef): Placement {
-  const base = media ? fitSize(p, media) : { width: p.settings.width, height: p.settings.height };
+  const base = media ? fitSize(p, media) : item.type === "shape" ? { width: item.width, height: item.height } : { width: p.settings.width, height: p.settings.height };
   const s = valueAt(item, "transform.scale", local);
   const place: Placement = {
     x: valueAt(item, "transform.x", local),

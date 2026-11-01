@@ -142,6 +142,16 @@ export class Editor {
     this.toast(`Redid ${e.label.toLowerCase()}`);
   }
 
+  /** Jump to the state after `applied` steps, walking undo or redo as far as needed in one commit. */
+  travelTo(applied: number): void {
+    const now = this.history.timeline.applied;
+    let project = this.project;
+    for (let n = now; n > applied; n--) project = this.history.undo(project)?.project ?? project;
+    for (let n = now; n < applied; n++) project = this.history.redo(project)?.project ?? project;
+    if (project === this.project) return;
+    this.commit(project);
+  }
+
   select(ids: string[]): void {
     if (ids.length === this.selection.length && ids.every((id, i) => id === this.selection[i])) return;
     this.selection = ids;

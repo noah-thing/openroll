@@ -4,6 +4,7 @@ import { Compositor, type Layer, type Node } from "./compositor";
 import { VideoReader } from "./video-reader";
 import { decodesTooSlowly } from "./proxy-policy";
 import { rasterText } from "./text";
+import { rasterShape } from "./shape-raster";
 import { loadFonts } from "./fonts";
 import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/scene";
 import { layerFields, syncLuts } from "./layer-look";
@@ -202,6 +203,11 @@ function toLayer(v: Visual, p: Project, scale: number): Layer | null {
   const place = v.place;
   const base = layerFields(place, v.kind === "media" && v.item.id === bareItem);
   if (v.kind === "color") return { ...base, color: hexToRgb(v.item.color) };
+  if (v.kind === "shape") {
+    const w = base.width, h = base.height;
+    const r = rasterShape(v.item.shape, v.item.width, v.item.height, w * scale, h * scale);
+    return { ...base, source: { key: v.item.id, pixels: r.canvas, version: r.key, width: r.canvas.width, height: r.canvas.height, premultiplied: false } };
+  }
   if (v.kind === "text") {
     if (!fontsReady) return null;
     const s = v.item.style;

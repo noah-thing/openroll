@@ -128,6 +128,12 @@ const api: OpenRollApi = {
     list: path => ipcRenderer.invoke("history:list", path),
     restore: (path, file) => ipcRenderer.invoke("history:restore", path, file),
   },
+  snapshots: {
+    save: (name, json) => ipcRenderer.invoke("versions:save", name, json),
+    list: id => ipcRenderer.invoke("versions:list", id),
+    read: (id, file) => ipcRenderer.invoke("versions:read", id, file),
+    remove: (id, file) => ipcRenderer.invoke("versions:remove", id, file),
+  },
   session: {
     take: () => ipcRenderer.invoke("session:take"),
     projectClosed: () => ipcRenderer.send("session:project-closed"),
