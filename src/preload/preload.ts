@@ -32,7 +32,9 @@ const api: OpenRollApi = {
   cache: {
     get: key => ipcRenderer.invoke("cache:get", key),
     put: (key, data) => ipcRenderer.invoke("cache:put", key, data),
+    file: key => ipcRenderer.invoke("cache:file", key),
   },
+  saveRecording: (name, ext, data) => ipcRenderer.invoke("recordings:save", name, ext, data),
 
   onMenu: handler => {
     const listener = (_e: unknown, cmd: string) => handler(cmd);

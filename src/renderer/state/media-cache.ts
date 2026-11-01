@@ -1,3 +1,4 @@
+import type { AudioAnalysis } from "../../core/analyze";
 import type { MediaRef } from "../../core/project";
 import type { MediaJob, MediaJobResult } from "../../engine/media-protocol";
 
@@ -17,6 +18,7 @@ export class MediaCache {
   private worker = new Worker(new URL("../../engine/media.worker.ts", import.meta.url), { type: "module" });
   private strips = new Map<string, Filmstrip>();
   private peaks = new Map<string, Uint8Array>();
+  private analyses = new Map<string, AudioAnalysis>();
   private pending = new Set<string>();
   private listeners = new Set<Listener>();
   version = 0;
@@ -49,6 +51,14 @@ export class MediaCache {
     return null;
   }
 
+  /** Loudness, speech and beats for a file, measured once and kept on disk. */
+  analysis(m: MediaRef): AudioAnalysis | null {
+    const hit = this.analyses.get(m.id);
+    if (hit) return hit;
+    if (m.hasAudio) void this.load(m, "analyze");
+    return null;
+  }
+
   private async load(m: MediaRef, kind: MediaJob["kind"]): Promise<void> {
     const id = `${kind}:${m.id}`;
     if (this.pending.has(id)) return;
@@ -66,6 +76,17 @@ export class MediaCache {
           return;
         } catch {
           /* regenerate */
+        }
+      }
+    } else if (kind === "analyze") {
+      const raw = await window.openroll.cache.get(key + ".json");
+      if (raw) {
+        try {
+          this.analyses.set(m.id, JSON.parse(new TextDecoder().decode(raw)));
+          this.bump();
+          return;
+        } catch {
+          /* measure again */
         }
       }
     } else {
@@ -96,6 +117,9 @@ export class MediaCache {
         void window.openroll.cache.put(key + ".json", new TextEncoder().encode(JSON.stringify(meta)));
         void window.openroll.cache.put(key + ".jpg", r.jpeg);
       }
+    } else if (r.kind === "analysis") {
+      this.analyses.set(mediaId, r.analysis);
+      if (key) void window.openroll.cache.put(key + ".json", new TextEncoder().encode(JSON.stringify(r.analysis)));
     } else {
       this.peaks.set(mediaId, r.peaks);
       if (r.final && key) void window.openroll.cache.put(key + ".peaks", r.peaks);
@@ -110,7 +134,7 @@ export class MediaCache {
 }
 
 async function diskKey(m: MediaRef, kind: string): Promise<string> {
-  const text = `${kind}|v1|${m.path}|${m.size}|${m.mtime}`;
+  const text = `${kind}|v${kind === "analyze" ? 2 : 1}|${m.path}|${m.size}|${m.mtime}`;
   const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
   return Array.from(new Uint8Array(digest).slice(0, 12), b => b.toString(16).padStart(2, "0")).join("");
 }

@@ -1,6 +1,6 @@
 import { History } from "../../core/history";
 import { deleteItems, duplicateItems, split } from "../../core/edit";
-import { createProject, findItem, itemEnd, type Micros, type Project } from "../../core/project";
+import { createProject, findItem, itemEnd, type MediaRef, type Micros, type Project } from "../../core/project";
 import { Player } from "../../engine/player";
 
 export type Listener = () => void;
@@ -81,6 +81,16 @@ export class Editor {
     this.history.push(before, label, group);
     this.commit(next);
     return true;
+  }
+
+  /**
+   * Record facts measured from a file (loudness, beats). Not an edit, so it adds no undo
+   * step, but it is saved and the player sees it.
+   */
+  annotateMedia(id: string, patch: Partial<MediaRef>): void {
+    const m = this.project.media[id];
+    if (!m) return;
+    this.commit({ ...this.project, media: { ...this.project.media, [id]: { ...m, ...patch } } });
   }
 
   endGroup(): void {

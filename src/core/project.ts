@@ -18,6 +18,8 @@ export interface ProjectSettings {
   sampleRate: number;
   /** Colour behind everything, as #rrggbb. */
   background: string;
+  /** Show beat marks on music and snap to them. */
+  autoBeat?: boolean;
 }
 
 export type MediaKind = "video" | "audio" | "image";
@@ -44,6 +46,13 @@ export interface MediaRef {
   channels?: number;
   /** Beat times in microseconds, filled in by beat detection. */
   beats?: Micros[];
+  bpm?: number;
+  /** Integrated loudness in LUFS, measured once per file. */
+  loudness?: number;
+  /** Flat start, end pairs in microseconds where speech was detected. */
+  speech?: Micros[];
+  /** Made by OpenRoll rather than imported. */
+  origin?: "recording" | "speech" | "effect";
 }
 
 export type TrackKind = "video" | "audio" | "text";
@@ -130,6 +139,8 @@ export interface AudioCleanup {
   duckUnder?: boolean;
 }
 
+export type VoiceFx = "pitchUp" | "pitchDown" | "robot" | "radio" | "echo" | "bigRoom";
+
 export type Easing = "linear" | "ease" | "easeIn" | "easeOut" | "hold";
 
 export interface Keyframe {
@@ -202,6 +213,12 @@ export interface MediaItem extends ItemBase {
   /** Remove the background with the on device matting model. */
   cutout?: boolean;
   audio?: AudioCleanup;
+  /** Preset effect chain applied after cleanup. */
+  voiceFx?: VoiceFx;
+  /** Silence this item's own sound, e.g. after its audio was detached. */
+  muteAudio?: boolean;
+  /** Shared by a video item and the audio item detached from it. */
+  link?: string;
   freeze?: boolean;
 }
 

@@ -4,6 +4,7 @@
 // stutters playback.
 
 import { ALL_FORMATS, AudioSampleSink, CanvasSink, Input, UrlSource } from "mediabunny";
+import { AudioAnalyzer } from "../core/analyze";
 import { PEAKS_PER_SECOND, THUMB_H, type MediaJob, type MediaJobResult } from "./media-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -24,6 +25,7 @@ async function drain(): Promise<void> {
     const job = queue.shift()!;
     try {
       if (job.kind === "filmstrip") await filmstrip(job);
+      else if (job.kind === "analyze") await analyze(job);
       else await peaks(job);
     } catch (err) {
       post({ id: job.id, kind: "error", message: (err as Error).message });
@@ -125,6 +127,31 @@ async function peaks(job: Extract<MediaJob, { kind: "peaks" }>): Promise<void> {
       }
     }
     post({ id: job.id, kind: "peaks", peaks: out, final: true });
+  } finally {
+    input.dispose();
+  }
+}
+
+/** Loudness, speech and beats in one decode. */
+async function analyze(job: Extract<MediaJob, { kind: "analyze" }>): Promise<void> {
+  const input = new Input({ formats: ALL_FORMATS, source: new UrlSource(job.url) });
+  try {
+    const track = await input.getPrimaryAudioTrack();
+    if (!track) throw new Error("no audio track");
+    const channels = Math.min(2, track.numberOfChannels);
+    const analyzer = new AudioAnalyzer(track.sampleRate, channels);
+    const sink = new AudioSampleSink(track);
+    const planes = Array.from({ length: channels }, () => new Float32Array(0));
+    for await (const sample of sink.samples()) {
+      const n = sample.numberOfFrames;
+      for (let c = 0; c < channels; c++) {
+        if (planes[c].length < n) planes[c] = new Float32Array(n);
+        sample.copyTo(planes[c], { planeIndex: c, format: "f32-planar" });
+      }
+      analyzer.push(planes, n);
+      sample.close();
+    }
+    post({ id: job.id, kind: "analysis", analysis: analyzer.finish() });
   } finally {
     input.dispose();
   }

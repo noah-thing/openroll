@@ -1,6 +1,7 @@
 import { memo, useEffect, useReducer, useRef, useSyncExternalStore } from "react";
 import type { Edge } from "../../../core/edit";
 import type { Item, MediaRef, Project, Track } from "../../../core/project";
+import { itemBeats } from "../../../core/audio-edit";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import type { MediaCache } from "../../state/media-cache";
@@ -49,19 +50,20 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
     const speed = item.speed;
     const srcAt = (x: number) => (item.reversed ? item.in + (item.duration - (x / pps) * 1e6) * speed : item.in + (x / pps) * 1e6 * speed);
 
-    const audioOnly = media.kind === "audio";
+    const audioOnly = media.kind === "audio" || track.kind === "audio";
     const waveH = audioOnly ? h - 16 : track.main && media.hasAudio ? 14 : 0;
     const filmH = audioOnly ? 0 : h - waveH;
 
-    if (media.kind === "video") drawFilm(g, cache, media, x0, w, filmH, srcAt, item.freeze);
+    if (media.kind === "video" && !audioOnly) drawFilm(g, cache, media, x0, w, filmH, srcAt, item.freeze);
     else if (media.kind === "image") drawImageTile(g, media, w, filmH, imageLoaded);
     if (waveH > 0) {
       const peaks = cache.waveform(media);
       if (peaks) drawWave(g, peaks, x0, w, audioOnly ? 2 : filmH, waveH, srcAt, audioOnly, item.volume);
     }
-  }, [media, item, pps, x0, x1, version, imageTick, cache, track.main]);
+    if (audioOnly && track.kind === "audio") drawBeats(g, itemBeats(project, item), item.start, x0, w, h, pps);
+  }, [media, item, pps, x0, x1, version, imageTick, cache, track.main, track.kind, project.settings.autoBeat]);
 
-  const kindClass = item.type === "media" ? (media?.kind === "audio" ? "clip-audio" : track.main ? "clip-video" : media?.kind === "image" ? "clip-image" : "clip-overlay") : "clip-" + item.type;
+  const kindClass = item.type === "media" ? (media?.kind === "audio" || track.kind === "audio" ? "clip-audio" : track.main ? "clip-video" : media?.kind === "image" ? "clip-image" : "clip-overlay") : "clip-" + item.type;
   const label = item.type === "text" ? item.style.text : item.type === "caption" ? item.words.map(w => w.text).join(" ") || item.style.text : item.name ?? media?.name ?? "";
 
   return (
@@ -142,5 +144,19 @@ function drawWave(g: CanvasRenderingContext2D, peaks: Uint8Array, x0: number, w:
       const bar = Math.max(0.5, amp * h);
       g.fillRect(x, top + h - bar, 1.5, bar);
     }
+  }
+}
+
+/** Short ticks along the top edge at each beat. */
+function drawBeats(g: CanvasRenderingContext2D, beats: number[], itemStart: number, x0: number, w: number, h: number, pps: number) {
+  if (!beats.length) return;
+  g.fillStyle = getComputedStyle(g.canvas).getPropertyValue("--beat") || "rgba(255,255,255,.7)";
+  // Zoomed far out the ticks would blur into a bar, so thin them to roughly 6 px apart.
+  let lastX = -Infinity;
+  for (const t of beats) {
+    const x = ((t - itemStart) / 1e6) * pps;
+    if (x < x0 || x > x0 + w || x - lastX < 6) continue;
+    g.fillRect(x - x0 - 0.5, 0, 1, Math.min(10, h * 0.3));
+    lastX = x;
   }
 }
