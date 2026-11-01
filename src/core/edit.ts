@@ -3,6 +3,7 @@
 // apply (an id that is gone, a split outside an item) return the same object, which
 // callers use to tell "nothing happened" apart from a real edit.
 
+import { sample } from "./animate";
 import {
   type Item,
   type MediaItem,
@@ -25,6 +26,11 @@ export function isMagnetic(track: Track): boolean {
 
 /** Smallest item we allow after a trim, so a clip never collapses to nothing. */
 export const MIN_ITEM: Micros = 100_000;
+
+/** Whether the in point means anything: a freeze or an image shows one frame whatever it is. */
+export function runsSource(p: Project, item: Item): item is MediaItem {
+  return item.type === "media" && !item.freeze && p.media[item.mediaId]?.kind !== "image";
+}
 
 export function draft(p: Project): Project {
   const next = structuredClone(p);
@@ -125,7 +131,7 @@ export function insertItems(p: Project, items: Item[], opts: InsertOptions = {})
   const main = next.tracks.find(t => t.main);
   for (const item of items) {
     const kind = trackKindFor(item, next);
-    const named = opts.trackId ? next.tracks.find(t => t.id === opts.trackId) : undefined;
+    const named = opts.trackId ? next.tracks.find(t => t.id === opts.trackId && !t.locked) : undefined;
     const target = named ?? (kind === "video" ? main : undefined);
     if (target && isMagnetic(target) && kind === "video") {
       const index = opts.index ?? indexAtTime(target, item.start);
@@ -138,6 +144,7 @@ export function insertItems(p: Project, items: Item[], opts: InsertOptions = {})
       sortTrack(track);
     }
   }
+  pruneTransitions(next);
   return next;
 }
 
@@ -171,14 +178,15 @@ export interface MoveTarget {
  */
 export function moveItem(p: Project, id: string, to: MoveTarget): Project {
   const found = findItem(p, id);
-  if (!found) return p;
+  if (!found || found.track.locked) return p;
   const next = draft(p);
   const src = findItem(next, id)!;
   const item = src.item;
   src.track.items.splice(src.index, 1);
   if (src.track.main) packMain(src.track);
 
-  const dest = next.tracks.find(t => t.id === to.trackId) ?? src.track;
+  // A locked lane takes nothing new; a drop onto one only moves the clip along its own lane.
+  const dest = next.tracks.find(t => t.id === to.trackId && !t.locked) ?? src.track;
   const kind = trackKindFor(item, next);
   if (isMagnetic(dest) && kind === "video") {
     const index = indexAtTime(dest, to.start);
@@ -192,6 +200,7 @@ export function moveItem(p: Project, id: string, to: MoveTarget): Project {
     sortTrack(track);
   }
   dropEmptyTracks(next);
+  pruneTransitions(next);
   return next;
 }
 
@@ -209,14 +218,17 @@ export function dropEmptyTracks(p: Project): void {
   });
 }
 
-/** Split every unlocked item under `t`, or only the given ones. Returns the new project. */
-export function split(p: Project, t: Micros, ids?: string[]): Project {
+/**
+ * Split every unlocked item under `t`, or only the given ones. Returns the new project.
+ * Neither half may end up shorter than `minPiece`.
+ */
+export function split(p: Project, t: Micros, ids?: string[], minPiece: Micros = MIN_ITEM): Project {
   const targets: string[] = [];
   for (const track of p.tracks) {
     if (track.locked) continue;
     for (const item of track.items) {
       if (ids && !ids.includes(item.id)) continue;
-      if (t > item.start + MIN_ITEM / 2 && t < itemEnd(item) - MIN_ITEM / 2) targets.push(item.id);
+      if (t >= item.start + minPiece && t <= itemEnd(item) - minPiece) targets.push(item.id);
     }
   }
   if (!targets.length) return p;
@@ -231,12 +243,14 @@ export function split(p: Project, t: Micros, ids?: string[]): Project {
     item.duration = cut;
     delete right.transitionIn;
     if (item.type === "media" && right.type === "media") {
-      if (item.reversed) {
-        // reversed: the left half shows the end of the source span
-        right.in = item.in;
-        item.in = item.in + sourceSpan(right);
-      } else {
-        right.in = item.in + Math.round(cut * item.speed);
+      if (runsSource(next, item)) {
+        if (item.reversed) {
+          // reversed: the left half shows the end of the source span
+          right.in = item.in;
+          item.in = item.in + sourceSpan(right);
+        } else {
+          right.in = item.in + Math.round(cut * item.speed);
+        }
       }
       right.fadeIn = 0;
       item.fadeOut = 0;
@@ -248,16 +262,25 @@ export function split(p: Project, t: Micros, ids?: string[]): Project {
     splitKeyframes(item, right, cut);
     track.items.splice(index + 1, 0, right);
   }
+  pruneTransitions(next);
   return next;
 }
 
+/** Both halves keep the value the curve had at the cut, including when every key sits on one side of it. */
 function splitKeyframes(left: Item, right: Item, cut: Micros): void {
   if (!left.keyframes) return;
   const l: typeof left.keyframes = {};
   const r: typeof left.keyframes = {};
   for (const [prop, keys] of Object.entries(left.keyframes)) {
-    l[prop] = keys.filter(k => k.t <= cut);
-    r[prop] = keys.filter(k => k.t >= cut).map(k => ({ ...k, t: k.t - cut }));
+    if (!keys.length) continue;
+    const before = keys.filter(k => k.t < cut);
+    const at = keys.filter(k => k.t === cut);
+    const after = keys.filter(k => k.t > cut);
+    const v = sample(keys, cut);
+    l[prop] = [...before, ...at];
+    r[prop] = [...at, ...after].map(k => ({ ...k, t: k.t - cut }));
+    if (!at.length && after.length) l[prop].push({ t: cut, v, ease: "linear" });
+    if (!at.length && before.length) r[prop].unshift({ t: 0, v, ease: before[before.length - 1].ease });
   }
   left.keyframes = l;
   right.keyframes = r;
@@ -282,18 +305,23 @@ export function deleteItems(p: Project, ids: string[]): Project {
 
 /** Delete everything between two times on unlocked tracks and pull the rest left. */
 export function rippleDeleteRange(p: Project, from: Micros, to: Micros): Project {
+  from = Math.max(0, from);
   if (to <= from) return p;
-  let next = split(p, from);
-  next = split(next, to);
+  // Cut exactly where asked, then drop a sliver the cut leaves that is too short to keep.
+  let next = split(p, from, undefined, 1);
+  next = split(next, to, undefined, 1);
   if (next === p) next = draft(p);
   const gap = to - from;
+  const alreadyShort = new Set(p.tracks.flatMap(t => t.items.filter(i => i.duration < MIN_ITEM).map(i => i.id)));
   for (const t of next.tracks) {
     if (t.locked) continue;
     t.items = t.items.filter(i => !(i.start >= from && itemEnd(i) <= to));
     for (const i of t.items) if (i.start >= to) i.start -= gap;
+    t.items = t.items.filter(i => i.duration >= MIN_ITEM || alreadyShort.has(i.id));
     if (t.main) packMain(t);
   }
   dropEmptyTracks(next);
+  pruneTransitions(next);
   return next;
 }
 
@@ -306,40 +334,53 @@ export type Edge = "start" | "end";
  */
 export function trim(p: Project, id: string, edge: Edge, delta: Micros): Project {
   const found = findItem(p, id);
+  delta = Math.round(delta);
   if (!found || delta === 0) return p;
   const next = draft(p);
   const { track, item } = findItem(next, id)!;
   const media = item.type === "media" ? next.media[item.mediaId] : undefined;
-  const bounded = item.type === "media" && media && media.kind !== "image" && !item.freeze;
+  const bounded = media && media.kind !== "image" && runsSource(next, item);
+  const free = !isMagnetic(track);
+  const others = track.items.filter(i => i !== item);
 
   if (edge === "end") {
     let dur = item.duration + delta;
     if (bounded) {
       const it = item as MediaItem;
-      const room = it.reversed ? it.in + sourceSpan(it) : media!.duration - it.in;
+      const room = it.reversed ? it.in + sourceSpan(it) : media.duration - it.in;
       dur = Math.min(dur, Math.floor(room / it.speed));
     }
-    dur = Math.max(MIN_ITEM, dur);
-    // A reversed item plays its source backwards, so its timeline end is the source in point.
-    if (item.type === "media" && item.reversed && !item.freeze) item.in -= Math.round((dur - item.duration) * item.speed);
-    item.duration = dur;
+    if (free) {
+      const wall = Math.min(Infinity, ...others.filter(i => i.start >= item.start).map(i => i.start));
+      dur = Math.min(dur, Math.max(item.duration, wall - item.start));
+    }
+    setLength(next, item, Math.max(MIN_ITEM, dur));
   } else {
-    let d = delta;
-    d = Math.min(d, item.duration - MIN_ITEM);
+    let d = Math.min(delta, item.duration - MIN_ITEM);
     if (bounded) {
       const it = item as MediaItem;
       if (!it.reversed) d = Math.max(d, -Math.floor(it.in / it.speed));
-      else d = Math.max(d, -Math.floor((media!.duration - it.in - sourceSpan(it)) / it.speed));
+      else d = Math.max(d, -Math.floor((media.duration - it.in - sourceSpan(it)) / it.speed));
     }
-    if (!isMagnetic(track)) d = Math.max(d, -item.start);
-    if (item.type === "media" && !item.freeze && !item.reversed) item.in += Math.round(d * item.speed);
+    if (free) {
+      const floor = others.filter(i => i.start < item.start).reduce((m, i) => Math.max(m, itemEnd(i)), 0);
+      d = Math.max(d, Math.min(0, floor - item.start));
+    }
+    if (runsSource(next, item) && !item.reversed) item.in += Math.round(d * item.speed);
     item.duration -= d;
-    if (!isMagnetic(track)) item.start += d;
+    if (free) item.start += d;
     shiftKeyframes(item, -d);
-    if (item.type === "caption") item.words = item.words.map(w => ({ ...w, start: w.start - d, end: w.end - d })).filter(w => w.end > 0);
+    if (item.type === "caption") {
+      for (const w of item.words) {
+        w.start -= d;
+        w.end -= d;
+      }
+    }
+    fitWords(item);
   }
   if (isMagnetic(track)) packMain(track);
-  else resolveOverlap(next, track, item);
+  else sortTrack(track);
+  pruneTransitions(next);
   return next;
 }
 
@@ -348,19 +389,28 @@ function shiftKeyframes(item: Item, by: Micros): void {
   for (const keys of Object.values(item.keyframes)) for (const k of keys) k.t += by;
 }
 
-/** After an edit on a free track, if the item now overlaps a neighbour, clamp it. */
-export function resolveOverlap(_p: Project, track: Track, item: Item): void {
-  sortTrack(track);
-  const i = track.items.indexOf(item);
-  const prev = track.items[i - 1];
-  const nextItem = track.items[i + 1];
-  if (prev && itemEnd(prev) > item.start) {
-    const cut = itemEnd(prev) - item.start;
-    item.start += cut;
-    item.duration = Math.max(MIN_ITEM, item.duration - cut);
-    if (item.type === "media") item.in += Math.round(cut * item.speed);
+/** Change where the end edge sits. A reversed item plays its source backwards, so its end is the source in point. */
+function setLength(p: Project, item: Item, duration: Micros): void {
+  if (runsSource(p, item) && item.reversed) item.in -= Math.round((duration - item.duration) * item.speed);
+  item.duration = duration;
+  fitWords(item);
+}
+
+/** Captions never carry words outside the item: a trim cuts them like it cuts footage. */
+function fitWords(item: Item): void {
+  if (item.type !== "caption") return;
+  item.words = item.words.filter(w => w.end > 0 && w.start < item.duration);
+  for (const w of item.words) {
+    w.start = Math.max(0, w.start);
+    w.end = Math.min(item.duration, w.end);
   }
-  if (nextItem && itemEnd(item) > nextItem.start) item.duration = Math.max(MIN_ITEM, nextItem.start - item.start);
+}
+
+/** After a length change on a free track, if the item now runs into the next one, cut it short. */
+export function resolveOverlap(p: Project, track: Track, item: Item): void {
+  sortTrack(track);
+  const nextItem = track.items[track.items.indexOf(item) + 1];
+  if (nextItem && itemEnd(item) > nextItem.start) setLength(p, item, Math.max(MIN_ITEM, nextItem.start - item.start));
 }
 
 /** Shallow merge of plain fields onto an item, e.g. { volume: 0.5 } or { transform: {...} }. */
@@ -375,27 +425,40 @@ export function updateItem(p: Project, id: string, patch: Partial<Item>): Projec
 /** Change speed and keep the same source span, so the item gets longer or shorter. */
 export function setSpeed(p: Project, id: string, speed: number): Project {
   const found = findItem(p, id);
-  if (!found || found.item.type !== "media") return p;
-  const s = Math.min(100, Math.max(0.1, speed));
+  if (!found || found.item.type !== "media" || found.item.freeze || !Number.isFinite(speed)) return p;
+  const media = p.media[found.item.mediaId];
+  const bounded = !!media && media.kind !== "image";
+  // A clip is never shorter than MIN_ITEM, so a fast speed on a short file cannot ask for more footage than there is.
+  const s = Math.max(0.1, Math.min(100, speed, bounded ? media.duration / MIN_ITEM : Infinity));
   const next = draft(p);
   const { track, item } = findItem(next, id)! as { track: Track; item: MediaItem };
   const span = sourceSpan(item);
   item.speed = s;
   item.duration = Math.max(MIN_ITEM, Math.round(span / s));
+  if (bounded) {
+    const over = item.in + sourceSpan(item) - media.duration;
+    if (over > 0) {
+      const fit = Math.floor((media.duration - item.in) / s);
+      if (fit >= MIN_ITEM) item.duration = fit;
+      else item.in = Math.max(0, item.in - over);
+    }
+  }
   if (isMagnetic(track)) packMain(track);
   else resolveOverlap(next, track, item);
+  pruneTransitions(next);
   return next;
 }
 
 export function duplicateItems(p: Project, ids: string[]): Project {
-  const found = ids.map(id => findItem(p, id)).filter(Boolean);
+  // Last first, so a copy inserted after one clip never shifts the position of the next original.
+  const found = ids.map(id => findItem(p, id)).filter((f): f is NonNullable<typeof f> => !!f && !f.track.locked).sort((a, b) => b.index - a.index);
   if (!found.length) return p;
   let next = p;
   for (const f of found) {
-    const copy = structuredClone(f!.item);
+    const copy = structuredClone(f.item);
     copy.id = newId("i");
-    copy.start = itemEnd(f!.item);
-    next = insertItems(next, [copy], isMagnetic(f!.track) ? { trackId: f!.track.id, index: f!.index + 1 } : { trackId: f!.track.id });
+    copy.start = itemEnd(f.item);
+    next = insertItems(next, [copy], isMagnetic(f.track) ? { trackId: f.track.id, index: f.index + 1 } : { trackId: f.track.id });
   }
   return next;
 }
@@ -423,13 +486,15 @@ export function relinkMedia(p: Project, mediaId: string, path: string, size: num
   return next;
 }
 
-/** Transitions only make sense when the previous item ends exactly where this one starts. */
+/** Transitions only make sense when the previous item ends exactly where this one starts, and fit inside both. */
 export function pruneTransitions(p: Project): void {
   for (const t of p.tracks) {
     t.items.forEach((item, i) => {
       if (!item.transitionIn) return;
       const prev = t.items[i - 1];
-      if (!prev || itemEnd(prev) !== item.start) delete item.transitionIn;
+      const room = prev && itemEnd(prev) === item.start ? Math.floor(Math.min(prev.duration, item.duration) / 2) : 0;
+      if (room <= 0) delete item.transitionIn;
+      else item.transitionIn.duration = Math.min(item.transitionIn.duration, room);
     });
   }
 }
@@ -441,8 +506,8 @@ export function setTransition(p: Project, id: string, kind: string | null, durat
   if (kind && (!prev || itemEnd(prev) !== found.item.start)) return p;
   const next = draft(p);
   const { item } = findItem(next, id)!;
-  const maxD = Math.min(found.item.duration, prev ? prev.duration : 0) / 2;
-  if (kind) item.transitionIn = { kind, duration: Math.max(100_000, Math.min(duration, maxD)) };
+  const maxD = Math.floor(Math.min(found.item.duration, prev ? prev.duration : 0) / 2);
+  if (kind) item.transitionIn = { kind, duration: Math.min(maxD, Math.max(100_000, Math.round(duration))) };
   else delete item.transitionIn;
   return next;
 }

@@ -38,6 +38,14 @@ type Gesture =
   | { kind: "range"; which: "in" | "out" }
   | { kind: "scrub" };
 
+/**
+ * A drag previews from the project as it was at pointer down. File analysis can finish
+ * mid drag and only touches the media list, so keep that instead of rolling it back.
+ */
+function settle(g: { origin: Project; preview: Project }): (current: Project) => Project {
+  return current => (current !== g.origin && current.tracks === g.origin.tracks ? { ...g.preview, media: current.media } : g.preview);
+}
+
 function previewOf(g: Gesture | null): Project | null {
   return g && "preview" in g ? g.preview : null;
 }
@@ -484,24 +492,24 @@ export function Timeline({ editor, cache }: { editor: Editor; cache: MediaCache 
     if (e) pointer.current = { x: e.clientX, y: e.clientY, meta: e.metaKey || e.ctrlKey };
     switch (g.kind) {
       case "move":
-        if (g.moved) editor.apply(g.ids.length > 1 ? "Move clips" : "Move clip", () => g.preview);
+        if (g.moved) editor.apply(g.ids.length > 1 ? "Move clips" : "Move clip", settle(g));
         else if (g.collapse) editor.select([g.collapse]);
         break;
       case "trim":
-        if (g.moved) editor.apply("Trim clip", () => g.preview);
+        if (g.moved) editor.apply("Trim clip", settle(g));
         break;
       case "roll":
-        if (g.moved) editor.apply("Roll edit", () => g.preview);
+        if (g.moved) editor.apply("Roll edit", settle(g));
         break;
       case "slip":
-        if (g.moved) editor.apply("Slip clip", () => g.preview);
+        if (g.moved) editor.apply("Slip clip", settle(g));
         break;
       case "marker":
-        if (g.moved) editor.apply("Move marker", () => g.preview);
+        if (g.moved) editor.apply("Move marker", settle(g));
         else editor.seek(g.origin.markers.find(m => m.id === g.id)?.t ?? editor.time);
         break;
       case "resize":
-        editor.apply("Resize track", () => g.preview);
+        editor.apply("Resize track", settle(g));
         break;
       case "reorder":
         if (g.line >= 0) editor.apply("Move track", p => moveTrack(p, g.id, g.to));
