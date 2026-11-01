@@ -4,6 +4,7 @@ import { useEditor, useFrame } from "../lib/hooks";
 import { timecode } from "../lib/format";
 import type { Editor } from "../state/editor";
 import { Icon } from "./kit/Icon";
+import { ToolBoxes } from "./ToolBoxes";
 import { TransformBox } from "./TransformBox";
 
 export function Viewer({ editor }: { editor: Editor }) {
@@ -73,6 +74,7 @@ export function Viewer({ editor }: { editor: Editor }) {
             </div>
           )}
           <TransformBox editor={editor} width={box.w} height={box.h} />
+          <ToolBoxes editor={editor} width={box.w} height={box.h} />
         </div>
       </div>
       <div className="viewer-controls">

@@ -58,35 +58,40 @@ export default async function ({ page, shot }) {
     await snap("fxk-" + kind);
   }
 
-  // Frame rate: three layers of video, two effects each, 1080p preview.
-  await page.evaluate(() => {
-    const e = window.__or.editor;
-    e.apply("qa clear", p => {
-      const n = structuredClone(p);
-      n.tracks[0].items = n.tracks[0].items.slice(2, 3);
-      n.tracks[0].items[0].start = 0;
-      n.tracks[0].items[0].effects = [
-        { id: "a", kind: "bloom", amount: 0.6, params: {} },
-        { id: "b", kind: "prism", amount: 0.5, params: { speed: 1 } },
-      ];
-      n.tracks[0].items[0].filter = { id: "halide", amount: 1 };
-      const clone = id => {
-        const t = structuredClone(n.tracks[0].items[0]);
-        t.id = id;
-        return t;
-      };
-      for (const name of ["o1", "o2"]) {
-        n.tracks.push({ id: "tr" + name, kind: "video", name, items: [clone("i" + name)] });
-        n.tracks[n.tracks.length - 1].items[0].transform.scale = 0.7;
-        n.tracks[n.tracks.length - 1].items[0].effects = n.tracks[0].items[0].effects.map(x => ({ ...x, id: x.id + name }));
-      }
-      return n;
-    });
-  });
-  await page.waitForTimeout(1500);
-  await page.evaluate(() => window.__or.editor.player.play());
-  await page.waitForTimeout(2500);
-  const stats = await page.evaluate(() => window.__or.editor.player.stats);
-  console.log("3 layers x 2 effects + filter:", JSON.stringify(stats));
+  // Frame rate at a full 1080p preview: three stacked video layers, each with a filter and effects.
+  const stack = effects =>
+    page.evaluate(effects => {
+      const e = window.__or.editor;
+      e.apply("qa stack", p => {
+        const n = structuredClone(p);
+        const base = n.tracks[0].items.find(i => i.mediaId === Object.keys(n.media).pop());
+        base.start = 0;
+        base.transform.scale = 1;
+        n.tracks = [n.tracks[0], n.tracks[1]];
+        n.tracks[0].items = [base];
+        base.filter = effects.length ? { id: "halide", amount: 1 } : undefined;
+        base.effects = effects.map((kind, i) => ({ id: "a" + i, kind, amount: 0.6, params: { speed: 1 } }));
+        for (const name of ["o1", "o2"]) {
+          const c = structuredClone(base);
+          c.id = "i" + name;
+          c.transform.scale = 0.7;
+          c.effects = c.effects?.map(x => ({ ...x, id: x.id + name }));
+          n.tracks.push({ id: "tr" + name, kind: "video", name, items: [c] });
+        }
+        return n;
+      });
+      e.player.setSize(1920, 1080);
+      e.seek(0);
+    }, effects);
+  const configs = { "plain": [], "2 effects each": ["bloom", "prism"], "heavy, 4 effects each": ["defocus", "bloom", "neon-edge", "tape"] };
+  for (const [name, effects] of Object.entries(configs)) {
+    await stack(effects);
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__or.editor.player.play());
+    await page.waitForTimeout(3000);
+    const stats = await page.evaluate(() => window.__or.editor.player.stats);
+    await page.evaluate(() => window.__or.editor.player.pause());
+    console.log(`1080p, 3 layers, ${name}: ${stats.fps} fps, worst frame ${stats.worstMs} ms, late ${stats.late}`);
+  }
   await shot("fx-stack");
 }

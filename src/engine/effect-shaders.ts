@@ -60,7 +60,7 @@ void main() {
   float A = u_amount;
 
   if (u_kind == 0) { // defocus
-    o = spiralBlur(uv, A * 0.05 * u_size.y, 36);
+    o = spiralBlur(uv, A * 0.05 * u_size.y, 28);
   } else if (u_kind == 1) { // rush
     vec4 acc = vec4(0.0);
     for (int i = 0; i < 20; i++) {
@@ -242,9 +242,9 @@ void main() {
   } else if (u_kind == 20) { // bloom
     vec4 acc = vec4(0.0);
     float n = 0.0;
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 24; i++) {
       float fi = float(i) + 0.5;
-      float r = sqrt(fi / 32.0);
+      float r = sqrt(fi / 24.0);
       float a = fi * 2.39996;
       vec4 s = S(uv + vec2(cos(a), sin(a)) * r * 0.045 * u_size.y / u_size);
       float bright = smoothstep(0.55, 1.0, luma(unp(s)));

@@ -129,6 +129,15 @@ function registerIpc(): void {
     return out;
   });
 
+  ipcMain.handle("lut:pick", async () => {
+    const r = await dialog.showOpenDialog(win!, { title: "Import LUT", properties: ["openFile"], filters: [{ name: "Colour tables", extensions: ["cube"] }] });
+    const path = r.filePaths[0];
+    if (!path) return null;
+    const size = (await stat(path)).size;
+    if (size > 64 * 1024 * 1024) return null;
+    return { name: basename(path, extname(path)), text: await readFile(path, "utf8") };
+  });
+
   ipcMain.handle("media:allow-dropped", async (_e, paths: unknown) => {
     if (!Array.isArray(paths)) return [];
     const out: FileInfo[] = [];

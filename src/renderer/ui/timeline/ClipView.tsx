@@ -1,6 +1,7 @@
 import { memo, useEffect, useReducer, useRef, useSyncExternalStore } from "react";
 import type { Edge } from "../../../core/edit";
 import type { Item, MediaRef, Project, Track } from "../../../core/project";
+import { keyTimes } from "../../../core/look/keyframes";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import type { MediaCache } from "../../state/media-cache";
@@ -76,6 +77,7 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
         <span className="clip-name">{label}</span>
         {width > 90 && <span className="clip-dur num">{span(item.duration)}</span>}
       </div>
+      {selected && item.keyframes && keyTimes(item.keyframes).map(t => <span key={t} className="clip-key" style={{ left: (t / 1e6) * pps }} />)}
       {width > 14 && (
         <>
           <span className="clip-h clip-h-l" onPointerDown={e => onPointerDown(e, item, "start")} />

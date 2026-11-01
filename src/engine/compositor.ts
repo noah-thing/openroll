@@ -142,6 +142,11 @@ export class Compositor {
     this.resize(canvas.width, canvas.height, 1920, 1080);
   }
 
+  /** Forget trailing effect history, for a picture that did not follow the previous one. */
+  resetTrails(): void {
+    for (const fb of this.feedback.values()) fb.lastT = -1;
+  }
+
   /** Register a 3D LUT (size^3 RGB bytes, red fastest) under the id filters refer to. */
   registerLut(id: string, size: number, rgb: Uint8Array): void {
     if (this.luts.has(id)) return;
@@ -199,7 +204,7 @@ export class Compositor {
     if (this.acc && this.acc.width === outW && this.acc.height === outH) return;
     this.acc?.dispose();
     this.accSwap?.dispose();
-    for (const t of this.scratch) t.dispose();
+    for (const t of this.scratch) t?.dispose();
     this.scratch = [];
     this.acc = new Target(this.gl, outW, outH);
     this.accSwap = new Target(this.gl, outW, outH);
@@ -609,7 +614,7 @@ export class Compositor {
     this.textures.clear();
     this.acc?.dispose();
     this.accSwap?.dispose();
-    for (const t of this.scratch) t.dispose();
+    for (const t of this.scratch) t?.dispose();
     for (const t of this.tiny) t.dispose();
     for (const fb of this.feedback.values()) {
       fb.prev.dispose();

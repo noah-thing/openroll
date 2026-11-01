@@ -14,6 +14,7 @@ const api: OpenRollApi = {
   pathsForDropped: files => ipcRenderer.invoke("media:allow-dropped", files.map(f => webUtils.getPathForFile(f)).filter(Boolean)),
   mediaUrl: path => mediaUrlFor(path, process.platform),
   stat: path => ipcRenderer.invoke("media:stat", path),
+  pickLut: () => ipcRenderer.invoke("lut:pick"),
 
   createWriter: (name, kind) => ipcRenderer.invoke("writer:create", name, kind),
   write: (id, position, data) => ipcRenderer.invoke("writer:write", id, position, data),

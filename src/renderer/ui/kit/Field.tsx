@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { Icon } from "./Icon";
 
 interface SliderProps {
   label: string;
@@ -10,12 +11,14 @@ interface SliderProps {
   /** Value the double click resets to. */
   reset?: number;
   format?(v: number): string;
+  /** Sits before the label, e.g. a keyframe diamond. */
+  lead?: ReactNode;
   onChange(v: number): void;
   onCommit?(): void;
 }
 
 /** Label, track and a number you can drag or type into. Double click resets. */
-export function Slider({ label, value, min, max, step = 1, unit = "", reset, format, onChange, onCommit }: SliderProps) {
+export function Slider({ label, value, min, max, step = 1, unit = "", reset, format, lead, onChange, onCommit }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [typing, setTyping] = useState(false);
   const p = Math.min(1, Math.max(0, (value - min) / (max - min)));
@@ -63,7 +66,10 @@ export function Slider({ label, value, min, max, step = 1, unit = "", reset, for
 
   return (
     <div className="field" onDoubleClick={() => reset !== undefined && (onChange(reset), onCommit?.())}>
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        {lead}
+        <span className="field-label-text">{label}</span>
+      </span>
       <div className="slider" ref={trackRef} onPointerDown={down}>
         <span className="slider-track" />
         <span className="slider-fill" style={{ width: `${p * 100}%` }} />
@@ -118,18 +124,50 @@ export function Toggle({ label, value, onChange }: { label: string; value: boole
   );
 }
 
-export function Section({ title, onReset, children }: { title: string; onReset?(): void; children: React.ReactNode }) {
+const folded = new Map<string, boolean>();
+
+function readFolded(key: string): boolean {
+  if (folded.has(key)) return folded.get(key)!;
+  try {
+    const v = localStorage.getItem("section:" + key) === "closed";
+    folded.set(key, v);
+    return v;
+  } catch {
+    return false;
+  }
+}
+
+/** A titled group. With `fold` it collapses, and remembers that across clips and sessions. */
+export function Section({ title, onReset, fold, children }: { title: string; onReset?(): void; fold?: string; children: ReactNode }) {
+  const [closed, setClosed] = useState(() => (fold ? readFolded(fold) : false));
+  const toggle = () => {
+    if (!fold) return;
+    folded.set(fold, !closed);
+    try {
+      localStorage.setItem("section:" + fold, closed ? "open" : "closed");
+    } catch {
+      /* the fold just will not be remembered */
+    }
+    setClosed(!closed);
+  };
   return (
-    <section className="group">
+    <section className={"group" + (closed ? " closed" : "")}>
       <h3>
-        {title}
-        {onReset && (
+        {fold ? (
+          <button className="group-title" aria-expanded={!closed} onClick={toggle}>
+            <Icon name="chevron" size={12} />
+            {title}
+          </button>
+        ) : (
+          title
+        )}
+        {onReset && !closed && (
           <button className="reset" onClick={onReset}>
             Reset
           </button>
         )}
       </h3>
-      {children}
+      {!closed && children}
     </section>
   );
 }

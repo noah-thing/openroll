@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createProject, type Project } from "../../core/project";
 import { Editor } from "../state/editor";
 import { importFiles } from "../state/importer";
+import { importLut } from "../state/lut-import";
 import type { FileInfo } from "../../shared/api";
 import { EditorView } from "./EditorView";
 import { Home } from "./Home";
@@ -24,7 +25,7 @@ export function App() {
 
   useEffect(() => {
     if (!window.openroll.qa) return;
-    Object.assign(window, { __or: { editor, newProject: (files: FileInfo[]) => open(createProject(), null, files), importFiles } });
+    Object.assign(window, { __or: { editor, newProject: (files: FileInfo[]) => open(createProject(), null, files), importFiles, importLut } });
   }, [editor, open]);
 
   useEffect(() => {
