@@ -24,7 +24,7 @@ Call guide with a topic for recipes and full reference: workflow, recipes, capti
 export const GUIDE: Record<string, string> = {
   workflow: `Efficient workflow
 - One get_project call gives every id you need. Media ids come from import_media or get_project.
-- import_media can place clips straight onto the timeline (place: "append") or just add them to the library.
+- import_media can place clips straight onto the timeline (place: "append", and it returns their clip ids) or just add them to the library. add_clip also takes a file path, so one edit call can go from files to a cut.
 - Build the cut in one edit call: add_clip in order on the main track (it is magnetic, clips sit edge to edge), then overlays, text, audio, looks.
 - Use trim to set a clip's in point and duration in source seconds; use split plus delete or remove_range for cuts inside the timeline.
 - remove_range ripples every unlocked track. Lock the music track first if it should not be cut.
@@ -56,7 +56,7 @@ Trailer or teaser
 Slow open with a wide shot and a line of text, build with shorter shots, a hard cut to black (add_color #000000 for 0.5 s) before the final title, end on the name.`,
 
   captions: `Captions
-- captions {source: "speech"} transcribes and places captions for the whole timeline, chunked into readable lines (5 to 7 words, breaking on pauses and punctuation).
+- captions transcribes and places captions for the whole timeline, chunked into readable lines (5 to 7 words, breaking on pauses and punctuation).
 - Styles: see catalog captionStyles. Word highlight colours the word being spoken.
 - Position "lower" for most videos, "middle" for vertical social content with faces in the lower half.
 - Edit a caption's words with set {text: "..."}; timing is kept.

@@ -41,11 +41,15 @@ export function Viewer({ editor }: { editor: Editor }) {
   useEffect(() => {
     const el = stageRef.current!;
     const fit = () => {
-      const r = el.getBoundingClientRect();
+      const css = getComputedStyle(el);
+      const room = {
+        width: el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight),
+        height: el.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom),
+      };
       const aspect = settings.width / settings.height;
-      let w = r.width, h = r.width / aspect;
-      if (h > r.height) {
-        h = r.height;
+      let w = room.width, h = room.width / aspect;
+      if (h > room.height) {
+        h = room.height;
         w = h * aspect;
       }
       setBox({ w: Math.floor(w), h: Math.floor(h) });

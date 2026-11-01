@@ -61,7 +61,9 @@ describe("applyOps", () => {
     };
     expect(bad({ op: "transition", id: "$c", kind: "warp" })).toMatch(/unknown transition/);
     expect(bad({ op: "set", id: "$c", props: { sparkle: 1 } })).toMatch(/unknown property sparkle/);
-    expect(bad({ op: "add_clip", media: "missing" })).toMatch(/import it first/);
+    expect(bad({ op: "add_clip", media: "missing" })).toMatch(/import_media/);
+    expect(bad({ op: "set", id: "$c", props: { sparkle: 1 } })).toMatch(/Allowed: .*volume/);
+    expect(bad({ op: "ripple_delete" } as never)).toMatch(/Operations: add_clip/);
     expect(bad({ op: "set", id: "$missing", props: {} })).toMatch(/nothing was named/);
   });
 

@@ -12,6 +12,8 @@ export interface ImportOptions {
   /** Place the new clips on the timeline at this time. */
   at?: Micros;
   trackId?: string;
+  /** Leave the frame as it is instead of taking the first clip's shape. */
+  keepFrame?: boolean;
 }
 
 /**
@@ -66,7 +68,7 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   if (refs.length) {
     editor.apply(place ? "Import and place clips" : "Import media", p => {
       let out = addMedia(p, fresh);
-      if (timelineWasEmpty) out = adoptFirstClip(out, refs);
+      if (timelineWasEmpty && !opts.keepFrame) out = adoptFirstClip(out, refs);
       if (place) {
         let t = opts.at ?? projectDuration(out);
         const items = refs.map(r => {

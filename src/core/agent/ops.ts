@@ -51,10 +51,14 @@ export type Op =
   | { op: "layout"; id: string; layout: Layout }
   | { op: "cut_to_beat"; clips: string[]; music: string; every?: 1 | 2 | 4; muteClips?: boolean };
 
+export const OP_NAMES = ["add_clip", "add_text", "add_color", "move", "trim", "split", "delete", "remove_range", "set", "keyframe", "transition", "filter", "effect", "marker", "track", "add_track", "project", "add_shape", "layout", "cut_to_beat"];
+
 export interface OpResult {
   op: string;
   id?: string;
   ids?: string[];
+  /** cut_to_beat: how many clips the footage was cut into; their ids are in changed.added. */
+  pieces?: number;
 }
 
 export class OpError extends Error {
@@ -84,7 +88,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
   };
   const item = (id: string): Item => {
     const found = findItem(p, ref(id));
-    if (!found) throw new Error(`no clip with id ${id}`);
+    if (!found) throw new Error(`no clip with id ${id}; ids come from get_project or an earlier result`);
     return found.item;
   };
   const trackFor = (track: string | undefined): string | undefined => {
@@ -103,7 +107,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
       switch (o.op) {
         case "add_clip": {
           const media = p.media[ref(o.media)] ?? Object.values(p.media).find(m => m.path === o.media || m.name === o.media);
-          if (!media) throw new Error(`no media ${o.media}; import it first`);
+          if (!media) throw new Error(`no media ${o.media}; pass a media id from import_media, or an absolute file path`);
           const it = mediaItem(media, o.at === undefined ? Number.MAX_SAFE_INTEGER : us(o.at, "at"));
           if (o.in !== undefined) it.in = Math.max(0, us(o.in, "in"));
           if (o.duration !== undefined) it.duration = Math.max(100_000, us(o.duration, "duration"));
@@ -284,11 +288,11 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           const r = cutToBeat(p, o.clips.map(ref), music.id, o.every ?? 2, o.muteClips ?? true);
           if (!r.pieces) throw new Error("nothing to cut; pass video clips and a music clip with beats");
           p = r.project;
-          result.ids = [String(r.pieces)];
+          result.pieces = r.pieces;
           break;
         }
         default:
-          throw new Error(`unknown op ${(o as { op: string }).op}; see the catalog`);
+          throw new Error(`unknown op ${(o as { op: string }).op}. Operations: ${OP_NAMES.join(", ")}`);
       }
       results.push(result);
     } catch (err) {
@@ -355,7 +359,7 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
     } else if (PLAIN_PROPS.has(key)) {
       patch[key] = value === null ? undefined : value;
     } else {
-      throw new Error(`unknown property ${key}; see the catalog`);
+      throw new Error(`unknown property ${key}. Allowed: ${[...TRANSFORM_PROPS, ...TIME_PROPS, ...PLAIN_PROPS, "speed", "text", "style", "animationIn", "animationOut"].join(", ")}`);
     }
   }
   if (transformTouched) patch.transform = transform;
