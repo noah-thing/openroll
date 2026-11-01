@@ -125,6 +125,43 @@ export default async function ({ app, page }) {
   await sample("scrub 500");
   await play(Math.min(SECONDS, 20));
 
+  console.log("-- 20 tracks of 4K HEVC");
+  for (let round = 0; round < Number(process.env.SOAK_STACKS ?? 1); round++) {
+    await page.evaluate(() => document.querySelector(".mark")?.click());
+    await page.waitForSelector(".home");
+    await open(["hevc_4k30_30s.mp4"]);
+    await page.evaluate(() => {
+      window.__or.editor.apply("Stack", p => {
+        const next = structuredClone(p);
+        const base = next.tracks.find(t => t.main).items[0];
+        for (let i = 0; i < 19; i++) {
+          const item = { ...structuredClone(base), id: "o" + i, start: 0, in: (i % 5) * 1_000_000, duration: 8_000_000, transform: { x: ((i % 5) - 2) * 300, y: (Math.floor(i / 5) - 1.5) * 200, scale: 0.3, rotation: 0, opacity: 0.9 } };
+          next.tracks.push({ id: "ot" + i, kind: "video", name: "Overlay " + i, items: [item] });
+        }
+        return next;
+      });
+    });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__or.editor.player.play());
+    await page.waitForTimeout(2500);
+    let stackLate = 0, stackFps = 99, stackWorst = 0;
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(1000);
+      const s = await page.evaluate(() => window.__or.editor.player.stats);
+      stackLate += s.late;
+      stackFps = Math.min(stackFps, s.fps);
+      stackWorst = Math.max(stackWorst, s.worstMs);
+    }
+    await page.evaluate(() => window.__or.editor.player.pause());
+    console.log(`  20 layers: ${stackLate} late frames in 5 s, slowest second ${stackFps} fps, worst frame ${stackWorst} ms`);
+    await sample("20 tracks");
+
+    await page.evaluate(() => document.querySelector(".mark")?.click());
+    await page.waitForSelector(".home");
+    await page.waitForTimeout(3000);
+    await sample("home");
+  }
+
   console.log("-- switch projects x20");
   for (let i = 0; i < 20; i++) {
     await page.evaluate(() => document.querySelector(".mark")?.click());
@@ -137,4 +174,9 @@ export default async function ({ app, page }) {
   }
   await page.waitForTimeout(5000);
   await sample("settled");
+  await page.evaluate(() => document.querySelector(".mark")?.click());
+  await page.waitForSelector(".home");
+  await page.waitForTimeout(25_000);
+  await sample("home, idle 25 s");
+  console.log(`workers alive in the page: ${page.workers().length}`);
 }
