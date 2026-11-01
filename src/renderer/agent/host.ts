@@ -1,4 +1,5 @@
 import { allCaptions, cuesFromCaptions, toSrt, toVtt } from "../../core/captions";
+import { readProject } from "../../core/load";
 import { applyOps, OpError, type Op } from "../../core/agent/ops";
 import { summarize } from "../../core/agent/summary";
 import { buildScene } from "../../core/scene";
@@ -68,9 +69,9 @@ const handlers: Record<string, Handler> = {
     const path = String(params.path ?? "");
     const text = await window.openroll.projects.load(path);
     if (!text) throw new Error(`Could not read ${path}.`);
-    const p = JSON.parse(text) as Project;
-    if (p.format !== "openroll") throw new Error(`${path} is not an OpenRoll project.`);
-    const e = await openProject(p, path);
+    const read = readProject(text);
+    if (!read.ok) throw new Error(`${path} could not be opened. ${read.error}`);
+    const e = await openProject(read.project, path);
     return summarize(e.project);
   },
 

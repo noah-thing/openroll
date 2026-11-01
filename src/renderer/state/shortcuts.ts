@@ -38,7 +38,8 @@ export function useShortcuts(editor: Editor, hooks: ShortcutHooks): void {
 
     const run = (id: string): boolean => {
       if (id === "flush-and-close") {
-        void editor.save().then(() => window.openroll.setDirty(false));
+        // A failed save keeps the window dirty; the main process still gives up waiting after a moment.
+        void editor.save().then(() => editor.saveState === "saved" && window.openroll.setDirty(false));
         return true;
       }
       const c = commandById(id);

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, session as electronSession, shell, type MenuItemConstructorOptions } from "electron";
 import { arch, release, type } from "node:os";
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile, type FileHandle } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -16,6 +16,8 @@ import { News } from "./news";
 import { Control } from "./control";
 import { registerFfmpegIpc } from "./ffmpeg-ipc";
 import { registerRelinkIpc } from "./relink";
+import { clearCacheDir, isInside, isProjectFileName, projectStem, Serial, writeFileAtomic } from "./project-files";
+import { readProject } from "../core/load";
 
 const isDev = !!process.env.OPENROLL_DEV_URL;
 const APP_SCHEME = "openroll-app";
@@ -53,6 +55,7 @@ function defaultProjectsDir(): string {
   return join(app.getPath("videos"), "OpenRoll");
 }
 
+const saves = new Serial();
 const journal = new Journal(join(app.getPath("userData"), "history"));
 const versions = new NamedVersions(join(app.getPath("userData"), "versions"));
 const session = new Session(join(app.getPath("userData"), "session.json"));
@@ -362,10 +365,10 @@ function registerIpc(): void {
     await mkdir(dir, { recursive: true });
     const out: RecentProject[] = [];
     for (const name of await readdir(dir)) {
-      if (!name.endsWith(".openroll")) continue;
+      if (!isProjectFileName(name)) continue;
       const path = join(dir, name);
       const s = await stat(path).catch(() => null);
-      if (!s) continue;
+      if (!s?.isFile()) continue;
       const thumb = join(thumbsDir(), hash(path) + ".jpg");
       if (existsSync(thumb)) allowPath(thumb);
       out.push({ path, name: name.replace(/\.openroll$/, ""), modified: s.mtimeMs, thumb: existsSync(thumb) ? thumb : undefined });
@@ -383,41 +386,48 @@ function registerIpc(): void {
       // Media referenced by a project the user opened is theirs to read.
       try {
         const doc = JSON.parse(text);
-        for (const m of Object.values<{ path?: unknown }>(doc.media ?? {})) if (typeof m.path === "string") allowPath(m.path);
+        for (const m of Object.values<{ path?: unknown }>(doc.media ?? {})) if (typeof m?.path === "string") allowPath(m.path);
       } catch {
         /* the renderer reports bad JSON itself */
       }
+      // Repairs are saved over the file at the next autosave, so the file as found is kept beside it first.
+      const read = readProject(text);
+      if (read.ok && read.repairs.length) await copyFile(path, path + ".original", constants.COPYFILE_EXCL).catch(() => {});
     }
     return text;
   });
 
-  ipcMain.handle("projects:save", async (_e, path: unknown, name: unknown, json: unknown): Promise<SaveResult> => {
-    if (typeof json !== "string") return { ok: false, error: "nothing to save" };
-    try {
-      let target = typeof path === "string" && path.endsWith(".openroll") ? path : await freshProjectPath(String(name || "Untitled"));
-      // A renamed project gets a matching file name, but only inside our own projects folder.
-      const wanted = String(name || "").replace(/[\\/:*?"<>|]/g, "_").trim();
-      const current = basename(target, ".openroll");
-      const matches = current === wanted || (current.startsWith(wanted + " ") && /^\d+$/.test(current.slice(wanted.length + 1)));
-      if (wanted && !matches && dirname(target) === projectsDir() && existsSync(target)) {
-        const renamed = await freshProjectPath(wanted);
-        await rename(target, renamed);
-        await rm(target + ".bak", { force: true });
-        const oldThumb = join(thumbsDir(), hash(target) + ".jpg");
-        if (existsSync(oldThumb)) await rename(oldThumb, join(thumbsDir(), hash(renamed) + ".jpg")).catch(() => {});
-        target = renamed;
+  ipcMain.handle("projects:save", (_e, path: unknown, name: unknown, json: unknown): Promise<SaveResult> => {
+    if (typeof json !== "string") return Promise.resolve({ ok: false, error: "nothing to save" });
+    // One at a time: overlapping saves share a temp file, and a slow older one must not land after a newer one.
+    return saves.run(async () => {
+      try {
+        let target = typeof path === "string" && path.endsWith(".openroll") ? path : await freshProjectPath(String(name || "Untitled"));
+        // A renamed project gets a matching file name, but only inside our own projects folder.
+        const wanted = projectStem(String(name || ""));
+        const current = basename(target, ".openroll");
+        const matches = current === wanted || (current.startsWith(wanted + " ") && /^\d+$/.test(current.slice(wanted.length + 1)));
+        if (name && !matches && dirname(target) === projectsDir() && existsSync(target)) {
+          try {
+            const renamed = await freshProjectPath(wanted);
+            await rename(target, renamed);
+            await rm(target + ".bak", { force: true });
+            const oldThumb = join(thumbsDir(), hash(target) + ".jpg");
+            if (existsSync(oldThumb)) await rename(oldThumb, join(thumbsDir(), hash(renamed) + ".jpg")).catch(() => {});
+            target = renamed;
+          } catch {
+            // The file name is cosmetic; the save itself must not fail because of it.
+          }
+        }
+        await mkdir(dirname(target), { recursive: true });
+        await writeFileAtomic(target, json, true);
+        session.setProject(target);
+        void journal.record(json, { path: target, name: basename(target, ".openroll") }).catch(() => {});
+        return { ok: true, path: target };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
       }
-      await mkdir(dirname(target), { recursive: true });
-      const tmp = target + ".tmp";
-      await writeFile(tmp, json, "utf8");
-      if (existsSync(target)) await copyFile(target, target + ".bak").catch(() => {});
-      await rename(tmp, target);
-      session.setProject(target);
-      void journal.record(json, { path: target, name: basename(target, ".openroll") }).catch(() => {});
-      return { ok: true, path: target };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
+    });
   });
 
   ipcMain.handle("projects:thumb", async (_e, path: unknown, jpeg: unknown) => {
@@ -427,9 +437,10 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("projects:remove", async (_e, path: unknown) => {
-    if (typeof path !== "string" || !path.endsWith(".openroll") || !(path.startsWith(projectsDir()) || path.startsWith(defaultProjectsDir()))) return;
+    if (typeof path !== "string" || !path.endsWith(".openroll") || !(isInside(projectsDir(), path) || isInside(defaultProjectsDir(), path))) return;
     // Removing goes to the system trash, never straight to deletion.
     await shell.trashItem(path).catch(() => {});
+    await rm(join(thumbsDir(), hash(path) + ".jpg"), { force: true });
   });
 
   ipcMain.handle("cache:get", async (_e, key: unknown) => {
@@ -477,7 +488,7 @@ function registerIpc(): void {
 
   ipcMain.handle("cache:info", async (): Promise<CacheInfo> => ({ dir: cacheDir(), bytes: await folderSize(cacheDir()) }));
   ipcMain.handle("cache:clear", async () => {
-    await rm(cacheDir(), { recursive: true, force: true });
+    await clearCacheDir(cacheDir());
     media.reset();
   });
 
@@ -563,7 +574,7 @@ async function folderSize(dir: string): Promise<number> {
 async function freshProjectPath(name: string): Promise<string> {
   const dir = projectsDir();
   await mkdir(dir, { recursive: true });
-  const clean = name.replace(/[\\/:*?"<>|]/g, "_").trim() || "Untitled";
+  const clean = projectStem(name);
   let path = join(dir, clean + ".openroll");
   for (let n = 2; existsSync(path); n++) path = join(dir, `${clean} ${n}.openroll`);
   return path;
@@ -676,13 +687,16 @@ function guardMicrophone(): void {
 }
 
 // A second launch (the updater reopening the app, a double click) focuses the window that exists.
-if (!process.env.OPENROLL_QA && !app.requestSingleInstanceLock()) app.quit();
+const secondLaunch = !process.env.OPENROLL_QA && !app.requestSingleInstanceLock();
+if (secondLaunch) app.quit();
 app.on("second-instance", () => {
   if (win?.isMinimized()) win.restore();
   win?.focus();
 });
 
 app.whenReady().then(() => {
+  // A second launch must not touch the session marker, or it hides the first one's crash from the next start.
+  if (secondLaunch) return;
   nativeTheme.themeSource = "dark";
   session.begin();
   updater.start();
@@ -708,6 +722,7 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
+  if (secondLaunch) return;
   void control.stop();
   session.end();
   updater.applyOnQuit();

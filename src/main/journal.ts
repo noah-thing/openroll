@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HistoryEntry } from "../shared/api";
+import { Serial } from "./project-files";
 
 /** Versions kept per project. */
 export const KEEP = 20;
@@ -20,6 +21,8 @@ interface Meta {
 const SAFE_ID = /^[\w.-]{1,80}$/;
 
 export class Journal {
+  private queue = new Serial();
+
   constructor(private root: string) {}
 
   private dirFor(id: string): string {
@@ -40,7 +43,12 @@ export class Journal {
    * Keep this saved text as a version. Unchanged text is skipped, and a run of saves close together
    * rewrites the newest version instead of adding twenty near copies. `force` always starts a new one.
    */
-  async record(json: string, meta: Meta, opts: { force?: boolean; now?: number } = {}): Promise<void> {
+  record(json: string, meta: Meta, opts: { force?: boolean; now?: number } = {}): Promise<void> {
+    // Saves overlap with the open and restore that record too; two writers would trim and fold over each other.
+    return this.queue.run(() => this.write(json, meta, opts));
+  }
+
+  private async write(json: string, meta: Meta, opts: { force?: boolean; now?: number }): Promise<void> {
     const id = Journal.idOf(json);
     if (!id) return;
     const dir = this.dirFor(id);
