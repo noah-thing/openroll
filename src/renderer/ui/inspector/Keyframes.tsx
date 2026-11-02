@@ -110,7 +110,7 @@ export function KeyframeList({ editor, item }: { editor: Editor; item: Item }) {
                     aria-label="Easing to the next keyframe"
                     onChange={e => setCurve(e.target.value as Ease)}
                   >
-                    {custom && <option value="custom">Custom curve</option>}
+                    {custom && <option value="custom">Custom</option>}
                     {EASINGS.map(e => (
                       <option key={e.value} value={e.value}>
                         {e.label}
