@@ -4,8 +4,8 @@
 
 import { env } from "kokoro-transformers";
 import { KokoroTTS } from "kokoro-js";
-import wasmUrl from "kokoro-transformers/dist/ort-wasm-simd-threaded.jsep.wasm?url";
-import loaderUrl from "kokoro-transformers/dist/ort-wasm-simd-threaded.jsep.mjs?url";
+import wasmUrl from "kokoro-ort/ort-wasm-simd-threaded.wasm?url";
+import loaderUrl from "kokoro-ort/ort-wasm-simd-threaded.mjs?url";
 import type { TtsIn, TtsOut } from "./tts-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;

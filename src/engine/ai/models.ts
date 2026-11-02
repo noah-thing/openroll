@@ -81,8 +81,8 @@ let ortPromise: Promise<Ort> | null = null;
 export function loadOrt(): Promise<Ort> {
   ortPromise ??= import("onnxruntime-web").then(ort => {
     ort.env.wasm.wasmPaths = {
-      mjs: new URL("../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs", import.meta.url).href,
-      wasm: new URL("../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm", import.meta.url).href,
+      mjs: new URL("../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jspi.mjs", import.meta.url).href,
+      wasm: new URL("../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jspi.wasm", import.meta.url).href,
     };
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;

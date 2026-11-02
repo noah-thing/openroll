@@ -40,32 +40,85 @@ describe("progress parsing", () => {
 
 describe("probe summary", () => {
   it("applies rotation, snaps the rate and finds alpha", () => {
-    const s = parseProbe({
-      format: { duration: "10.0" },
-      streams: [
-        { codec_type: "video", codec_name: "prores", width: 1920, height: 1080, avg_frame_rate: "30000/1001", pix_fmt: "yuva444p10le", side_data_list: [{ rotation: -90 }], field_order: "progressive" },
-        { codec_type: "audio", codec_name: "ac3", channels: 6, sample_rate: "48000" },
-      ],
-    });
+    const s = parseProbe(
+      [
+        "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'a.mov':",
+        "  Metadata:",
+        "    major_brand     : qt  ",
+        "  Duration: 00:00:10.00, start: 0.000000, bitrate: 39827 kb/s",
+        "  Stream #0:0[0x1]: Video: prores (4444) (ap4h / 0x68347061), yuva444p10le(tv, bt709, progressive), 1920x1080, 39628 kb/s, SAR 1:1 DAR 16:9, 29.97 fps, 29.97 tbr, 30k tbn (default)",
+        "    Metadata:",
+        "    Side data:",
+        "      Display Matrix: rotation of -90.00 degrees",
+        "  Stream #0:1[0x2]: Audio: ac3 (ac-3 / 0x332D6361), 48000 Hz, 5.1(side), fltp, 192 kb/s (default)",
+      ].join("\n"),
+    );
     expect(s.video).toMatchObject({ width: 1080, height: 1920, fps: 29.97, hasAlpha: true, interlaced: false });
     expect(s.audio).toMatchObject({ codec: "ac3", channels: 6 });
     expect(s.duration).toBe(10);
   });
 
   it("ignores cover art and snaps near rates", () => {
-    const s = parseProbe({ streams: [{ codec_type: "video", width: 500, height: 500, avg_frame_rate: "90000/1", disposition: { attached_pic: 1 } }, { codec_type: "audio", codec_name: "mp3" }] });
+    const s = parseProbe(
+      [
+        "  Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, mono, fltp, 64 kb/s",
+        "  Stream #0:1: Video: mjpeg (Baseline), yuvj444p(pc, bt470bg/unknown/unknown), 300x300 [SAR 1:1 DAR 1:1], 90k tbr, 90k tbn (attached pic)",
+      ].join("\n"),
+    );
     expect(s.video).toBeNull();
+    expect(s.audio).toMatchObject({ codec: "mp3", channels: 1, sampleRate: 44100 });
     expect(snapRate(29.9)).toBe(29.97);
     expect(snapRate(15)).toBe(15);
     expect(snapRate(0)).toBe(30);
   });
 
+  it("reads interlacing, bare pixel formats and tbr only rates", () => {
+    const s = parseProbe(
+      [
+        "  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(top first), 640x360 [SAR 1:1 DAR 16:9], 664 kb/s, 25 tbr, 15k tbn (default)",
+        "  Stream #0:1: Audio: mp2 (mp3float) ([3][0][0][0] / 0x0003), 44100 Hz, 6 channels, fltp, 384 kb/s",
+      ].join("\n"),
+    );
+    expect(s.video).toMatchObject({ codec: "h264", interlaced: true, pixFmt: "yuv420p", fps: 25 });
+    expect(s.audio?.channels).toBe(6);
+    const bare = parseProbe("  Stream #0:0: Video: mpeg4 (Simple Profile) (FMP4 / 0x34504D46), yuv420p, 640x360 [SAR 1:1 DAR 16:9], 600 kb/s, 29.97 fps, 29.97 tbr, 29.97 tbn");
+    expect(bare.video).toMatchObject({ pixFmt: "yuv420p", interlaced: false, fps: 29.97 });
+  });
+
+  it("takes the old rotate tag and the longer stream duration", () => {
+    const s = parseProbe(
+      [
+        "  Duration: 00:00:02.00, start: 0.000000, bitrate: 1 kb/s",
+        "  Stream #0:0: Video: h264, yuv420p, 1920x1080, 30 fps",
+        "    Metadata:",
+        "      rotate          : 90",
+        "      DURATION        : 00:00:02.002000000",
+      ].join("\n"),
+    );
+    expect(s.video).toMatchObject({ width: 1080, height: 1920 });
+    expect(s.duration).toBeCloseTo(2.002);
+  });
+
+  it("does not believe a tag that looks like a stream line", () => {
+    const s = parseProbe(
+      [
+        "  Metadata:",
+        "    title           : x",
+        "                    :   Stream #0:0: Video: fake, 1x1, 1 fps",
+        "  Stream #0:0: Audio: aac (LC), 44100 Hz, stereo, fltp",
+        "    Metadata:",
+        "      name            : Stream #0:9: Video: evil, 8000x8000, 1 fps",
+      ].join("\n"),
+    );
+    expect(s.video).toBeNull();
+    expect(s.audio).toMatchObject({ channels: 2 });
+  });
+
   it("measures the keyframe gap", () => {
-    const pk = (t: number, k: boolean) => ({ pts_time: String(t), flags: k ? "K__" : "___" });
-    const every2 = Array.from({ length: 61 }, (_, i) => pk(i / 2, i % 4 === 0));
-    expect(keyframeInterval(every2)).toBe(2);
-    expect(keyframeInterval([pk(0, true), pk(1, false)])).toBeNull();
-    expect(keyframeInterval([pk(0, true), pk(30, false)])).toBe(30);
+    expect(keyframeInterval([0, 2, 4, 6, 8, 10], 30)).toBe(2);
+    expect(keyframeInterval([0], 5)).toBeNull();
+    expect(keyframeInterval([0], 30)).toBe(30);
+    expect(keyframeInterval([], 30)).toBeNull();
   });
 });
 

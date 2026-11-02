@@ -1,4 +1,4 @@
-// The fallback AAC encoder, forced on, writing a real file that the bundled ffprobe reads back.
+// The fallback AAC encoder, forced on, writing a real file that the bundled ffmpeg reads back.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,11 +6,12 @@ import { join } from "node:path";
 import { registerAacEncoder } from "@mediabunny/aac-encoder";
 import { AudioSample, AudioSampleSource, BufferTarget, Mp4OutputFormat, Output } from "mediabunny";
 import { describe, expect, it } from "vitest";
+import { parseProbe } from "../../src/main/ffmpeg-probe";
 
 const os = { darwin: "mac", win32: "win", linux: "linux" }[process.platform as string] ?? "";
-const ffprobe = join(__dirname, "../../resources/ffmpeg", `${os}-${process.arch}`, process.platform === "win32" ? "ffprobe.exe" : "ffprobe");
+const ffmpeg = join(__dirname, "../../resources/ffmpeg", `${os}-${process.arch}`, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 
-describe.skipIf(!existsSync(ffprobe))("wasm aac", { timeout: 60_000 }, () => {
+describe.skipIf(!existsSync(ffmpeg))("wasm aac", { timeout: 60_000 }, () => {
   it("encodes a second of stereo into an m4a", async () => {
     registerAacEncoder();
     const target = new BufferTarget();
@@ -28,9 +29,9 @@ describe.skipIf(!existsSync(ffprobe))("wasm aac", { timeout: 60_000 }, () => {
     const dir = mkdtempSync(join(tmpdir(), "openroll-aac-"));
     const file = join(dir, "tone.m4a");
     writeFileSync(file, new Uint8Array(target.buffer!));
-    const probe = JSON.parse(spawnSync(ffprobe, ["-v", "error", "-show_streams", "-of", "json", file], { encoding: "utf8" }).stdout);
+    const probe = parseProbe(spawnSync(ffmpeg, ["-hide_banner", "-i", file], { encoding: "utf8" }).stderr);
     rmSync(dir, { recursive: true, force: true });
-    expect(probe.streams[0]).toMatchObject({ codec_name: "aac", channels: 2, sample_rate: "48000" });
-    expect(Number(probe.streams[0].duration)).toBeGreaterThan(0.9);
+    expect(probe.audio).toMatchObject({ codec: "aac", channels: 2, sampleRate: 48000 });
+    expect(probe.duration).toBeGreaterThan(0.9);
   });
 });

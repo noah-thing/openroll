@@ -15,8 +15,8 @@ declare const self: DedicatedWorkerGlobalScope;
 
 // The runtime ships with the app, so the first run only has to fetch the model.
 env.backends.onnx.wasm!.wasmPaths = {
-  mjs: new URL("../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs", import.meta.url).href,
-  wasm: new URL("../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm", import.meta.url).href,
+  mjs: new URL("../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jspi.mjs", import.meta.url).href,
+  wasm: new URL("../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jspi.wasm", import.meta.url).href,
 };
 env.backends.onnx.wasm!.numThreads = Math.max(1, Math.min(4, (self.navigator.hardwareConcurrency ?? 4) - 1));
 env.allowLocalModels = false;

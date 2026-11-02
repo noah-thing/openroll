@@ -5,7 +5,6 @@ import { spawn } from "node:child_process";
 
 export interface Binaries {
   ffmpeg: string;
-  ffprobe: string | null;
 }
 
 const exe = (name: string) => (process.platform === "win32" ? `${name}.exe` : name);
@@ -32,15 +31,13 @@ export function findBinaries(): Binaries | null {
   for (const dir of candidates()) {
     const ffmpeg = join(dir, exe("ffmpeg"));
     if (!existsSync(ffmpeg)) continue;
-    const ffprobe = join(dir, exe("ffprobe"));
     prepare(ffmpeg);
-    if (existsSync(ffprobe)) prepare(ffprobe);
-    cached = { ffmpeg, ffprobe: existsSync(ffprobe) ? ffprobe : null };
+    cached = { ffmpeg };
     return cached;
   }
   if (!app.isPackaged) {
     const system = onPath("ffmpeg");
-    if (system) cached = { ffmpeg: system, ffprobe: onPath("ffprobe") };
+    if (system) cached = { ffmpeg: system };
   }
   cached ??= null;
   return cached;

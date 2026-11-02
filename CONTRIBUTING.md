@@ -21,7 +21,7 @@ npm run build
 node qa/launch.mjs qa/smoke.mjs          # drive the real app through a scenario
 ```
 
-`qa/` holds scenarios that launch the built app and use it like a person would. Each one runs with a fresh profile. They read test footage from `OPENROLL_TESTMEDIA`; `node qa/make-media.mjs <folder>` generates a full set with ffmpeg. Set `OPENROLL_QA_OUT` to skip save dialogs, and `FFPROBE` to the bundled ffprobe for the export checks.
+`qa/` holds scenarios that launch the built app and use it like a person would. Each one runs with a fresh profile. They read test footage from `OPENROLL_TESTMEDIA`; `node qa/make-media.mjs <folder>` generates a full set with ffmpeg. Set `OPENROLL_QA_OUT` to skip save dialogs, and `FFPROBE` to an ffprobe for the export checks; `node scripts/fetch-ffmpeg.mjs --probe` downloads one next to the bundled ffmpeg, and it is left out of the packaged app.
 
 Windows and Linux are checked in CI with the `verify` workflow, which builds the app on both and runs the main scenarios there. It only runs when started by hand.
 
