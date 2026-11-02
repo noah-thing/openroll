@@ -8,6 +8,8 @@ import { rasterShape } from "./shape-raster";
 import { loadFonts } from "./fonts";
 import { buildScene, frameNeeds, type SceneNode, type Visual } from "../core/scene";
 import { layerFields, syncLuts } from "./layer-look";
+import { frameKey } from "./frame-key";
+import { applyPatch } from "./project-patch";
 import { aiLayerFields, nextFrameTime, temporalLayer, temporalPlan } from "./ai/apply";
 import { AiStore } from "./ai/store";
 import { findItem, sourceTime, type MediaRef, type Project } from "../core/project";
@@ -30,6 +32,8 @@ let fontsReady = false;
 const aiStore = new AiStore();
 let renderTime = 0;
 let lostReported = false;
+/** What the canvas shows now. An identical scene is not drawn again. */
+let shownKey = "";
 let lastError = "";
 
 interface Source {
@@ -44,7 +48,7 @@ const reportedSlow = new Set<string>();
 const OFFSCREEN_READERS = 6;
 const images = new Map<string, ImageBitmap | Promise<ImageBitmap | null>>();
 
-const stats = { frames: 0, late: 0, since: performance.now(), worst: 0, settles: [] as number[] };
+const stats = { frames: 0, skipped: 0, late: 0, since: performance.now(), worst: 0, settles: [] as number[] };
 
 const now = () => performance.timeOrigin + performance.now();
 const post = (m: PreviewOut, transfer: Transferable[] = []) => self.postMessage(m, transfer);
@@ -72,15 +76,26 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
       project = m.project;
       urls = m.urls;
       pruneSources();
+      shownKey = "";
+      dirty = true;
+      break;
+    case "patch":
+      if (!project) break;
+      project = applyPatch(project, m.patch);
+      urls = m.urls;
+      pruneSources();
+      shownKey = "";
       dirty = true;
       break;
     case "size":
       outW = m.width;
       outH = m.height;
+      shownKey = "";
       dirty = true;
       break;
     case "ai":
       aiStore.sync(m.sync);
+      shownKey = "";
       dirty = true;
       break;
     case "decode":
@@ -89,6 +104,7 @@ self.onmessage = (e: MessageEvent<PreviewIn>) => {
       // Readers are made on demand, so dropping them is enough for the new choice to apply.
       for (const r of readers.values()) r.reader?.dispose();
       readers.clear();
+      shownKey = "";
       dirty = true;
       break;
     case "clock":
@@ -111,6 +127,7 @@ function makeCompositor(canvas: OffscreenCanvas): Compositor {
     try {
       compositor = makeCompositor(canvas);
       lostReported = false;
+      shownKey = "";
       dirty = true;
     } catch (err) {
       post({ type: "error", message: (err as Error).message });
@@ -321,8 +338,9 @@ const onScreen = new Set<string>();
 /** While set, this item renders without its look, for picking a key colour from the raw picture. */
 let bareItem: string | null = null;
 
-function renderAt(t: number, live: boolean): void {
-  if (!compositor || !project) return;
+/** Returns whether anything was drawn. A live frame identical to the one on screen is left alone. */
+function renderAt(t: number, live: boolean): boolean {
+  if (!compositor || !project) return false;
   const p = project;
   const scale = outW / p.settings.width;
   renderTime = t;
@@ -331,13 +349,23 @@ function renderAt(t: number, live: boolean): void {
   const scene = buildScene(p, t);
   onScreen.clear();
   for (const id of frameNeeds(scene).keys()) onScreen.add(id), onScreen.add(id + "#n");
+  let drawn = true;
   try {
-    compositor.render(toNodes(scene, p, scale), hexToRgb(p.settings.background));
+    const nodes = toNodes(scene, p, scale);
+    const background = hexToRgb(p.settings.background);
+    const key = live ? frameKey(nodes, background, outW, outH) : "";
+    if (live && key === shownKey) drawn = false;
+    else {
+      shownKey = "";
+      compositor.render(nodes, background);
+      shownKey = key;
+    }
   } finally {
     while (pendingClose.length) pendingClose.pop()!.close();
   }
   if (live && playing) prewarm(p, t);
   trimReaders();
+  return drawn;
 }
 
 /** Scrubbing across hundreds of clips opens a decoder per clip; keep only the most recent few of those off screen. */
@@ -371,6 +399,7 @@ async function snapshot(m: Extract<PreviewIn, { type: "snapshot" }>): Promise<vo
     post({ type: "snapshot", id: m.id, image: compositor.snapshot() });
   } finally {
     bareItem = null;
+    shownKey = "";
     outW = keepW;
     outH = keepH;
     snapshotting = false;
@@ -401,7 +430,8 @@ function loop(): void {
   if ((playing || dirty) && !snapshotting) {
     dirty = false;
     try {
-      renderAt(currentTime(), true);
+      if (renderAt(currentTime(), true)) stats.frames++;
+      else stats.skipped++;
       lastError = "";
     } catch (err) {
       // One bad frame must not end the render loop; say it once, not sixty times a second.
@@ -409,16 +439,16 @@ function loop(): void {
       if (message !== lastError) post({ type: "error", message });
       lastError = message;
     }
-    stats.frames++;
     stats.worst = Math.max(stats.worst, performance.now() - start);
   }
   if (performance.now() - stats.since > 1000) {
     const settles = stats.settles.sort((a, b) => a - b);
     const seekMs = settles.length ? Math.round(settles[Math.floor(settles.length / 2)]) : 0;
     const seekP95 = settles.length ? Math.round(settles[Math.floor(settles.length * 0.95)]) : 0;
-    post({ type: "stats", fps: stats.frames, late: stats.late, worstMs: Math.round(stats.worst * 10) / 10, readers: readers.size, open: VideoReader.openSamples, decoders: VideoReader.openDecoders, seekMs, seekP95, seeks: settles.length });
+    post({ type: "stats", fps: stats.frames, skipped: stats.skipped, late: stats.late, worstMs: Math.round(stats.worst * 10) / 10, readers: readers.size, open: VideoReader.openSamples, decoders: VideoReader.openDecoders, seekMs, seekP95, seeks: settles.length });
     stats.settles = [];
     stats.frames = 0;
+    stats.skipped = 0;
     stats.late = 0;
     stats.worst = 0;
     stats.since = performance.now();

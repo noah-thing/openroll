@@ -92,6 +92,13 @@ interface Feedback {
 
 const BLEND_INDEX: Record<BlendMode, number> = { normal: 0, screen: 1, multiply: 2, overlay: 3, add: 4, lighten: 5, darken: 6 };
 
+/** A frame being copied out of the GPU. */
+export interface PendingRead {
+  buffer: WebGLBuffer;
+  fence: WebGLSync;
+  bytes: number;
+}
+
 interface CachedTexture {
   tex: WebGLTexture;
   version: number | string;
@@ -122,6 +129,8 @@ export class Compositor {
   private accSwap!: Target;
   private scratch: Target[] = [];
   private frame = 0;
+  private readBuffers: WebGLBuffer[] = [];
+  private readBytes = 0;
   private projW = 1920;
   private projH = 1080;
   private lost = false;
@@ -247,8 +256,11 @@ export class Compositor {
 
     for (const node of nodes) {
       if (node.kind === "layer") {
-        const done = this.needsPasses(node.layer) ? this.renderLayer(node.layer) : this.drawPlain(node.layer);
-        this.blendOnto(done, node.layer.blend ?? "normal");
+        const layer = node.layer;
+        const mode = layer.blend ?? "normal";
+        // Normal blending is the same over operation the hardware does, so these skip the full screen pass.
+        if (mode === "normal" && !(layer.trail && layer.trail.length > 1)) this.drawInto(layer, this.acc);
+        else this.blendOnto(this.needsPasses(layer) ? this.renderLayer(layer) : this.drawPlain(layer), mode);
       } else {
         const top = this.borrow(0);
         const a = this.borrow(1);
@@ -701,6 +713,51 @@ export class Compositor {
     gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, into);
   }
 
+  /**
+   * Start copying the last render into a pixel buffer and return at once, so the GPU can
+   * finish it while the caller moves on. Collect the bytes with `finishRead`.
+   */
+  beginRead(transparent: boolean): PendingRead {
+    const gl = this.gl;
+    const w = this.canvas.width, h = this.canvas.height;
+    const bytes = w * h * 4;
+    let buffer = this.readBuffers.pop();
+    if (!buffer || this.readBytes !== bytes) {
+      if (buffer) gl.deleteBuffer(buffer);
+      for (const b of this.readBuffers) gl.deleteBuffer(b);
+      this.readBuffers = [];
+      this.readBytes = bytes;
+      buffer = gl.createBuffer()!;
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+      gl.bufferData(gl.PIXEL_PACK_BUFFER, bytes, gl.STREAM_READ);
+    }
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+    if (transparent) this.acc.bind();
+    else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)!;
+    gl.flush();
+    return { buffer, fence, bytes };
+  }
+
+  /** Wait for a `beginRead` to land and copy its bytes into `into`, which must be the size of the frame. */
+  async finishRead(read: PendingRead, into: Uint8Array): Promise<void> {
+    const gl = this.gl;
+    while (true) {
+      const status = gl.clientWaitSync(read.fence, 0, 0);
+      if (status === gl.WAIT_FAILED) throw new Error("The graphics device was reset.");
+      if (status !== gl.TIMEOUT_EXPIRED) break;
+      await nextTask();
+    }
+    gl.deleteSync(read.fence);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, read.buffer);
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, into);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    if (read.bytes === this.readBytes) this.readBuffers.push(read.buffer);
+    else gl.deleteBuffer(read.buffer);
+  }
+
   /** Read the current output back, e.g. for a project thumbnail. */
   snapshot(): ImageData {
     const gl = this.gl;
@@ -721,6 +778,7 @@ export class Compositor {
     for (const t of this.matteTextures.values()) this.gl.deleteTexture(t.tex);
     this.matteTextures.clear();
     this.ai.dispose();
+    for (const b of this.readBuffers) this.gl.deleteBuffer(b);
     this.acc?.dispose();
     this.accSwap?.dispose();
     for (const t of this.scratch) t?.dispose();
@@ -731,6 +789,17 @@ export class Compositor {
     }
     this.gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
+}
+
+let channel: MessageChannel | null = null;
+
+/** A turn of the event loop without the minimum delay timers carry. */
+function nextTask(): Promise<void> {
+  const c = (channel ??= new MessageChannel());
+  return new Promise(resolve => {
+    c.port1.onmessage = () => resolve();
+    c.port2.postMessage(0);
+  });
 }
 
 export function hexToRgb(hex: string): [number, number, number] {

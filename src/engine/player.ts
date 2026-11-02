@@ -2,9 +2,13 @@ import { AudioEngine } from "./audio";
 import type { PreviewIn, PreviewOut } from "./preview-protocol";
 import type { AiSync } from "./ai/protocol";
 import { projectDuration, type Micros, type Project } from "../core/project";
+import { audioKey } from "../core/audio-plan";
+import { diffProject } from "./project-patch";
 
 export interface PreviewStats {
+  /** Frames drawn per second; a loop pass that found nothing new is counted in `skipped` instead. */
   fps: number;
+  skipped: number;
   late: number;
   worstMs: number;
   readers: number;
@@ -26,13 +30,17 @@ export class Player {
   private worker: Worker;
   private audio = new AudioEngine();
   private project: Project | null = null;
+  /** The project the worker holds, which edits are sent against. */
+  private sent: Project | null = null;
+  /** What the running audio was built from. */
+  private heard = "";
   private urls: Record<string, string> = {};
   private still: Micros = 0;
   private endTimer = 0;
   private listeners = new Set<Listener>();
   private snapshots = new Map<number, (img: ImageData) => void>();
   private nextSnapshot = 1;
-  stats: PreviewStats = { fps: 0, late: 0, worstMs: 0, readers: 0, open: 0, decoders: 0, seekMs: 0, seekP95: 0, seeks: 0 };
+  stats: PreviewStats = { fps: 0, skipped: 0, late: 0, worstMs: 0, readers: 0, open: 0, decoders: 0, seekMs: 0, seekP95: 0, seeks: 0 };
   onError: ((message: string) => void) | null = null;
   /** A reader could not keep up while playing, so its source is a candidate for a proxy. */
   onSlowDecode: ((mediaId: string) => void) | null = null;
@@ -83,9 +91,11 @@ export class Player {
     const was = this.project;
     this.project = p;
     this.urls = urls;
-    this.send({ type: "project", project: p, urls });
-    // Edits while playing restart audio from where we are, so what you hear matches what you see.
-    if (this.playing && was !== p) this.restart();
+    const patch = this.sent ? diffProject(this.sent, p) : null;
+    this.send(patch ? { type: "patch", patch, urls } : { type: "project", project: p, urls });
+    this.sent = p;
+    // Audio restarts from where we are only when the edit changes what you hear.
+    if (this.playing && was !== p && audioKey(p, urls) !== this.heard) this.restart();
     if (!this.playing && this.still > this.duration) this.seek(this.duration);
   }
 
@@ -106,6 +116,7 @@ export class Player {
     if (!this.project || this.playing) return;
     if (this.still >= this.duration - 1000) this.still = 0;
     // The audio context runs even with nothing to play, so it is always the clock.
+    this.heard = audioKey(this.project, this.urls);
     await this.audio.play(this.project, this.still, this.urls);
     this.send({ type: "clock", playing: true, t: this.still, at: this.audio.wallAtStart(), rate: 1 });
     this.scheduleEnd();
