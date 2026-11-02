@@ -25,12 +25,12 @@ export default async function ({ page, shot }) {
   await page.click(".modal .export");
   await page.waitForSelector(".modal-done, .modal-warn", { timeout: 300000 });
   const secs = (Date.now() - t0) / 1000;
-  const text = await page.locator(".modal-body").innerText();
+  const text = await page.locator(".modal-body.export-jobs").innerText();
   console.log("export of 4 s took", secs.toFixed(1), "s:", text.replace(/\n/g, " | "));
   check("export finished", /Saved/.test(text));
   const path = (await page.locator(".modal-path").textContent())?.trim();
   if (path) {
-    console.log(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height,nb_frames", "-of", "csv=p=0", path]).toString().trim());
-    execFileSync("ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", path, "-frames:v", "1", "qa/shots/ai-export-frame.png"]);
+    console.log(execFileSync(process.env.FFPROBE ?? "ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height,nb_frames", "-of", "csv=p=0", path]).toString().trim());
+    execFileSync(process.env.FFMPEG ?? "ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", path, "-frames:v", "1", "qa/shots/ai-export-frame.png"]);
   }
 }

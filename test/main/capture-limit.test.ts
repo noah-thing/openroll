@@ -31,4 +31,11 @@ describe("parseProbe limits", () => {
     expect(r.stderr.startsWith("head")).toBe(true);
     expect(r.stderr.length).toBeLessThanOrEqual(256 * 1024);
   });
+
+  it("keeps both ends of a listing that is mostly chapters", async () => {
+    const script = "process.stderr.write('  Duration: 00:00:03.00\\n'+'c'.repeat(1<<20)+'\\n  Stream #0:0: Audio: aac, 44100 Hz, mono\\n')";
+    const r = await capture(process.execPath, ["-e", script], 15_000, "ends");
+    expect(r.stderr.length).toBeLessThan(140 * 1024);
+    expect(parseProbe(r.stderr)).toMatchObject({ duration: 3, audio: { codec: "aac", channels: 1 } });
+  });
 });
