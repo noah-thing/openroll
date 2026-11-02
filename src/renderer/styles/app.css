@@ -539,6 +539,8 @@ a.textbtn { text-decoration: none; }
 .badge-proxy { background: rgba(75, 139, 245, 0.72); }
 .tile-find { position: absolute; inset: auto 5px 5px 5px; z-index: 1; border: 0; border-radius: 4px; padding: 3px 6px; background: rgba(255, 255, 255, 0.92); color: #111; font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; }
 .tile-find:hover { background: #fff; }
+/* The button covers the bottom edge, so the length would sit half under it. */
+.tile-find ~ .tile-dur { display: none; }
 .missing-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 12px 10px; padding: 6px 6px 6px 10px; border-radius: var(--radius); background: rgba(239, 81, 70, 0.14); color: #ffb4ae; font-size: 12px; }
 .clip-badge-missing, .clip-badge-failed { background: var(--danger); color: #fff; }
 .clip-badge-proxy { background: rgba(75, 139, 245, 0.7); color: #fff; }

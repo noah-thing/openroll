@@ -97,11 +97,13 @@ export default async function ({ page, shot }) {
   async function exportNow(name) {
     await page.keyboard.press(process.platform === "darwin" ? "Meta+e" : "Control+e");
     await page.waitForSelector(".modal");
+    // The dialog keeps earlier results listed, so wait for one more and read the newest.
+    const before = await page.locator(".modal-done, .modal-warn").count();
     const t0 = Date.now();
     await page.click(".modal .export");
-    await page.waitForSelector(".modal-done, .modal-warn", { timeout: 300000 });
+    await page.waitForFunction(n => document.querySelectorAll(".modal-done, .modal-warn").length > n, before, { timeout: 300000 });
     const seconds = (Date.now() - t0) / 1000;
-    const file = (await page.locator(".modal-path").first().innerText()).trim();
+    const file = (await page.locator(".modal-path").last().innerText()).trim();
     const copy = join(out, name + ".mp4");
     ff("-i", file, "-c", "copy", copy);
     await page.click('.modal [aria-label="Close"]');

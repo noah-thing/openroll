@@ -101,7 +101,18 @@ describe("split", () => {
       words: [{ text: "one", start: 0, end: S }, { text: "two", start: S, end: 2 * S }, { text: "three", start: 2 * S, end: 3 * S }] }]);
     const next = split(p, 1.5 * S);
     const caps = next.tracks.flatMap(t => t.items).filter(i => i.type === "caption");
-    expect(caps.map(c => c.type === "caption" && c.words.map(w => w.text))).toEqual([["one", "two"], ["two", "three"]]);
+    expect(caps.map(c => c.type === "caption" && c.words.map(w => w.text))).toEqual([["one", "two"], ["three"]]);
+  });
+
+  it("gives a word spoken across the cut to the half that holds most of it", () => {
+    let p = createProject("c");
+    p = insertItems(p, [{ id: "cap", type: "caption", start: 0, duration: 3 * S, transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+      style: { text: "", font: "x", size: 10, weight: 700, color: "#fff", align: "center", lineHeight: 1.2, letterSpacing: 0 },
+      words: [{ text: "one", start: 0, end: S }, { text: "two", start: S, end: 2 * S }, { text: "three", start: 2 * S, end: 3 * S }] }]);
+    const caps = split(p, 1.8 * S).tracks.flatMap(t => t.items).filter(i => i.type === "caption");
+    expect(caps.map(c => c.type === "caption" && c.words.map(w => w.text))).toEqual([["one", "two"], ["three"]]);
+    const early = split(p, 1.2 * S).tracks.flatMap(t => t.items).filter(i => i.type === "caption");
+    expect(early.map(c => c.type === "caption" && c.words.map(w => w.text))).toEqual([["one"], ["two", "three"]]);
   });
 });
 

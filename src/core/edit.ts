@@ -256,8 +256,15 @@ export function split(p: Project, t: Micros, ids?: string[], minPiece: Micros = 
       item.fadeOut = 0;
     }
     if (item.type === "caption" && right.type === "caption") {
-      right.words = item.words.filter(w => w.end > cut).map(w => ({ ...w, start: Math.max(0, w.start - cut), end: w.end - cut }));
-      item.words = item.words.filter(w => w.start < cut).map(w => ({ ...w, end: Math.min(w.end, cut) }));
+      const all = item.words;
+      // A word spoken across the cut goes to the half that holds most of it, so it is not shown twice.
+      let left = all.filter(w => w.start < cut && (w.end <= cut || cut - w.start >= w.end - cut));
+      let rest = all.filter(w => w.end > cut && (w.start >= cut || w.end - cut > cut - w.start));
+      // A half never ends up with nothing to say when a word at least touches it.
+      if (!left.length) left = all.filter(w => w.start < cut);
+      if (!rest.length) rest = all.filter(w => w.end > cut);
+      right.words = rest.map(w => ({ ...w, start: Math.max(0, w.start - cut), end: w.end - cut }));
+      item.words = left.map(w => ({ ...w, end: Math.min(w.end, cut) }));
     }
     splitKeyframes(item, right, cut);
     track.items.splice(index + 1, 0, right);
