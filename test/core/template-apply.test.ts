@@ -36,6 +36,27 @@ function withMedia(): Project {
   return addMedia(createProject("p"), [ref("one", 10), ref("two", 1), ref("song", 30, "audio")]);
 }
 
+describe("a new frame shape", () => {
+  const shapes = make({
+    frame: { width: 1920, height: 1080 },
+    tracks: [
+      { kind: "video", name: "Shapes", items: [
+        { type: "shape", start: 0, duration: S, shape: { kind: "ellipse", color: "#ffffff" }, width: 200, height: 200 },
+        { type: "shape", start: S, duration: S, shape: { kind: "rect", color: "#ffffff" }, width: 1920, height: 100 },
+      ] },
+    ],
+  });
+
+  it("keeps a circle round and lets a full width bar span the new width", () => {
+    const portrait = { ...createProject("p"), settings: { ...createProject("p").settings, width: 1080, height: 1920 } };
+    const items = applyTemplate(portrait, shapes, { at: 0 }).project.tracks.flatMap(t => t.items);
+    const circle = items.find(i => i.type === "shape" && i.shape.kind === "ellipse");
+    const bar = items.find(i => i.type === "shape" && i.shape.kind === "rect");
+    expect(circle?.type === "shape" && circle.width).toBe(circle?.type === "shape" ? circle.height : -1);
+    expect(bar?.type === "shape" && bar.width).toBe(1080);
+  });
+});
+
 describe("chooseFills", () => {
   it("does not take clips from a locked track, which the template could not replace", () => {
     const p = withMedia();
@@ -217,6 +238,8 @@ describe("apply_template operation", () => {
     expect(() => applyOps(withMedia(), [{ op: "apply_template", template: "nope" }], { template: lookup })).toThrow(/list_templates/);
     expect(() => applyOps(withMedia(), [{ op: "apply_template", template: "t", media: ["ghost"] }], { template: lookup })).toThrow(/no media ghost/);
     expect(() => applyOps(withMedia(), [{ op: "apply_template", template: "t" }])).toThrow(/no template/);
+    expect(() => applyOps(withMedia(), [{ op: "apply_template", template: "t", media: "one" as unknown as string[] }], { template: lookup })).toThrow(/media must be a list/);
+    expect(() => applyOps(withMedia(), [{ op: "apply_template", template: "t", ids: [1] as unknown as string[] }], { template: lookup })).toThrow(/ids must be a list/);
   });
 
   it("reports empty slots", () => {

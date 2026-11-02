@@ -141,6 +141,12 @@ function strip<T extends object>(o: T): T {
   return o;
 }
 
+/** Circles, squares and stickers keep their proportions in a new frame; bars and bands follow it. */
+function shapeSize(width: number, height: number, sticker: boolean, fit: Fit): { width: number; height: number } {
+  const locked = sticker || Math.abs(width / height - 1) < 0.02;
+  return locked ? { width: width * fit.k, height: height * fit.k } : { width: width * fit.kx, height: height * fit.ky };
+}
+
 type SlotItem = Extract<TemplateItem, { type: "slot" }>;
 
 function filledSlot(p: Project, ti: SlotItem, fill: SlotFill, origin: Micros, fit: Fit): MediaItem {
@@ -247,8 +253,7 @@ function realize(p: Project, ti: TemplateItem, origin: Micros, fit: Fit, fills: 
         name: stickerName(s.kind, s.sticker),
         ...base,
         shape: strip({ ...s, stroke: s.stroke && { ...s.stroke, width: s.stroke.width * fit.k }, radius: s.radius === undefined ? undefined : s.radius * fit.k, thickness: s.thickness === undefined ? undefined : s.thickness * fit.k }),
-        width: ti.width * fit.kx,
-        height: ti.height * fit.ky,
+        ...shapeSize(ti.width, ti.height, s.kind === "sticker", fit),
       };
       return { items: [shape], labels: [] };
     }

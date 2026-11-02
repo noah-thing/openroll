@@ -54,8 +54,8 @@ export class Templates {
 
   private async read(path: string): Promise<{ ok: true; template: Template } | { ok: false; error: string }> {
     const s = await stat(path).catch(() => null);
-    if (!s?.isFile()) return { ok: false, error: "could not be read" };
-    if (s.size > TEMPLATE_LIMITS.bytes) return { ok: false, error: "is too large to be a template" };
+    if (!s?.isFile()) return { ok: false, error: "The file could not be read." };
+    if (s.size > TEMPLATE_LIMITS.bytes) return { ok: false, error: "This template is too large to be a real one." };
     return parseTemplate(await readFile(path, "utf8"));
   }
 
@@ -97,7 +97,7 @@ export class Templates {
       const name = basename(path);
       const read = await this.read(path);
       if (!read.ok) {
-        result.problems.push(`${name} ${read.error}`);
+        result.problems.push(`${name}: ${read.error}`);
         continue;
       }
       let t = read.template;
@@ -114,7 +114,7 @@ export class Templates {
       if (saved.ok) {
         result.added.push(saved.template);
         have.push(saved.template);
-      } else result.problems.push(`${name} ${saved.error}`);
+      } else result.problems.push(`${name}: ${saved.error}`);
     }
     return result;
   }

@@ -183,7 +183,7 @@ export function reportImport(editor: Editor, r: TemplateImport): void {
     templateStore.add(r.added);
     editor.toast(r.added.length === 1 ? `Added ${r.added[0].name} to your templates` : `Added ${plural(r.added.length, "template")} to your templates`);
   } else if (r.duplicates && !r.problems.length) editor.toast("Already in your templates");
-  if (r.problems.length) editor.toast(r.problems.length === 1 ? `${r.problems[0]}.` : `${plural(r.problems.length, "file")} could not be used. ${r.problems[0]}.`, { tone: "error" });
+  if (r.problems.length) editor.toast(r.problems.length === 1 ? r.problems[0] : `${plural(r.problems.length, "file")} could not be used. ${r.problems[0]}`, { tone: "error" });
 }
 
 /** A template file dropped anywhere on the editor is imported, wherever the drop lands. */
