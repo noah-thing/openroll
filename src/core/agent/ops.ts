@@ -376,6 +376,7 @@ export function applyOps(start: Project, ops: Op[], ctx: OpContext = {}): { proj
           if (typeof o.template !== "string") throw new Error("template is an id or name from list_templates");
           const t = ctx.template?.(o.template);
           if (!t) throw new Error(`no template ${o.template}; call list_templates for the ids`);
+          for (const key of ["media", "ids"] as const) if (o[key] !== undefined && (!Array.isArray(o[key]) || o[key].some(v => typeof v !== "string"))) throw new Error(`${key} must be a list of ids`);
           if (t.kind === "captions") {
             const next = applyCaptionStyle(p, t, o.ids?.map(ref));
             if (next === p) throw new Error("there are no captions to restyle; generate captions first");

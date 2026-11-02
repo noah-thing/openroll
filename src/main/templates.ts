@@ -7,9 +7,12 @@ import { safeFileName } from "../shared/paths";
 import { TEMPLATES_BASE } from "../shared/links";
 import type { CommunityState, SaveTemplateResult, TemplateImport } from "../shared/templates";
 import { writeFileAtomic } from "./project-files";
+import { readCapped } from "./read-capped";
 
 const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const FETCH_AT_ONCE = 4;
+/** One file of a slow connection should not hold the panel on its spinner. */
+const FETCH_TIMEOUT_MS = 15_000;
 
 /**
  * The person's template files, and the community list read from the repository. Every file
@@ -51,8 +54,8 @@ export class Templates {
 
   private async read(path: string): Promise<{ ok: true; template: Template } | { ok: false; error: string }> {
     const s = await stat(path).catch(() => null);
-    if (!s?.isFile()) return { ok: false, error: "could not be read" };
-    if (s.size > TEMPLATE_LIMITS.bytes) return { ok: false, error: "is too large to be a template" };
+    if (!s?.isFile()) return { ok: false, error: "The file could not be read." };
+    if (s.size > TEMPLATE_LIMITS.bytes) return { ok: false, error: "This template is too large to be a real one." };
     return parseTemplate(await readFile(path, "utf8"));
   }
 
@@ -94,7 +97,7 @@ export class Templates {
       const name = basename(path);
       const read = await this.read(path);
       if (!read.ok) {
-        result.problems.push(`${name} ${read.error}`);
+        result.problems.push(`${name}: ${read.error}`);
         continue;
       }
       let t = read.template;
@@ -111,7 +114,7 @@ export class Templates {
       if (saved.ok) {
         result.added.push(saved.template);
         have.push(saved.template);
-      } else result.problems.push(`${name} ${saved.error}`);
+      } else result.problems.push(`${name}: ${saved.error}`);
     }
     return result;
   }
@@ -169,24 +172,26 @@ export class Templates {
     const before = await this.cached();
     try {
       const get = async (name: string): Promise<unknown> => {
-        const res = await net.fetch(this.base + name, { headers: { "User-Agent": `OpenRoll/${app.getVersion()}` }, cache: "no-cache" });
+        // The files sit at fixed addresses, so a redirect means something is wrong.
+        const res = await net.fetch(this.base + name, { headers: { "User-Agent": `OpenRoll/${app.getVersion()}` }, cache: "no-cache", redirect: "error", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
         if (!res.ok) throw new Error(`${res.status}`);
-        const body = await res.text();
-        if (body.length > TEMPLATE_LIMITS.bytes) throw new Error("too large");
-        return JSON.parse(body);
+        return JSON.parse(await readCapped(res, TEMPLATE_LIMITS.bytes));
       };
       const entries = parseIndex(await get("index.json"));
       const templates: Template[] = [];
       for (let i = 0; i < entries.length; i += FETCH_AT_ONCE) {
         const batch = await Promise.all(
           entries.slice(i, i + FETCH_AT_ONCE).map(async e => {
+            let raw: unknown;
             try {
-              const r = sanitizeTemplate(await get(e.file));
-              // The index describes the file; a file that is something else is not trusted under that description.
-              return r.ok && r.template.id === e.id && r.template.kind === e.kind ? r.template : null;
+              raw = await get(e.file);
             } catch {
-              return null;
+              // The network failed, not the file: keep the copy from last time instead of dropping it.
+              return before.templates.find(t => t.id === e.id && t.kind === e.kind) ?? null;
             }
+            const r = sanitizeTemplate(raw);
+            // The index describes the file; a file that is something else is not trusted under that description.
+            return r.ok && r.template.id === e.id && r.template.kind === e.kind ? r.template : null;
           }),
         );
         templates.push(...batch.filter((t): t is Template => !!t));

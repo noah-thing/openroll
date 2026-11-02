@@ -135,6 +135,18 @@ export default async function ({ page, shot }) {
   await page.waitForTimeout(200);
   check("undo restores the previous font", (await model()).font === "Anton");
 
+  // A space typed inside a name keeps searching; it does not pick the highlighted font.
+  await page.click(".font-trigger");
+  await page.waitForSelector(".font-list");
+  await page.keyboard.type("archivo b");
+  check("a space while typing does not close the list", (await page.locator(".font-list").count()) === 1);
+  await page.keyboard.press("Enter");
+  await page.waitForSelector(".font-list", { state: "detached" });
+  check("typing a name with a space finds it", (await model()).font === "Archivo Black");
+  await page.evaluate(() => window.__or.editor.undo());
+  await page.waitForTimeout(200);
+  check("undo goes back to Anton again", (await model()).font === "Anton");
+
   // Export both ways and measure the text in the files.
   const open = async () => {
     await page.keyboard.press(process.platform === "darwin" ? "Meta+e" : "Control+e");
