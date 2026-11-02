@@ -12,8 +12,7 @@ import type { PipeFormat, PipeSpec } from "../../src/shared/ffexport";
 const os = { darwin: "mac", win32: "win", linux: "linux" }[process.platform as string] ?? "";
 const dir = join(__dirname, "../../resources/ffmpeg", `${os}-${process.arch}`);
 const ffmpeg = join(dir, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
-const ffprobe = join(dir, process.platform === "win32" ? "ffprobe.exe" : "ffprobe");
-const have = existsSync(ffmpeg) && existsSync(ffprobe);
+const have = existsSync(ffmpeg);
 
 const tmp = mkdtempSync(join(tmpdir(), "openroll-ffreal-"));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -22,11 +21,16 @@ const run = (args: string[]) => {
   const r = spawnSync(ffmpeg, ["-hide_banner", "-y", "-nostdin", ...args], { encoding: "utf8" });
   if (r.status !== 0) throw new Error(r.stderr.slice(-600));
 };
-const probe = (file: string) => {
-  const r = spawnSync(ffprobe, ["-v", "error", "-show_streams", "-show_format", "-of", "json", file], { encoding: "utf8" });
-  return parseProbe(JSON.parse(r.stdout)) as ReturnType<typeof parseProbe> & { raw: { streams: { codec_name: string; pix_fmt?: string }[] } };
+const listing = (file: string) => spawnSync(ffmpeg, ["-hide_banner", "-i", file], { encoding: "utf8" }).stderr;
+const probe = (file: string) => parseProbe(listing(file));
+/** Every stream's codec, plus the picture format and size of video ones, read from the same listing the app reads. */
+const streams = (file: string) =>
+  [...listing(file).matchAll(/^ {2}Stream #[^:]+:[^:]+: (Video|Audio): ([\w-]+)(?: \([^)]*\))*(?:, ([a-z0-9]+)(?:\([^)]*\))?, (\d+)x\d+)?/gm)].map(m => ({ codec_name: m[2], pix_fmt: m[3], width: m[4] ? Number(m[4]) : undefined }));
+/** Frames the video decodes to. */
+const decodedFrames = (file: string) => {
+  const out = spawnSync(ffmpeg, ["-hide_banner", "-i", file, "-map", "0:v:0", "-f", "null", "-"], { encoding: "utf8" }).stderr;
+  return Number([...out.matchAll(/frame= *(\d+)/g)].pop()?.[1]);
 };
-const streams = (file: string) => JSON.parse(spawnSync(ffprobe, ["-v", "error", "-show_streams", "-of", "json", file], { encoding: "utf8" }).stdout).streams as { codec_name: string; pix_fmt?: string; width?: number; nb_frames?: string }[];
 
 describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
   const W = 320, H = 180;
@@ -54,7 +58,7 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
     const s = streams(f);
     expect(s.find(x => x.codec_name === "prores")?.pix_fmt).toBe("yuv422p10le");
     expect(s.some(x => x.codec_name === "pcm_s16le")).toBe(true);
-    expect(s.find(x => x.codec_name === "prores")?.nb_frames).toBe("30");
+    expect(decodedFrames(f)).toBe(30);
   });
 
   it("keeps the last picture when the sound ends part way through it", () => {
@@ -66,8 +70,7 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
       const out = join(tmp, `short-${format}.out`);
       const a = pipeArgs(spec(format, { hasAudio: true }), frames, short, out, join(tmp, "p.png"));
       run(a.main);
-      const read = spawnSync(ffprobe, ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", out], { encoding: "utf8" });
-      expect(read.stdout.trim(), format).toBe("31");
+      expect(decodedFrames(out), format).toBe(31);
     }
   });
 
@@ -87,7 +90,8 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
 
   it("writes a GIF with the right size and frame count", () => {
     const f = encode(spec("gif"), "a.gif");
-    expect(streams(f)[0]).toMatchObject({ codec_name: "gif", width: W, nb_frames: "30" });
+    expect(streams(f)[0]).toMatchObject({ codec_name: "gif", width: W });
+    expect(decodedFrames(f)).toBe(30);
   });
 
   it("writes a transparent GIF", () => {
@@ -111,13 +115,15 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
     run(prepareArgs(src, out, info, { encoders }).slice(0, -1).concat(["-f", "mp4", out]));
     const s = streams(out);
     expect(s.map(x => x.codec_name).sort()).toEqual(["aac", "h264"]);
-    expect(s.find(x => x.codec_name === "h264")).toMatchObject({ width: 1280, pix_fmt: "yuv420p", nb_frames: "50" });
+    expect(s.find(x => x.codec_name === "h264")).toMatchObject({ width: 1280, pix_fmt: "yuv420p" });
+    expect(decodedFrames(out)).toBe(50);
 
     const big = join(tmp, "big.mp4");
     run(["-f", "lavfi", "-i", "testsrc2=s=2560x1440:r=30:d=2", "-c:v", "libx264", "-g", "120", big]);
     const proxy = join(tmp, "proxy.mp4");
     run(proxyArgs(big, proxy, probe(big), { encoders }).slice(0, -1).concat(["-f", "mp4", proxy]));
-    expect(streams(proxy)[0]).toMatchObject({ codec_name: "h264", width: 1706, nb_frames: "60" });
+    expect(streams(proxy)[0]).toMatchObject({ codec_name: "h264", width: 1706 });
+    expect(decodedFrames(proxy)).toBe(60);
   });
   it("encodes an audio only m4a from the staged mix, for Chromium builds with no AAC encoder", () => {
     const spec: PipeSpec = { format: "m4a-aac", width: W, height: H, fps: 30, transparent: false, bitrate: 0, hasAudio: true };

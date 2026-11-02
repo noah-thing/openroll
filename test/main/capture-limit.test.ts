@@ -17,12 +17,18 @@ describe("capture", () => {
 
 describe("parseProbe limits", () => {
   it("ignores a video stream with absurd dimensions", () => {
-    const r = parseProbe({ streams: [{ codec_type: "video", codec_name: "h264", width: 4_000_000_000, height: 1080 }], format: { duration: "1" } });
+    const r = parseProbe("  Duration: 00:00:01.00, start: 0.000000\n  Stream #0:0: Video: h264, yuv420p, 4000000000x1080, 25 fps\n");
     expect(r.video).toBeNull();
   });
 
   it("caps a claimed duration", () => {
-    const r = parseProbe({ streams: [{ codec_type: "audio", codec_name: "aac" }], format: { duration: "1e300" } });
+    const r = parseProbe("  Duration: 99999999:00:00.00, start: 0.000000\n  Stream #0:0: Audio: aac, 44100 Hz, stereo\n");
     expect(r.duration).toBeLessThanOrEqual(360_000);
+  });
+
+  it("keeps the start of a long listing and drops the rest", async () => {
+    const r = await capture(process.execPath, ["-e", "process.stderr.write('head'+'x'.repeat(1<<20))"], 15_000, "head");
+    expect(r.stderr.startsWith("head")).toBe(true);
+    expect(r.stderr.length).toBeLessThanOrEqual(256 * 1024);
   });
 });

@@ -73,8 +73,13 @@ function killTree(child: ChildProcess): void {
 
 const MAX_CAPTURE = 16 * 1024 * 1024;
 
-/** Runs a short command to completion and returns what it printed. Used for ffprobe and capability checks. */
-export function capture(bin: string, args: string[], timeoutMs = 20_000): Promise<{ stdout: string; stderr: string; code: number | null }> {
+const MAX_STDERR = 256 * 1024;
+
+/**
+ * Runs a short command to completion and returns what it printed. Stderr keeps its last few
+ * thousand characters, where an error ends up, or with "head" its first 256 KiB, where ffmpeg lists a file's streams.
+ */
+export function capture(bin: string, args: string[], timeoutMs = 20_000, keep: "tail" | "head" = "tail"): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -82,7 +87,7 @@ export function capture(bin: string, args: string[], timeoutMs = 20_000): Promis
     let flooded = false;
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
     child.stdout!.setEncoding("utf8").on("data", (c: string) => {
-      // A crafted file can carry endless tags or streams; ffprobe would print them all.
+      // A crafted file can carry endless tags or streams, and ffmpeg would print them all.
       if (stdout.length + c.length > MAX_CAPTURE) {
         flooded = true;
         child.kill("SIGKILL");
@@ -90,7 +95,10 @@ export function capture(bin: string, args: string[], timeoutMs = 20_000): Promis
       }
       stdout += c;
     });
-    child.stderr!.setEncoding("utf8").on("data", (c: string) => (stderr = (stderr + c).slice(-8000)));
+    child.stderr!.setEncoding("utf8").on("data", (c: string) => {
+      if (keep === "tail") stderr = (stderr + c).slice(-8000);
+      else if (stderr.length < MAX_STDERR) stderr += c.slice(0, MAX_STDERR - stderr.length);
+    });
     child.on("error", reject);
     child.on("close", code => {
       clearTimeout(timer);

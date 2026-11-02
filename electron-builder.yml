@@ -13,9 +13,9 @@ files:
   - "!**/*.map"
   - "!node_modules"
   - "!node_modules/**"
-# ffmpeg and ffprobe for this os and arch, fetched by scripts/fetch-ffmpeg.mjs.
+# ffmpeg for this os and arch, fetched by scripts/fetch-ffmpeg.mjs. A dev's ffprobe stays out.
 extraResources:
-  - { from: "resources/ffmpeg/${os}-${arch}", to: ffmpeg, filter: ["**/*", "!.stamp.json"] }
+  - { from: "resources/ffmpeg/${os}-${arch}", to: ffmpeg, filter: ["**/*", "!.stamp.json", "!ffprobe*"] }
 afterPack: build/after-pack.mjs
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 

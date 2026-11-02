@@ -33,7 +33,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y espeak-ng xvfb libgbm1 libasound2t64
       - run: npm ci
-      - run: node scripts/fetch-ffmpeg.mjs --target ${{ matrix.target }}
+      - run: node scripts/fetch-ffmpeg.mjs --target ${{ matrix.target }} --probe
       - run: npm run build
       - run: npm test
       - name: Test media

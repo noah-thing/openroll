@@ -108,7 +108,7 @@ export interface OpenRollApi {
 
   /** Background conversions run by the bundled ffmpeg. */
   convert: {
-    status(): Promise<{ available: boolean; probe: boolean }>;
+    status(): Promise<{ available: boolean }>;
     inspect(path: string): Promise<InspectResult | null>;
     /** Starts (or finds) an edit friendly copy of a file the page cannot decode. */
     prepare(path: string, hints?: { videoDecodable?: boolean }): Promise<DerivedState | null>;

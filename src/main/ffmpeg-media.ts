@@ -12,6 +12,7 @@ import { JobQueue } from "./ffmpeg-queue";
 import { capture, start } from "./ffmpeg-runner";
 
 const CACHE_LIMIT = 12 * 1024 ** 3;
+const SAMPLE_SECONDS = 30;
 
 export interface MediaServiceDeps {
   cacheDir(): string;
@@ -59,37 +60,33 @@ export class MediaService {
 
   private async probe(path: string): Promise<StreamSummary | null> {
     const bins = findBinaries();
-    if (!bins?.ffprobe) return null;
-    const r = await capture(bins.ffprobe, ["-v", "error", "-show_streams", "-show_format", "-of", "json", ...LOCAL_ONLY, path]).catch(() => null);
-    if (!r || r.code !== 0) return null;
-    try {
-      const info = parseProbe(JSON.parse(r.stdout));
-      return info.video || info.audio ? info : null;
-    } catch {
-      return null;
-    }
+    if (!bins) return null;
+    // With no output given ffmpeg lists the streams and exits with an error, which is the whole answer here.
+    const r = await capture(bins.ffmpeg, ["-hide_banner", "-nostdin", ...LOCAL_ONLY, "-i", path], 20_000, "head").catch(() => null);
+    if (!r) return null;
+    const info = parseProbe(r.stderr);
+    return info.video || info.audio ? info : null;
   }
 
   /** Median keyframe gap over the first half minute, which is enough to tell phone footage from screen recordings. */
-  keyframeGap(path: string): Promise<number | null> {
+  keyframeGap(path: string, duration: number): Promise<number | null> {
     let hit = this.gops.get(path);
     if (!hit) {
-      hit = this.measureGap(path);
+      hit = this.measureGap(path, duration);
       this.gops.set(path, hit);
     }
     return hit;
   }
 
-  private async measureGap(path: string): Promise<number | null> {
+  private async measureGap(path: string, duration: number): Promise<number | null> {
     const bins = findBinaries();
-    if (!bins?.ffprobe) return null;
-    const r = await capture(bins.ffprobe, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-read_intervals", "%+30", "-of", "json", ...LOCAL_ONLY, path], 30_000).catch(() => null);
+    if (!bins) return null;
+    // Decoding only keyframes is cheap, and showinfo prints each one's time. Sixteen are plenty for a median.
+    const args = ["-hide_banner", "-nostdin", ...LOCAL_ONLY, "-skip_frame", "nokey", "-t", String(SAMPLE_SECONDS), "-i", path, "-map", "0:v:0", "-frames:v", "16", "-vf", "showinfo", "-fps_mode", "passthrough", "-an", "-f", "null", "-"];
+    const r = await capture(bins.ffmpeg, args, 30_000, "head").catch(() => null);
     if (!r || r.code !== 0) return null;
-    try {
-      return keyframeInterval((JSON.parse(r.stdout) as { packets?: { flags?: string; pts_time?: string }[] }).packets ?? []);
-    } catch {
-      return null;
-    }
+    const keys = [...r.stderr.matchAll(/^\[Parsed_showinfo_\d+ @ [^\]]+\] n: *\d+ pts: *\S+ pts_time:(-?[\d.]+) .* iskey:1 /gm)].map(m => Number(m[1]));
+    return keyframeInterval(keys, Math.min(SAMPLE_SECONDS, duration));
   }
 
   async describe(path: string): Promise<InspectResult | null> {
@@ -174,7 +171,7 @@ export class MediaService {
     if (!findBinaries()) return null;
     const info = await this.inspect(path);
     if (!info?.video || !proxyShrinks(info.video.width, info.video.height)) return null;
-    const gap = req.mode === "auto" ? await this.keyframeGap(path) : null;
+    const gap = req.mode === "auto" ? await this.keyframeGap(path, info.duration) : null;
     const reason = proxyReason(req.mode, { hasVideo: true, width: info.video.width, height: info.video.height, keyframeInterval: gap, slowDecode: req.slow });
     if (!reason) return null;
     const t = await this.target(path, "proxy", false);

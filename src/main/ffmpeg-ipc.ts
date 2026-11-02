@@ -4,7 +4,6 @@ import { join } from "node:path";
 import type { DerivedKind, DerivedState, InspectResult, ProxyRequest } from "../shared/derived";
 import { PIPE_EXTENSION, type PipeSpec } from "../shared/ffexport";
 import { PipeExports } from "./ffmpeg-export";
-import { findBinaries } from "./ffmpeg-binaries";
 import { MediaService } from "./ffmpeg-media";
 import { isAllowed } from "./media-protocol";
 
@@ -43,7 +42,7 @@ export function registerFfmpegIpc(deps: Deps): MediaService {
 
   const allowed = (path: unknown): path is string => typeof path === "string" && isAllowed(path);
 
-  ipcMain.handle("ff:status", () => ({ available: service.available, probe: !!findBinaries()?.ffprobe }));
+  ipcMain.handle("ff:status", () => ({ available: service.available }));
   ipcMain.handle("ff:inspect", async (_e, path: unknown): Promise<InspectResult | null> => (allowed(path) ? service.describe(path) : null));
   ipcMain.handle("ff:prepare", async (_e, path: unknown, hints: unknown): Promise<DerivedState | null> =>
     allowed(path) ? service.prepare(path, { videoDecodable: !!(hints as { videoDecodable?: boolean } | null)?.videoDecodable }) : null,

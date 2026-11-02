@@ -1,11 +1,13 @@
-// Downloads the pinned ffmpeg and ffprobe builds into resources/ffmpeg/<os>-<arch>/,
-// where electron-builder picks them up as extra resources and dev runs find them.
+// Downloads the pinned ffmpeg builds into resources/ffmpeg/<os>-<arch>/, where
+// electron-builder picks them up as extra resources and dev runs find them.
 //
 //   node scripts/fetch-ffmpeg.mjs              this machine
 //   node scripts/fetch-ffmpeg.mjs --os mac     both mac architectures
 //   node scripts/fetch-ffmpeg.mjs --all        every target
 //   node scripts/fetch-ffmpeg.mjs --force      download again even if the stamp matches
+//   node scripts/fetch-ffmpeg.mjs --probe      also ffprobe, which the QA scenarios use to check exports
 //
+// The app itself reads files with ffmpeg alone, so ffprobe is never packaged.
 // Every archive is checked against a sha256 pinned here, so a changed or tampered
 // download stops the build. To move to a newer ffmpeg, change the urls and hashes together.
 
@@ -31,21 +33,21 @@ const TARGETS = {
     version: "9.0.2",
     archives: [
       { url: `${RIEDL}/macos/arm64/1789931890_9.0.2/ffmpeg.zip`, sha256: "c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924", pick: ["ffmpeg"] },
-      { url: `${RIEDL}/macos/arm64/1789931890_9.0.2/ffprobe.zip`, sha256: "fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6", pick: ["ffprobe"] },
+      { url: `${RIEDL}/macos/arm64/1789931890_9.0.2/ffprobe.zip`, sha256: "fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6", pick: ["ffprobe"], tool: true },
     ],
   },
   "mac-x64": {
     version: "9.0.2",
     archives: [
       { url: `${RIEDL}/macos/amd64/1789931006_9.0.2/ffmpeg.zip`, sha256: "7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4", pick: ["ffmpeg"] },
-      { url: `${RIEDL}/macos/amd64/1789931006_9.0.2/ffprobe.zip`, sha256: "2322438ed2f6319a691291b247d09c69dcaa3a982460d1f269a7e1af335cfdfd", pick: ["ffprobe"] },
+      { url: `${RIEDL}/macos/amd64/1789931006_9.0.2/ffprobe.zip`, sha256: "2322438ed2f6319a691291b247d09c69dcaa3a982460d1f269a7e1af335cfdfd", pick: ["ffprobe"], tool: true },
     ],
   },
   "linux-x64": {
     version: "9.0.2",
     archives: [
       { url: `${RIEDL}/linux/amd64/1789931100_9.0.2/ffmpeg.zip`, sha256: "fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f", pick: ["ffmpeg"] },
-      { url: `${RIEDL}/linux/amd64/1789931100_9.0.2/ffprobe.zip`, sha256: "3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32", pick: ["ffprobe"] },
+      { url: `${RIEDL}/linux/amd64/1789931100_9.0.2/ffprobe.zip`, sha256: "3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32", pick: ["ffprobe"], tool: true },
     ],
   },
   "win-x64": {
@@ -54,8 +56,9 @@ const TARGETS = {
       {
         url: `${BTBN}/${BTBN_WIN}.zip`,
         sha256: "1d9823c35c7a7e2f54d1438cf61030d6efabe3278de01c191309d1e828bb74df",
-        // A shared build: two small exes and the libraries they load. ffplay is left out.
-        pick: [/\.dll$/, "ffmpeg.exe", "ffprobe.exe"],
+        // A shared build: a small exe and the libraries it loads. ffplay is left out.
+        pick: [/\.dll$/, "ffmpeg.exe"],
+        toolPick: ["ffprobe.exe"],
         inside: `${BTBN_WIN}/bin`,
         extra: { [`${BTBN_WIN}/LICENSE.txt`]: "LICENSE.txt" },
       },
@@ -115,8 +118,13 @@ async function fetchTarget(key) {
   if (!t) throw new Error(`unknown target ${key}`);
   const out = join(outRoot, key);
   const stamp = join(out, ".stamp.json");
-  const want = JSON.stringify(t.archives.map(a => a.sha256));
-  if (!flag("force") && existsSync(stamp) && readFileSync(stamp, "utf8") === want) {
+  const tools = flag("probe");
+  const archives = t.archives.filter(a => tools || !a.tool);
+  // An archive is stamped with +probe when its ffprobe came along, which also covers a plain request.
+  const id = a => a.sha256 + (tools && (a.tool || a.toolPick) ? "+probe" : "");
+  const want = JSON.stringify(archives.map(id));
+  const have = existsSync(stamp) ? new Set(JSON.parse(readFileSync(stamp, "utf8"))) : new Set();
+  if (!flag("force") && archives.every(a => have.has(id(a)) || have.has(a.sha256 + "+probe"))) {
     console.log(`${key}: up to date`);
     return;
   }
@@ -124,7 +132,7 @@ async function fetchTarget(key) {
   try {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
-    for (const a of t.archives) {
+    for (const a of archives) {
       const file = join(work, basename(new URL(a.url).pathname));
       process.stdout.write(`${key}: ${basename(file)} `);
       const got = await download(a.url, file);
@@ -132,7 +140,7 @@ async function fetchTarget(key) {
       const dir = mkdtempSync(join(work, "x-"));
       unzip(file, dir);
       const base = a.inside ? join(dir, a.inside) : dir;
-      for (const p of a.pick) {
+      for (const p of [...a.pick, ...(tools ? (a.toolPick ?? []) : [])]) {
         const names = p instanceof RegExp ? readdirSync(base).filter(n => p.test(n)) : [p];
         for (const n of names) {
           const src = a.inside ? join(base, n) : find(base, n);

@@ -2,9 +2,9 @@
 
 ## FFmpeg
 
-OpenRoll ships `ffmpeg` and `ffprobe` as separate programs next to the app, never linked into it. They convert files the editor cannot read, make proxies, and encode ProRes, GIF and a few other export formats.
+OpenRoll ships `ffmpeg` as a separate program next to the app, never linked into it. It reads the streams of files the editor cannot decode, converts them, makes proxies, and encodes ProRes, GIF and a few other export formats. `ffprobe` is not shipped.
 
-The builds are GPL builds (`--enable-gpl --enable-version3`, with x264 and x265 included), which is compatible with OpenRoll's GPL-3.0-or-later licence. FFmpeg's source is at https://ffmpeg.org/ and the exact release, 9.0.2, is a tagged commit of https://git.ffmpeg.org/ffmpeg.git. Each build's configuration is printed by `ffmpeg -version`, and the licence text is `LICENSE.txt` in the Windows folder and https://www.gnu.org/licenses/gpl-3.0.txt for the others. To use a different build, put it in the app's `resources/ffmpeg` folder or point `OPENROLL_FFMPEG_DIR` at a folder holding `ffmpeg` and `ffprobe`.
+The builds are GPL builds (`--enable-gpl --enable-version3`, with x264 and x265 included), which is compatible with OpenRoll's GPL-3.0-or-later licence. FFmpeg's source is at https://ffmpeg.org/ and the exact release, 9.0.2, is a tagged commit of https://git.ffmpeg.org/ffmpeg.git. Each build's configuration is printed by `ffmpeg -version`, and the licence text is `LICENSE.txt` in the Windows folder and https://www.gnu.org/licenses/gpl-3.0.txt for the others. To use a different build, put it in the app's `resources/ffmpeg` folder or point `OPENROLL_FFMPEG_DIR` at a folder holding `ffmpeg`.
 
 The pinned downloads and their sha256 checksums live in `scripts/fetch-ffmpeg.mjs`:
 
