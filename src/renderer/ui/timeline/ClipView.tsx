@@ -9,6 +9,7 @@ import { framePlace, type MediaCache } from "../../state/media-cache";
 import { labelHex } from "../../state/timeline-actions";
 import { usePreparing } from "../../state/ai";
 import { BADGE_TEXT, derived, useDerivedVersion } from "../../state/derived-media";
+import { imageTileWidth } from "./layout";
 
 interface Props {
   item: Item;
@@ -140,7 +141,9 @@ function drawImageTile(g: CanvasRenderingContext2D, media: MediaRef, w: number, 
     img.addEventListener("load", onLoad, { once: true });
     return;
   }
-  const tileW = (img.naturalWidth / img.naturalHeight) * h;
+  // An image on an audio lane has no height to draw in, and a zero step never reaches the end.
+  const tileW = imageTileWidth(img.naturalWidth, img.naturalHeight, h);
+  if (!tileW) return;
   for (let x = 0; x < w; x += tileW) g.drawImage(img, x, 0, tileW, h);
 }
 

@@ -84,3 +84,9 @@ export function itemsInRect(boxes: LaneBox[], t0: Micros, t1: Micros, y0: number
   }
   return out;
 }
+
+/** Width of one repeated picture in a clip. Zero when there is no height to draw in, which callers must not loop on. */
+export function imageTileWidth(naturalWidth: number, naturalHeight: number, height: number): number {
+  const w = (naturalWidth / naturalHeight) * height;
+  return w >= 1 ? w : 0;
+}

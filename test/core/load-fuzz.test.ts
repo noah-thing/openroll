@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readProject } from "../../src/core/load";
 import { buildScene, frameNeeds } from "../../src/core/scene";
+import { chainPlan, duckCurve, fadeCurve, speechRanges } from "../../src/core/audio-plan";
+import { allBeats, itemBeats } from "../../src/core/audio-edit";
 import { itemEnd, type Project } from "../../src/core/project";
 import { STEPS, begin, check, grow, rng, type Rng } from "./model-gen";
 
@@ -37,6 +39,15 @@ function blowUp(p: Project) {
   buildScene(p, -1);
   buildScene(p, end + 5);
   JSON.parse(JSON.stringify(p));
+  // The sound side reads the same file, so it has to cope with whatever loaded.
+  allBeats(p, new Set());
+  for (const it of p.tracks.flatMap(t => t.items)) {
+    if (it.type !== "media") continue;
+    chainPlan(it);
+    fadeCurve(it);
+    itemBeats(p, it);
+    duckCurve(speechRanges(p, it), it.start, itemEnd(it));
+  }
 }
 
 describe("hostile project files", { timeout: 60_000 }, () => {
@@ -45,6 +56,7 @@ describe("hostile project files", { timeout: 60_000 }, () => {
     for (let seed = 1; seed <= SEEDS; seed++) {
       const r = rng(seed * 104729);
       const doc = JSON.parse(JSON.stringify(grow(seed, 18)));
+      Object.assign(doc.media.a, { beats: [0, 500_000, 1_000_000, 1_500_000], speech: [0, 2_000_000, 3_000_000, 4_000_000], bpm: 120, loudness: -14 });
       const hits = r.int(1, 6);
       for (let n = 0; n < hits; n++) mangle(doc, r);
       let text = JSON.stringify(doc);
