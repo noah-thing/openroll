@@ -135,7 +135,7 @@ export function audioKey(p: Project, urls: Record<string, string>): string {
       const media = p.media[item.mediaId];
       if (!audible(item, media)) continue;
       if (item.audio?.duckUnder) ducks = true;
-      voices.push([item.id, item.start, item.duration, item.in, item.speed, item.volume, item.fadeIn, item.fadeOut, item.audio, item.voiceFx, media.id, media.loudness, !!urls[media.id]]);
+      voices.push([item.id, item.start, item.duration, item.in, item.speed, item.ramp, item.reversed, item.volume, item.fadeIn, item.fadeOut, item.audio, item.voiceFx, media.id, media.loudness, !!urls[media.id]]);
       if (media.speech) speech.push([item.id, media.speech]);
     }
   }

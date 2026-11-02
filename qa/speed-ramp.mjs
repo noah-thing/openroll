@@ -309,7 +309,10 @@ export default async function ({ page }) {
     await choose(label);
     results[label] = await perf(`1080p ${label}`);
   }
-  const floor = Math.min(...Object.values(results).map(r => r.fps));
-  check("playback on curves stays near the steady speed frame rate", floor >= Math.min(steady.fps, 60) * 0.9 - 2, `steady ${steady.fps}, lowest on a curve ${floor}`);
-  check("playback on curves reaches 55 fps or more", floor >= 55 || steady.fps < 55, `lowest ${floor}`);
+  // The preview skips frames that would look the same as the last one, so a slow stretch of a
+  // curve draws fewer frames on purpose. Stutter shows up as late frames, not as a lower count.
+  const late = Math.max(...Object.values(results).map(r => r.late));
+  const slowest = Math.max(...Object.values(results).map(r => r.worstMs));
+  check("playback on curves has no late frames", late === 0 && steady.late === 0, `steady ${steady.late} late, worst on a curve ${late}`);
+  check("no frame on a curve takes longer than one display refresh", slowest < 16.7, `worst ${slowest} ms`);
 }

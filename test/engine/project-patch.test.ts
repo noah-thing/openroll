@@ -60,7 +60,8 @@ describe("audio key", () => {
   it("changes when sound, level, timing or speed change", () => {
     const p = withSound();
     const key = audioKey(p, urls(p));
-    for (const change of [{ volume: 0.5 }, { fadeOut: 500_000 }, { speed: 2 }, { start: 100_000 }, { in: 100_000 }, { duration: 1_000_000 }, { muteAudio: true }]) {
+    const ramp = { keys: [{ x: 0, v: 0.5 }, { x: 1, v: 2 }], span: 2_000_000 };
+    for (const change of [{ volume: 0.5 }, { fadeOut: 500_000 }, { speed: 2 }, { ramp }, { reversed: true }, { start: 100_000 }, { in: 100_000 }, { duration: 1_000_000 }, { muteAudio: true }]) {
       expect(audioKey(edit(p, change), urls(p))).not.toBe(key);
     }
   });
