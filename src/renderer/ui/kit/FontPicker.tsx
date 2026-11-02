@@ -118,7 +118,9 @@ function List({ id, value, anchor, onPick, onClose }: { id: string; value: strin
   function key(e: React.KeyboardEvent) {
     const last = entries.length - 1;
     const go = (i: number) => setActive(Math.min(last, Math.max(0, i)));
-    switch (e.key) {
+    // A space in the middle of typing a name ("bebas n") is part of the name, not a pick.
+    const spelling = e.key === " " && !!typed.current.text && performance.now() - typed.current.at <= 700;
+    switch (spelling ? "" : e.key) {
       case "ArrowDown":
         go(active + 1);
         break;
