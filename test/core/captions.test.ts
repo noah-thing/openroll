@@ -258,3 +258,10 @@ describe("captions on the timeline", () => {
     expect(JSON.stringify(p)).not.toBe(before);
   });
 });
+
+describe("parseSubtitles limits", () => {
+  it("skips cues whose hours field is absurd", () => {
+    const text = "1\n00:00:01,000 --> 00:00:02,000\nhello\n\n2\n99999999999:00:00,000 --> 99999999999:00:05,000\nlate\n";
+    expect(parseSubtitles(text).map(c => c.text)).toEqual(["hello"]);
+  });
+});

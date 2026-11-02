@@ -210,3 +210,10 @@ describe("catalogues", () => {
     expect(newEffect("mirror").params?.style).toBe(0);
   });
 });
+
+describe("parseCube limits", () => {
+  it("stops reading a table padded far past the largest grid", () => {
+    const text = "LUT_3D_SIZE 2\n" + "0 0 0\n".repeat(2_200_000);
+    expect(() => parseCube(text)).toThrow(CubeError);
+  });
+});

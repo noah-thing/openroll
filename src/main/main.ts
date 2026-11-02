@@ -7,7 +7,7 @@ import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node
 import { pathToFileURL } from "node:url";
 import { allowPath, handleMediaProtocol, isAllowed, mediaScheme } from "./media-protocol";
 import type { CacheInfo, FileInfo, RecentProject, SaveResult, SystemInfo } from "../shared/api";
-import { isInside, safeFileName, samePath } from "../shared/paths";
+import { agentPathProblem, isInside, safeFileName, samePath } from "../shared/paths";
 import { renameBusy } from "./fs-retry";
 import { launcherPath } from "./launch-target";
 import { OutputWriters, withExtension } from "./output-writers";
@@ -296,6 +296,8 @@ function registerIpc(): void {
       path = join(app.getPath("videos"), ok.test(name) ? name : `${name}.mp4`);
     }
     if (!isAbsolute(path) || !ok.test(path)) throw new Error("Give an absolute file path ending in a video, audio, image or subtitle extension.");
+    const problem = agentPathProblem(path, process.platform, app.getPath("home"), "write");
+    if (problem) throw new Error(problem);
     await mkdir(dirname(path), { recursive: true });
     return { id: await writers.create(path), path };
   });
@@ -305,6 +307,7 @@ function registerIpc(): void {
     const out: FileInfo[] = [];
     for (const p of paths) {
       if (typeof p !== "string" || !isAbsolute(p) || !MEDIA_EXT.includes(extname(p).slice(1).toLowerCase())) continue;
+      if (agentPathProblem(p, process.platform, app.getPath("home"), "read")) continue;
       const i = await info(p);
       if (i) {
         allowPath(p);

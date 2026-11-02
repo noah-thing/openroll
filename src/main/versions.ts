@@ -7,7 +7,7 @@ import { Journal } from "./journal";
 /** Named versions kept per project. The automatic journal keeps its own, rolling, list. */
 export const KEEP_NAMED = 100;
 
-const SAFE_ID = /^[\w.-]{1,80}$/;
+const SAFE_ID = /^\w[\w.-]{0,79}$/;
 const FILE = /^\d+\.json$/;
 
 /**

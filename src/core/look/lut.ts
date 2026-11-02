@@ -11,6 +11,9 @@ export interface Lut {
 
 export class CubeError extends Error {}
 
+const MAX_SIZE = 129;
+const MAX_VALUES = MAX_SIZE ** 3 * 3;
+
 export function parseCube(text: string): Lut {
   let title = "";
   let size1d = 0;
@@ -31,6 +34,8 @@ export function parseCube(text: string): Lut {
         if (!Number.isFinite(v)) throw new CubeError(`Not a number: ${parts[i]}`);
         rows.push(v);
       }
+      // No valid table is longer than the biggest grid; stop before a padded file fills memory.
+      if (rows.length > MAX_VALUES) throw new CubeError("The LUT has too many colour rows");
       continue;
     }
     const [key, ...rest] = line.split(/\s+/);
@@ -62,7 +67,7 @@ export function parseCube(text: string): Lut {
   };
 
   if (size3d) {
-    if (size3d < 2 || size3d > 129) throw new CubeError("The LUT size is out of range");
+    if (size3d < 2 || size3d > MAX_SIZE) throw new CubeError("The LUT size is out of range");
     if (rows.length !== size3d ** 3 * 3) throw new CubeError(`Expected ${size3d ** 3} colour rows, found ${rows.length / 3}`);
     return { title, size: size3d, data: norm(rows) };
   }

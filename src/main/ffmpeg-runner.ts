@@ -71,19 +71,30 @@ function killTree(child: ChildProcess): void {
   }, 1500).unref();
 }
 
+const MAX_CAPTURE = 16 * 1024 * 1024;
+
 /** Runs a short command to completion and returns what it printed. Used for ffprobe and capability checks. */
 export function capture(bin: string, args: string[], timeoutMs = 20_000): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
+    let flooded = false;
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-    child.stdout!.setEncoding("utf8").on("data", (c: string) => (stdout += c));
+    child.stdout!.setEncoding("utf8").on("data", (c: string) => {
+      // A crafted file can carry endless tags or streams; ffprobe would print them all.
+      if (stdout.length + c.length > MAX_CAPTURE) {
+        flooded = true;
+        child.kill("SIGKILL");
+        return;
+      }
+      stdout += c;
+    });
     child.stderr!.setEncoding("utf8").on("data", (c: string) => (stderr = (stderr + c).slice(-8000)));
     child.on("error", reject);
     child.on("close", code => {
       clearTimeout(timer);
-      resolve({ stdout, stderr, code });
+      resolve({ stdout: flooded ? "" : stdout, stderr, code: flooded ? null : code });
     });
   });
 }

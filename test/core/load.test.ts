@@ -91,4 +91,39 @@ describe("readProject", () => {
     const r = load({ ...sample(), future: { a: 1 } });
     expect(r.ok && (r.project as unknown as Record<string, unknown>).future).toEqual({ a: 1 });
   });
+
+  it("does not let a media id swap the map's prototype", () => {
+    const base = JSON.stringify(sample());
+    const text = base.replace('"media":{', '"media":{"__proto__":{"path":"/etc/hosts","kind":"video"},');
+    const r = load(text);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(Object.getPrototypeOf(r.project.media)).toBe(Object.prototype);
+    expect(Object.keys(r.project.media)).toEqual(["m1"]);
+  });
+
+  it("replaces a project id that would name a parent folder", () => {
+    for (const id of ["..", ".", "../x", ".hidden"]) {
+      const r = load({ ...sample(), id });
+      expect(r.ok && r.project.id).not.toBe(id);
+      expect(r.ok && r.repairs).toContain("id");
+    }
+  });
+
+  it("drops clips that point at names inherited from Object", () => {
+    const p = sample();
+    const item = p.tracks[0].items[0];
+    for (const mediaId of ["constructor", "toString", "hasOwnProperty"]) {
+      const r = load({ ...p, tracks: [{ ...p.tracks[0], items: [{ ...item, mediaId }] }] });
+      expect(r.ok && r.project.tracks[0].items).toEqual([]);
+    }
+  });
+
+  it("caps times that no real edit reaches", () => {
+    const p = sample();
+    const item = p.tracks[0].items[0];
+    const r = load({ ...p, media: { m1: { ...clip, duration: 1e300 } }, tracks: [{ ...p.tracks[0], items: [{ ...item, start: 1e300, duration: 1e300, in: 1e300 }] }] });
+    expect(r.ok && r.project.media.m1.duration).toBe(36_000_000_000);
+    expect(r.ok && r.project.tracks[0].items[0]).toMatchObject({ start: 36_000_000_000, duration: 36_000_000_000, in: 36_000_000_000 });
+  });
 });
