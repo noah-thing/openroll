@@ -248,7 +248,7 @@ function repairKeyframes(raw: unknown): Item["keyframes"] {
   return Object.keys(out).length ? out : undefined;
 }
 
-function repairStyle(raw: Obj): Obj {
+export function repairStyle(raw: Obj): Obj {
   const out: Obj = {
     ...raw,
     font: str(raw.font, "Familjen Grotesk"),
@@ -331,7 +331,7 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
 }
 
 /** Drops look settings the compositor could not read, so a damaged clip shows plain instead of failing. */
-function repairLook(item: Obj): void {
+export function repairLook(item: Obj): void {
   const keep = (k: string, ok: boolean) => {
     if (k in item && !ok) delete item[k];
   };

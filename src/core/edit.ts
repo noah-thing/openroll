@@ -419,6 +419,7 @@ export function updateItem(p: Project, id: string, patch: Partial<Item>): Projec
   const next = draft(p);
   const { item } = findItem(next, id)!;
   Object.assign(item, structuredClone(patch));
+  if (patch.duration !== undefined) fitWords(item);
   return next;
 }
 
