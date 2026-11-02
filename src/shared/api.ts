@@ -4,6 +4,8 @@ import type { DerivedKind, DerivedState, InspectResult, ProxyRequest } from "./d
 import type { PipeSpec } from "./ffexport";
 import type { MissingFile, RelinkMatch } from "./relink";
 import type { Settings } from "./settings";
+import type { Template } from "../core/template";
+import type { CommunityState, SaveTemplateResult, TemplateImport } from "./templates";
 
 // The surface the preload script exposes as window.openroll. Keep it small: every
 // function here is something a compromised page could call, so each one does one
@@ -221,6 +223,23 @@ export interface OpenRollApi {
     list(): Promise<{ items: NewsItem[]; read: string[] }>;
     markRead(ids: string[]): Promise<void>;
     onChange(handler: (items: NewsItem[]) => void): () => void;
+  };
+
+  templates: {
+    /** The person's own templates, from the templates folder. */
+    list(): Promise<Template[]>;
+    save(template: Template): Promise<SaveTemplateResult>;
+    remove(id: string): Promise<void>;
+    /** Opens a file dialog. */
+    pick(): Promise<TemplateImport>;
+    /** For files dropped on the window. */
+    importDropped(files: File[]): Promise<TemplateImport>;
+    /** Opens a save dialog; resolves to the path written, or null if cancelled. */
+    export(template: Template): Promise<string | null>;
+    /** What was read last time, without going online. */
+    community(): Promise<CommunityState>;
+    /** Reads the list again from the repository. Resolves to the cached copy when offline. */
+    refreshCommunity(): Promise<CommunityState>;
   };
 
   onMenu(handler: (command: string) => void): () => void;

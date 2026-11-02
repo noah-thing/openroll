@@ -1,0 +1,144 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "quote-card",
+  "name": "Quote card",
+  "kind": "timeline",
+  "description": "A square card with a large quote on paper colour, for sharing a line from the video.",
+  "tags": [
+    "quote",
+    "square",
+    "card"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1080
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "color",
+          "start": 0,
+          "duration": 5000000,
+          "color": "#efe8d8"
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Rule",
+      "items": [
+        {
+          "type": "shape",
+          "start": 300000,
+          "duration": 4700000,
+          "transform": {
+            "y": 255
+          },
+          "shape": {
+            "kind": "rect",
+            "color": "#e2674f",
+            "radius": 3
+          },
+          "width": 120,
+          "height": 6,
+          "animationIn": {
+            "kind": "zoom-in",
+            "duration": 500000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Mark",
+      "items": [
+        {
+          "type": "text",
+          "start": 0,
+          "duration": 5000000,
+          "transform": {
+            "y": -330
+          },
+          "style": {
+            "text": "“",
+            "font": "Georgia, serif",
+            "size": 340,
+            "weight": 700,
+            "color": "#cfc3a4",
+            "align": "center",
+            "lineHeight": 0.8,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "fade",
+            "duration": 600000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Quote",
+      "items": [
+        {
+          "type": "text",
+          "start": 200000,
+          "duration": 4800000,
+          "transform": {
+            "y": -40
+          },
+          "style": {
+            "text": "The best edit is the one nobody notices",
+            "font": "Georgia, serif",
+            "size": 82,
+            "weight": 400,
+            "color": "#14130e",
+            "align": "center",
+            "lineHeight": 1.18,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "slide-up",
+            "duration": 700000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Author",
+      "items": [
+        {
+          "type": "text",
+          "start": 700000,
+          "duration": 4300000,
+          "transform": {
+            "y": 340
+          },
+          "style": {
+            "text": "A. EDITOR",
+            "font": "Familjen Grotesk",
+            "size": 34,
+            "weight": 600,
+            "color": "#7a705c",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 8
+          },
+          "animationIn": {
+            "kind": "fade",
+            "duration": 600000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 5000000
+}

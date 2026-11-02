@@ -1,0 +1,156 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "memory-recap",
+  "name": "Memory recap",
+  "kind": "timeline",
+  "description": "Four clips that dissolve into each other under a warm film look, with a title over the first.",
+  "tags": [
+    "recap",
+    "travel",
+    "film"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    },
+    {
+      "id": "clip3",
+      "label": "Clip 3",
+      "kind": "visual"
+    },
+    {
+      "id": "clip4",
+      "label": "Clip 4",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 3000000,
+          "filter": {
+            "id": "halide",
+            "amount": 0.9
+          },
+          "adjust": {
+            "grain": 18,
+            "vignette": 20
+          }
+        },
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 3000000,
+          "duration": 3000000,
+          "filter": {
+            "id": "halide",
+            "amount": 0.9
+          },
+          "adjust": {
+            "grain": 18,
+            "vignette": 20
+          },
+          "transitionIn": {
+            "kind": "dissolve",
+            "duration": 800000
+          }
+        },
+        {
+          "type": "slot",
+          "slot": "clip3",
+          "start": 6000000,
+          "duration": 3000000,
+          "filter": {
+            "id": "halide",
+            "amount": 0.9
+          },
+          "adjust": {
+            "grain": 18,
+            "vignette": 20
+          },
+          "transitionIn": {
+            "kind": "dissolve",
+            "duration": 800000
+          }
+        },
+        {
+          "type": "slot",
+          "slot": "clip4",
+          "start": 9000000,
+          "duration": 3000000,
+          "filter": {
+            "id": "halide",
+            "amount": 0.9
+          },
+          "adjust": {
+            "grain": 18,
+            "vignette": 20
+          },
+          "transitionIn": {
+            "kind": "dissolve",
+            "duration": 800000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 300000,
+          "duration": 3200000,
+          "transform": {
+            "y": -20
+          },
+          "style": {
+            "text": "The summer",
+            "font": "Familjen Grotesk",
+            "size": 132,
+            "weight": 600,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": -2,
+            "shadow": {
+              "color": "rgba(0,0,0,0.5)",
+              "blur": 24,
+              "x": 0,
+              "y": 6
+            }
+          },
+          "animationIn": {
+            "kind": "fade",
+            "duration": 500000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 500000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 12000000
+}

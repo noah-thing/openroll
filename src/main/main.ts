@@ -17,6 +17,7 @@ import { Session } from "./session";
 import { getSettings, updateSettings } from "./settings";
 import { Updater } from "./updater";
 import { News } from "./news";
+import { Templates } from "./templates";
 import { Control } from "./control";
 import { registerFfmpegIpc } from "./ffmpeg-ipc";
 import { registerRelinkIpc } from "./relink";
@@ -79,6 +80,11 @@ const control = new Control(
 const news = new News(
   items => win?.webContents.send("news:changed", items),
   () => getSettings().news,
+);
+
+const templates = new Templates(
+  () => win,
+  () => getSettings().communityTemplates,
 );
 
 function cacheDir(): string {
@@ -488,6 +494,15 @@ function registerIpc(): void {
     args: app.isPackaged ? ["--mcp"] : [app.getAppPath(), "--mcp"],
   }));
   ipcMain.handle("news:mark-read", (_e, ids: unknown) => news.markRead(ids));
+
+  ipcMain.handle("templates:list", () => templates.list());
+  ipcMain.handle("templates:save", (_e, t: unknown) => templates.save(t));
+  ipcMain.handle("templates:remove", (_e, id: unknown) => templates.remove(id));
+  ipcMain.handle("templates:pick", () => templates.pick());
+  ipcMain.handle("templates:import-paths", (_e, paths: unknown) => templates.importPaths(paths));
+  ipcMain.handle("templates:export", (_e, t: unknown) => templates.export(t));
+  ipcMain.handle("templates:community", () => templates.cached());
+  ipcMain.handle("templates:refresh-community", () => templates.refresh());
 
   ipcMain.handle("history:list", (_e, path: unknown) => (typeof path === "string" ? journal.list(path) : []));
   ipcMain.handle("history:restore", (_e, path: unknown, file: unknown) =>

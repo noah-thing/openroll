@@ -1,0 +1,239 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "countdown",
+  "name": "Countdown",
+  "kind": "timeline",
+  "description": "Three, two, one on a dark field with a ring that pulses on each number. Ends on the cut into your first clip.",
+  "tags": [
+    "countdown",
+    "intro",
+    "shorts"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "color",
+          "start": 0,
+          "duration": 3000000,
+          "color": "#101113"
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Ring",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 1000000,
+          "shape": {
+            "kind": "ellipse",
+            "color": "#ffffff",
+            "noFill": true,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 10
+            }
+          },
+          "width": 560,
+          "height": 560,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 0.7,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1000000,
+                "v": 1.25,
+                "ease": "ease"
+              }
+            ],
+            "transform.opacity": [
+              {
+                "t": 0,
+                "v": 0.9,
+                "ease": "easeIn"
+              },
+              {
+                "t": 1000000,
+                "v": 0,
+                "ease": "ease"
+              }
+            ]
+          }
+        },
+        {
+          "type": "shape",
+          "start": 1000000,
+          "duration": 1000000,
+          "shape": {
+            "kind": "ellipse",
+            "color": "#ffffff",
+            "noFill": true,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 10
+            }
+          },
+          "width": 560,
+          "height": 560,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 0.7,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1000000,
+                "v": 1.25,
+                "ease": "ease"
+              }
+            ],
+            "transform.opacity": [
+              {
+                "t": 0,
+                "v": 0.9,
+                "ease": "easeIn"
+              },
+              {
+                "t": 1000000,
+                "v": 0,
+                "ease": "ease"
+              }
+            ]
+          }
+        },
+        {
+          "type": "shape",
+          "start": 2000000,
+          "duration": 1000000,
+          "shape": {
+            "kind": "ellipse",
+            "color": "#ffffff",
+            "noFill": true,
+            "stroke": {
+              "color": "#ffffff",
+              "width": 10
+            }
+          },
+          "width": 560,
+          "height": 560,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 0.7,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1000000,
+                "v": 1.25,
+                "ease": "ease"
+              }
+            ],
+            "transform.opacity": [
+              {
+                "t": 0,
+                "v": 0.9,
+                "ease": "easeIn"
+              },
+              {
+                "t": 1000000,
+                "v": 0,
+                "ease": "ease"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Numbers",
+      "items": [
+        {
+          "type": "text",
+          "start": 0,
+          "duration": 1000000,
+          "transform": {
+            "y": -20
+          },
+          "style": {
+            "text": "3",
+            "font": "Familjen Grotesk",
+            "size": 560,
+            "weight": 800,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 250000
+          }
+        },
+        {
+          "type": "text",
+          "start": 1000000,
+          "duration": 1000000,
+          "transform": {
+            "y": -20
+          },
+          "style": {
+            "text": "2",
+            "font": "Familjen Grotesk",
+            "size": 560,
+            "weight": 800,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 250000
+          }
+        },
+        {
+          "type": "text",
+          "start": 2000000,
+          "duration": 1000000,
+          "transform": {
+            "y": -20
+          },
+          "style": {
+            "text": "1",
+            "font": "Familjen Grotesk",
+            "size": 560,
+            "weight": 800,
+            "color": "#f2c23a",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 250000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 3000000
+}

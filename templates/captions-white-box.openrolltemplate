@@ -1,0 +1,44 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "captions-white-box",
+  "name": "Clean white box",
+  "description": "Dark text on a soft white plate. Calm and easy to read on any footage.",
+  "tags": [
+    "captions",
+    "clean",
+    "box"
+  ],
+  "kind": "captions",
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [],
+  "tracks": [],
+  "captions": {
+    "style": {
+      "text": "",
+      "font": "Familjen Grotesk",
+      "size": 54,
+      "weight": 600,
+      "color": "#14130e",
+      "align": "center",
+      "lineHeight": 1.2,
+      "letterSpacing": 0,
+      "background": {
+        "color": "rgba(255,255,255,0.94)",
+        "padding": 22,
+        "radius": 16
+      }
+    },
+    "highlight": "#e2674f",
+    "y": 0.27,
+    "animationIn": {
+      "kind": "fade",
+      "duration": 150000
+    }
+  },
+  "duration": 0
+}

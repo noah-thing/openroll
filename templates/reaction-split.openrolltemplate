@@ -1,0 +1,78 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "reaction-split",
+  "name": "Reaction split",
+  "kind": "timeline",
+  "description": "One clip over another in a vertical frame: the thing you are reacting to on top, you underneath.",
+  "tags": [
+    "split",
+    "reaction",
+    "shorts"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Overlay",
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 0,
+          "duration": 6000000,
+          "layout": "bottom"
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 6000000,
+          "layout": "top"
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Divider",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 6000000,
+          "shape": {
+            "kind": "rect",
+            "color": "#f2c23a",
+            "radius": 0
+          },
+          "width": 1080,
+          "height": 8
+        }
+      ]
+    }
+  ],
+  "duration": 6000000
+}

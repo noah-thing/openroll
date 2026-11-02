@@ -22,6 +22,7 @@ claude mcp add openroll -- ~/Applications/OpenRoll.AppImage --mcp
 - A playbook with the connection: how to work in few calls and the editing craft (cut on beats and speech, open strong, short transitions, readable text, ducked music).
 - `guide` for recipes (talking head, montage, vlog, short, trailer) and reference.
 - `catalog`: every operation, property, transition, filter, effect, text and caption style, animation, layout, sticker and voice, each with what it is for.
+- `list_templates` and the `apply_template` operation: titles, lower thirds, cut patterns and caption styles from the Templates panel, with the clips you name in their slots.
 - `get_project`: the whole project in seconds, plus notes an editor would notice (sound past the picture, black gaps, text out of frame).
 - `edit`: a batch of operations applied all or nothing, one undo step, with names (`as`, `$name`) so a whole cut fits in one call. Bad batches explain which operation failed and why, and change nothing.
 - `analyze_media`, `transcribe`: speech, beats, loudness, words with times.

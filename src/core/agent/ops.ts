@@ -14,6 +14,7 @@ import {
   IDENTITY,
   mainTrack,
   newId,
+  projectDuration,
   type Easing,
   type Item,
   type MediaItem,
@@ -30,6 +31,8 @@ import { repairLook, repairStyle } from "../load";
 import { applyLayout, LAYOUTS, type Layout } from "../layouts";
 import { newShape, placeOverlay } from "../shapes";
 import { STICKERS } from "../stickers";
+import { applyCaptionStyle, applyTemplate, chooseFills, type SlotFill } from "../template-apply";
+import type { Template } from "../template";
 
 export type Op =
   | { op: "add_clip"; media: string; at?: number; track?: string; in?: number; duration?: number; as?: string }
@@ -51,9 +54,10 @@ export type Op =
   | { op: "project"; width?: number; height?: number; ratio?: string; fps?: number; background?: string; name?: string }
   | { op: "add_shape"; kind: ShapeKind; sticker?: string; at: number; duration?: number; color?: string; x?: number; y?: number; scale?: number; as?: string }
   | { op: "layout"; id: string; layout: Layout }
+  | { op: "apply_template"; template: string; at?: number; media?: string[]; ids?: string[]; as?: string }
   | { op: "cut_to_beat"; clips: string[]; music: string; every?: 1 | 2 | 4; muteClips?: boolean };
 
-export const OP_NAMES = ["add_clip", "add_text", "add_color", "move", "trim", "split", "delete", "remove_range", "set", "keyframe", "transition", "filter", "effect", "marker", "track", "add_track", "project", "add_shape", "layout", "cut_to_beat"];
+export const OP_NAMES = ["add_clip", "add_text", "add_color", "move", "trim", "split", "delete", "remove_range", "set", "keyframe", "transition", "filter", "effect", "marker", "track", "add_track", "project", "add_shape", "layout", "cut_to_beat", "apply_template"];
 
 export interface OpResult {
   op: string;
@@ -61,6 +65,13 @@ export interface OpResult {
   ids?: string[];
   /** cut_to_beat: how many clips the footage was cut into; their ids are in changed.added. */
   pieces?: number;
+  /** apply_template: labels of the slots that got no clip. */
+  empty?: string[];
+}
+
+/** What operations may look up that the project does not hold: templates, by id or name. */
+export interface OpContext {
+  template?(key: string): Template | null;
 }
 
 export class OpError extends Error {
@@ -87,7 +98,7 @@ const finite = (value: unknown, what: string): number => {
 };
 
 /** Apply a batch. Throws OpError (with the failing index) and leaves nothing applied. */
-export function applyOps(start: Project, ops: Op[]): { project: Project; results: OpResult[] } {
+export function applyOps(start: Project, ops: Op[], ctx: OpContext = {}): { project: Project; results: OpResult[] } {
   let p = start;
   const names = new Map<string, string>();
   const results: OpResult[] = [];
@@ -315,6 +326,38 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           if (placed === p) throw new Error("layouts apply to video and image clips");
           p = placed;
           result.id = it.id;
+          break;
+        }
+        case "apply_template": {
+          if (typeof o.template !== "string") throw new Error("template is an id or name from list_templates");
+          const t = ctx.template?.(o.template);
+          if (!t) throw new Error(`no template ${o.template}; call list_templates for the ids`);
+          if (t.kind === "captions") {
+            const next = applyCaptionStyle(p, t, o.ids?.map(ref));
+            if (next === p) throw new Error("there are no captions to restyle; generate captions first");
+            p = next;
+            break;
+          }
+          const plan = chooseFills(p, t, []);
+          if (o.media) {
+            plan.fills.clear();
+            const pick = (key: string) => {
+              const m = p.media[ref(key)] ?? Object.values(p.media).find(x => x.path === key || x.name === key);
+              if (!m) throw new Error(`no media ${key}; pass a media id from import_media`);
+              return m;
+            };
+            const given = o.media.map(pick);
+            const fillFor = (m: (typeof given)[number]): SlotFill => ({ media: m, in: 0, span: m.kind === "image" ? Infinity : m.duration });
+            for (const kind of ["visual", "audio"] as const) {
+              const pool = given.filter(m => (m.kind === "audio") === (kind === "audio"));
+              t.slots.filter(s => s.kind === kind).forEach((s, n) => pool[n] && plan.fills.set(s.id, fillFor(pool[n])));
+            }
+          }
+          const r = applyTemplate(p, t, { at: o.at === undefined ? projectDuration(p) : at(o.at, "at"), fills: plan.fills });
+          p = r.project;
+          result.ids = r.ids;
+          result.empty = r.empty;
+          if (r.ids[0]) name(o.as, r.ids[0]);
           break;
         }
         case "cut_to_beat": {

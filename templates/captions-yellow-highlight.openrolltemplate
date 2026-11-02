@@ -1,0 +1,43 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "captions-yellow-highlight",
+  "name": "Bold yellow highlight",
+  "description": "Heavy white letters with a black outline. The word being spoken turns yellow and each caption pops in.",
+  "tags": [
+    "captions",
+    "shorts",
+    "bold"
+  ],
+  "kind": "captions",
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [],
+  "tracks": [],
+  "captions": {
+    "style": {
+      "text": "",
+      "font": "Familjen Grotesk",
+      "size": 84,
+      "weight": 800,
+      "color": "#ffffff",
+      "align": "center",
+      "lineHeight": 1.12,
+      "letterSpacing": 0,
+      "stroke": {
+        "color": "#000000",
+        "width": 12
+      }
+    },
+    "highlight": "#f2c23a",
+    "y": 0.2,
+    "animationIn": {
+      "kind": "pop",
+      "duration": 220000
+    }
+  },
+  "duration": 0
+}

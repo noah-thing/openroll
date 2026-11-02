@@ -1,0 +1,266 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "beat-montage",
+  "name": "Beat montage",
+  "kind": "timeline",
+  "description": "Eight clips on a 120 beats per minute grid with a marker on every beat and a slot for the music. A skeleton to cut to.",
+  "tags": [
+    "montage",
+    "beat",
+    "music",
+    "shorts"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    },
+    {
+      "id": "clip3",
+      "label": "Clip 3",
+      "kind": "visual"
+    },
+    {
+      "id": "clip4",
+      "label": "Clip 4",
+      "kind": "visual"
+    },
+    {
+      "id": "clip5",
+      "label": "Clip 5",
+      "kind": "visual"
+    },
+    {
+      "id": "clip6",
+      "label": "Clip 6",
+      "kind": "visual"
+    },
+    {
+      "id": "clip7",
+      "label": "Clip 7",
+      "kind": "visual"
+    },
+    {
+      "id": "clip8",
+      "label": "Clip 8",
+      "kind": "visual"
+    },
+    {
+      "id": "music",
+      "label": "Music",
+      "kind": "audio"
+    }
+  ],
+  "markers": [
+    {
+      "t": 0,
+      "label": "Bar"
+    },
+    {
+      "t": 500000,
+      "label": "Beat"
+    },
+    {
+      "t": 1000000,
+      "label": "Beat"
+    },
+    {
+      "t": 1500000,
+      "label": "Beat"
+    },
+    {
+      "t": 2000000,
+      "label": "Bar"
+    },
+    {
+      "t": 2500000,
+      "label": "Beat"
+    },
+    {
+      "t": 3000000,
+      "label": "Beat"
+    },
+    {
+      "t": 3500000,
+      "label": "Beat"
+    },
+    {
+      "t": 4000000,
+      "label": "Bar"
+    },
+    {
+      "t": 4500000,
+      "label": "Beat"
+    },
+    {
+      "t": 5000000,
+      "label": "Beat"
+    },
+    {
+      "t": 5500000,
+      "label": "Beat"
+    },
+    {
+      "t": 6000000,
+      "label": "Bar"
+    },
+    {
+      "t": 6500000,
+      "label": "Beat"
+    },
+    {
+      "t": 7000000,
+      "label": "Beat"
+    },
+    {
+      "t": 7500000,
+      "label": "Beat"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 1000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip3",
+          "start": 2000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip4",
+          "start": 3000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip5",
+          "start": 4000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip6",
+          "start": 5000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip7",
+          "start": 6000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "slot": "clip8",
+          "start": 7000000,
+          "duration": 1000000,
+          "muteAudio": true,
+          "effects": [
+            {
+              "kind": "thump",
+              "amount": 0.3,
+              "speed": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "audio",
+      "name": "Music",
+      "items": [
+        {
+          "type": "slot",
+          "slot": "music",
+          "start": 0,
+          "duration": 8000000
+        }
+      ]
+    }
+  ],
+  "duration": 8000000
+}

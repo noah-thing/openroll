@@ -1,0 +1,12 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "id": "other-id",
+  "name": "Liar",
+  "kind": "timeline",
+  "frame": { "width": 1920, "height": 1080 },
+  "slots": [],
+  "tracks": [
+    { "kind": "text", "name": "Title", "items": [{ "type": "text", "start": 0, "duration": 3000000, "style": { "text": "LIAR", "size": 100 } }] }
+  ]
+}

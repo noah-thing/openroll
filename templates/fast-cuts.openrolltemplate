@@ -1,0 +1,120 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "fast-cuts",
+  "name": "Three fast cuts",
+  "kind": "timeline",
+  "description": "Three clips, a little over a second each, with a punch zoom on every cut. A marker sits on each cut.",
+  "tags": [
+    "shorts",
+    "cuts",
+    "zoom",
+    "montage"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    },
+    {
+      "id": "clip3",
+      "label": "Clip 3",
+      "kind": "visual"
+    }
+  ],
+  "markers": [
+    {
+      "t": 0,
+      "label": "Cut"
+    },
+    {
+      "t": 1200000,
+      "label": "Cut"
+    },
+    {
+      "t": 2400000,
+      "label": "Cut"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 1200000,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 1.3,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1200000,
+                "v": 1,
+                "ease": "ease"
+              }
+            ]
+          }
+        },
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 1200000,
+          "duration": 1200000,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 1,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1200000,
+                "v": 1.18,
+                "ease": "ease"
+              }
+            ]
+          }
+        },
+        {
+          "type": "slot",
+          "slot": "clip3",
+          "start": 2400000,
+          "duration": 1200000,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 1.3,
+                "ease": "easeOut"
+              },
+              {
+                "t": 1200000,
+                "v": 1,
+                "ease": "ease"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 3600000
+}

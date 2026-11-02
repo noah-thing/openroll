@@ -159,9 +159,14 @@ export async function runMcp(): Promise<void> {
 
   server.registerTool("edit", {
     description:
-      "Apply a batch of edit operations in one step (all or nothing, one undo for the person). Operations: add_clip {media, at?, track?, in?, duration?, as?}, add_text {text, at, duration?, style?, x?, y?, as?}, add_color {color, at, duration}, move {id, at, track?}, trim {id, in?, duration?}, split {at, ids?}, delete {ids}, remove_range {from, to}, set {id, props}, keyframe {id, prop, at, value, ease?}, transition {id, kind, duration?}, filter {id, filter, amount?}, effect {id, kind, amount?, speed?, style?}, marker {at, label?}, track {id, muted?, hidden?, locked?, name?}, add_track {kind, name?, as?}, project {ratio?, width?, height?, fps?, background?, name?}, add_shape {kind, sticker?, at, duration?, color?, x?, y?, scale?}, layout {id, layout}, cut_to_beat {clips, music, every?}. Name results with as and use them as \"$name\". The catalog tool lists every kind and property.",
+      "Apply a batch of edit operations in one step (all or nothing, one undo for the person). Operations: add_clip {media, at?, track?, in?, duration?, as?}, add_text {text, at, duration?, style?, x?, y?, as?}, add_color {color, at, duration}, move {id, at, track?}, trim {id, in?, duration?}, split {at, ids?}, delete {ids}, remove_range {from, to}, set {id, props}, keyframe {id, prop, at, value, ease?}, transition {id, kind, duration?}, filter {id, filter, amount?}, effect {id, kind, amount?, speed?, style?}, marker {at, label?}, track {id, muted?, hidden?, locked?, name?}, add_track {kind, name?, as?}, project {ratio?, width?, height?, fps?, background?, name?}, add_shape {kind, sticker?, at, duration?, color?, x?, y?, scale?}, layout {id, layout}, cut_to_beat {clips, music, every?}, apply_template {template (id or name from list_templates), at?, media? (media ids for the slots in order, otherwise the library), ids? (captions to restyle, for caption styles), as?}. Name results with as and use them as \"$name\". The catalog tool lists every kind and property.",
     inputSchema: { ops: z.array(z.record(z.string(), z.unknown())).min(1), label: z.string().optional().describe("short name shown in Undo") },
   }, run("edit.apply"));
+
+  server.registerTool("list_templates", {
+    description: "Templates you can put on the timeline with the apply_template operation of edit: id, name, kind (timeline or captions), frame ratio, length, and the slots a timeline template fills with clips. Includes the starters, the person's own and any community ones they have loaded.",
+    annotations: { readOnlyHint: true },
+  }, run("templates.list"));
 
   server.registerTool("captions", {
     description: "Transcribe the timeline's speech and place styled captions, replacing earlier ones in the same span. Returns the caption ids and how many were added; says so when it heard no speech.",

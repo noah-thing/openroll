@@ -12,6 +12,8 @@ export interface Settings {
   autoUpdate: boolean;
   /** Fetch messages from the OpenRoll team for the inbox. */
   news: boolean;
+  /** Read the community template list from the repository when the Templates panel asks. */
+  communityTemplates: boolean;
   /** Let AI tools on this computer (Claude Code, Codex, Cursor) edit through the control socket. */
   aiControl: boolean;
   reduceMotion: boolean;
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   projectsDir: null,
   autoUpdate: true,
   news: true,
+  communityTemplates: true,
   aiControl: true,
   reduceMotion: false,
   offerCaptions: true,
@@ -48,6 +51,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     projectsDir: typeof r.projectsDir === "string" && r.projectsDir.length ? r.projectsDir : null,
     autoUpdate: typeof r.autoUpdate === "boolean" ? r.autoUpdate : d.autoUpdate,
     news: typeof r.news === "boolean" ? r.news : d.news,
+    communityTemplates: typeof r.communityTemplates === "boolean" ? r.communityTemplates : d.communityTemplates,
     aiControl: typeof r.aiControl === "boolean" ? r.aiControl : d.aiControl,
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
     offerCaptions: typeof r.offerCaptions === "boolean" ? r.offerCaptions : d.offerCaptions,

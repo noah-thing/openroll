@@ -331,9 +331,9 @@ export function placeCaptions(p: Project, items: CaptionItem[], replaceSpans: { 
   return insertItems(next, items, { trackId: home.id });
 }
 
-/** Give every caption the same look, keeping its words and timing. */
-export function restyleCaptions(p: Project, template: CaptionTemplate): Project {
-  const items = allCaptions(p);
+/** Give captions one look, keeping their words and timing. Every caption, or just the ones in `only`. */
+export function restyleCaptions(p: Project, template: CaptionTemplate, only?: readonly string[]): Project {
+  const items = allCaptions(p).filter(c => !only || only.includes(c.id));
   if (!items.length) return p;
   const ids = new Set(items.map(i => i.id));
   return {

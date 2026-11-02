@@ -1,0 +1,89 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "glitch-intro",
+  "name": "Glitch intro",
+  "kind": "timeline",
+  "description": "A short title sting: your clip tears and splits colour while the name slams in, then flashes into the next shot.",
+  "tags": [
+    "intro",
+    "glitch",
+    "title"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 2500000,
+          "effects": [
+            {
+              "kind": "tear",
+              "amount": 0.7,
+              "speed": 1.5
+            },
+            {
+              "kind": "prism",
+              "amount": 0.6,
+              "speed": 1
+            }
+          ],
+          "adjust": {
+            "contrast": 20
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 300000,
+          "duration": 2200000,
+          "style": {
+            "text": "NEW EPISODE",
+            "font": "Familjen Grotesk",
+            "size": 170,
+            "weight": 800,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 4,
+            "stroke": {
+              "color": "#000000",
+              "width": 10
+            }
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 200000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 200000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 2500000
+}

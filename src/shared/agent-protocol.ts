@@ -38,6 +38,7 @@ export const METHODS = [
   "smartcut",
   "ai.reframe",
   "catalog",
+  "templates.list",
   "render.frame",
   "render.sheet",
   "history.undo",

@@ -1,0 +1,110 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "callout-arrow",
+  "name": "Callout arrow",
+  "kind": "timeline",
+  "description": "A hand drawn circle, an arrow and a short label to point at something on screen.",
+  "tags": [
+    "callout",
+    "sticker",
+    "explain"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Marks",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 3500000,
+          "transform": {
+            "x": -120,
+            "y": -60
+          },
+          "shape": {
+            "kind": "sticker",
+            "color": "#e2674f",
+            "sticker": "ring",
+            "weight": 1.6
+          },
+          "width": 360,
+          "height": 360,
+          "animationIn": {
+            "kind": "zoom-in",
+            "duration": 350000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Arrow",
+      "items": [
+        {
+          "type": "shape",
+          "start": 350000,
+          "duration": 3150000,
+          "transform": {
+            "x": 140,
+            "y": 120
+          },
+          "shape": {
+            "kind": "sticker",
+            "color": "#ffffff",
+            "sticker": "arrow-swoop",
+            "weight": 1.5
+          },
+          "width": 300,
+          "height": 300,
+          "animationIn": {
+            "kind": "slide-left",
+            "duration": 400000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Label",
+      "items": [
+        {
+          "type": "text",
+          "start": 600000,
+          "duration": 2900000,
+          "transform": {
+            "x": 380,
+            "y": 230
+          },
+          "style": {
+            "text": "Look here",
+            "font": "Familjen Grotesk",
+            "size": 64,
+            "weight": 700,
+            "color": "#14130e",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0,
+            "background": {
+              "color": "#f2c23a",
+              "padding": 20,
+              "radius": 8
+            }
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 350000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 3500000
+}

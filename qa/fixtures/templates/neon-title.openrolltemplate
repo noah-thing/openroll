@@ -1,0 +1,26 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "id": "neon-title",
+  "name": "Neon title",
+  "kind": "timeline",
+  "author": "QA",
+  "tags": ["neon"],
+  "frame": { "width": 1920, "height": 1080 },
+  "duration": 3000000,
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 0,
+          "duration": 3000000,
+          "style": { "text": "NEON", "font": "Familjen Grotesk", "size": 140, "weight": 800, "color": "#7fe36b", "align": "center", "lineHeight": 1.1, "letterSpacing": 0, "shadow": { "color": "#7fe36b", "blur": 40, "x": 0, "y": 0 } }
+        }
+      ]
+    }
+  ]
+}

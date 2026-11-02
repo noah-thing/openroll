@@ -15,6 +15,7 @@ import { exportQueue } from "../state/export-queue";
 import { importFiles } from "../state/importer";
 import type { MediaCache } from "../state/media-cache";
 import { buildCatalog } from "./catalog";
+import { templateStore, templateSummaries } from "../state/templates";
 
 /** What the host needs from the rest of the app; filled in by App and EditorView. */
 export const agentContext = {
@@ -150,7 +151,8 @@ const handlers: Record<string, Handler> = {
     const before = e.project;
     let out: ReturnType<typeof applyOps>;
     try {
-      out = applyOps(before, ops);
+      await templateStore.start();
+      out = applyOps(before, ops, { template: key => templateStore.find(key)?.template ?? null });
     } catch (err) {
       if (err instanceof OpError) throw new Error(`${err.message}. Nothing was changed.`);
       throw err;
@@ -205,6 +207,11 @@ const handlers: Record<string, Handler> = {
     const e = editor();
     const r = await aiFor(e).reframe(String(params.clip));
     return { followedSubject: r.found, note: r.found ? "Reframed on the subject with keyframes." : "No person found; the clip is centred." };
+  },
+
+  async "templates.list"() {
+    await templateStore.start();
+    return templateSummaries();
   },
 
   async catalog() {

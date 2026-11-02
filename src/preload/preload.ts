@@ -124,6 +124,17 @@ const api: OpenRollApi = {
     },
   },
 
+  templates: {
+    list: () => ipcRenderer.invoke("templates:list"),
+    save: template => ipcRenderer.invoke("templates:save", template),
+    remove: id => ipcRenderer.invoke("templates:remove", id),
+    pick: () => ipcRenderer.invoke("templates:pick"),
+    importDropped: files => ipcRenderer.invoke("templates:import-paths", files.map(f => webUtils.getPathForFile(f)).filter(Boolean)),
+    export: template => ipcRenderer.invoke("templates:export", template),
+    community: () => ipcRenderer.invoke("templates:community"),
+    refreshCommunity: () => ipcRenderer.invoke("templates:refresh-community"),
+  },
+
   history: {
     list: path => ipcRenderer.invoke("history:list", path),
     restore: (path, file) => ipcRenderer.invoke("history:restore", path, file),

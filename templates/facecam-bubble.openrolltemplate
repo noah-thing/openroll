@@ -1,0 +1,73 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "facecam-bubble",
+  "name": "Facecam bubble",
+  "kind": "timeline",
+  "description": "A round picture of you in the corner while the main clip plays full screen. For tutorials and commentary.",
+  "tags": [
+    "picture in picture",
+    "tutorial",
+    "commentary"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Facecam",
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 0,
+          "duration": 8000000,
+          "layout": "pip-br",
+          "mask": {
+            "shape": "ellipse",
+            "x": 0,
+            "y": 0,
+            "width": 0.5625,
+            "height": 1,
+            "rotation": 0,
+            "feather": 0,
+            "invert": false
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 400000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 8000000
+        }
+      ]
+    }
+  ],
+  "duration": 8000000
+}

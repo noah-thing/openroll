@@ -1,0 +1,86 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "follow-bug",
+  "name": "Follow reminder",
+  "kind": "timeline",
+  "description": "A small pill near the bottom asking for a follow, with a heart that pops in beside it.",
+  "tags": [
+    "shorts",
+    "follow",
+    "call to action"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Heart",
+      "items": [
+        {
+          "type": "shape",
+          "start": 300000,
+          "duration": 3700000,
+          "transform": {
+            "x": -300,
+            "y": 590
+          },
+          "shape": {
+            "kind": "sticker",
+            "color": "#e2674f",
+            "sticker": "heart"
+          },
+          "width": 120,
+          "height": 120,
+          "animationIn": {
+            "kind": "pop",
+            "duration": 400000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Pill",
+      "items": [
+        {
+          "type": "text",
+          "start": 0,
+          "duration": 4000000,
+          "transform": {
+            "x": 30,
+            "y": 590
+          },
+          "style": {
+            "text": "Follow for part two",
+            "font": "Familjen Grotesk",
+            "size": 52,
+            "weight": 700,
+            "color": "#14130e",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0,
+            "background": {
+              "color": "#ffffff",
+              "padding": 24,
+              "radius": 60
+            }
+          },
+          "animationIn": {
+            "kind": "slide-up",
+            "duration": 450000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 4000000
+}
