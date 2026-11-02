@@ -6,33 +6,9 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { check } from "./lib.mjs";
+import { bin, frameNumbers, makeClip } from "./codes.mjs";
 
 const OUT = process.env.OPENROLL_QA_OUT;
-const os = { darwin: "mac", win32: "win", linux: "linux" }[process.platform];
-const bin = name => process.env[name.toUpperCase()] ?? join("resources/ffmpeg", `${os}-${process.arch}`, process.platform === "win32" ? `${name}.exe` : name);
-
-/** Ten black and white blocks across the picture spell the frame number in binary; a click opens every second. */
-function makeClip(file, seconds) {
-  const r = spawnSync(bin("ffmpeg"), [
-    "-v", "error", "-y",
-    "-f", "lavfi", "-i", `color=c=black:s=320x180:r=30:d=${seconds},format=yuv420p,geq=lum='16+219*mod(floor(N/pow(2,floor(X/32))),2)':cb=128:cr=128`,
-    "-f", "lavfi", "-i", `aevalsrc='if(lt(mod(t,1),0.02),0.8*sin(2*PI*1000*t),0)':s=48000:d=${seconds}`,
-    "-c:v", "libx264", "-crf", "12", "-pix_fmt", "yuv420p", "-g", "30", "-c:a", "aac", file,
-  ]);
-  if (r.status !== 0) throw new Error(String(r.stderr));
-}
-
-function frameNumbers(file) {
-  const r = spawnSync(bin("ffmpeg"), ["-v", "error", "-i", file, "-an", "-vf", "scale=10:1:flags=area,format=gray", "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
-  const out = [];
-  for (let i = 0; i + 10 <= r.stdout.length; i += 10) {
-    let n = 0;
-    for (let k = 0; k < 10; k++) if (r.stdout[i + k] > 127) n |= 1 << k;
-    out.push(n);
-  }
-  return out;
-}
-
 const countFrames = file => Number(spawnSync(bin("ffprobe"), ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", file], { encoding: "utf8" }).stdout.trim());
 const listing = () => readdirSync(OUT).sort();
 

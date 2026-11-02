@@ -15,7 +15,7 @@ import {
   type StreamTargetChunk,
   type VideoSample,
 } from "mediabunny";
-import { Compositor, type Layer, type Node } from "./compositor";
+import { Compositor, type Layer, type Node, type PendingRead } from "./compositor";
 import { rasterText } from "./text";
 import { rasterShape } from "./shape-raster";
 import { loadFonts } from "./fonts";
@@ -179,14 +179,22 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
 
   const AUDIO_CHUNK = 10;
   let audioDone = 0;
+  type Mixed = { planes: Float32Array[]; frames: number } | null;
+  const mixChunk = (from: number) =>
+    new Promise<Mixed>(resolve => {
+      const req = nextReq++;
+      audioWaiters.set(req, chunk => {
+        audioWaiters.delete(req);
+        resolve(chunk);
+      });
+      post({ type: "need-audio", req, from, seconds: AUDIO_CHUNK });
+    });
+  // The next chunk mixes on the page while this worker renders video, so adding it never waits.
+  let upcoming: Promise<Mixed> | null = audio && duration > 0 ? mixChunk(0) : null;
   const pumpAudio = async (until: number) => {
     while (audio && audioDone < until && audioDone < duration / 1e6) {
-      const req = nextReq++;
-      const chunk = await new Promise<{ planes: Float32Array[]; frames: number } | null>(resolve => {
-        audioWaiters.set(req, resolve);
-        post({ type: "need-audio", req, from: audioDone, seconds: AUDIO_CHUNK });
-      });
-      audioWaiters.delete(req);
+      const chunk = await (upcoming ?? mixChunk(audioDone));
+      upcoming = null;
       if (chunk && chunk.frames > 0) {
         const data = new Float32Array(chunk.frames * chunk.planes.length);
         chunk.planes.forEach((p, i) => data.set(p.subarray(0, chunk.frames), i * chunk.frames));
@@ -195,6 +203,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
         sample.close();
       }
       audioDone += AUDIO_CHUNK;
+      if (audioDone < duration / 1e6) upcoming = mixChunk(audioDone);
     }
   };
 
@@ -225,6 +234,17 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       written = data.byteLength;
       post({ type: "write", req, position: 0, data }, [data.buffer]);
     });
+  };
+
+  /** One frame is always on its way out of the GPU while the next renders. */
+  let landing: { read: PendingRead; px: Uint8Array } | null = null;
+  const deliver = async (frame: { read: PendingRead; px: Uint8Array }) => {
+    await compositor.finishRead(frame.read, frame.px);
+    // One frame may be in flight while the next renders; more would pile up memory.
+    await inFlight;
+    const req = nextReq++;
+    inFlight = new Promise<void>(resolve => writeAcks.set(req, () => (writeAcks.delete(req), resolve())));
+    post({ type: "frame", req, data: frame.px }, [frame.px.buffer]);
   };
 
   const started = performance.now();
@@ -307,18 +327,16 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
       if (video) {
         for (const f of frames) f.close();
         await video.add(i / fps, 1 / fps);
-      } else {
+      } else if (still) {
         const px = new Uint8Array(s.width * s.height * 4);
         compositor.readRaw(s.transparent, px);
         for (const f of frames) f.close();
-        if (still) await writeStill(px);
-        else {
-          // One frame may be in flight while the next renders; more would pile up memory.
-          await inFlight;
-          const req = nextReq++;
-          inFlight = new Promise<void>(resolve => writeAcks.set(req, () => (writeAcks.delete(req), resolve())));
-          post({ type: "frame", req, data: px }, [px.buffer]);
-        }
+        await writeStill(px);
+      } else {
+        const next = { read: compositor.beginRead(s.transparent), px: new Uint8Array(s.width * s.height * 4) };
+        for (const f of frames) f.close();
+        if (landing) await deliver(landing);
+        landing = next;
       }
 
       if (i % 5 === 0 || i === frameCount - 1) {
@@ -326,6 +344,7 @@ async function run(project: Project, urls: Record<string, string>, s: ExportSett
         post({ type: "progress", frame: i + 1, frames: frameCount, elapsed, bytes: written });
       }
     }
+    if (landing) await deliver(landing);
     await inFlight;
     await pumpAudio(Infinity);
     await output?.finalize();
