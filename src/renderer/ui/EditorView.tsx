@@ -7,6 +7,7 @@ import { useSettings } from "../state/settings";
 import { useAutoAnalysis } from "../state/auto-analyze";
 import { useAiBackground } from "../state/ai";
 import { useShortcuts } from "../state/shortcuts";
+import { startTemplateDrops } from "../state/templates";
 import { Inspector } from "./Inspector";
 import { Library } from "./Library";
 import { Timeline } from "./timeline/Timeline";
@@ -40,6 +41,7 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
     derived.start();
     void checkMissing(editor).then(() => derived.restore(Object.values(editor.project.media)));
   }, [editor, proxyMode]);
+  useEffect(() => startTemplateDrops(editor), [editor]);
   useAutoAnalysis(editor, cache);
   useAiBackground(editor);
   useShortcuts(editor, { onExport: () => setExporting(true), onHome: onClose });

@@ -80,6 +80,7 @@ const OPS = {
   effect: "{id, kind, amount? 0..1, speed?, style? (index into styles)}",
   layout: "{id, layout} picture in picture or split screen placement",
   cut_to_beat: "{clips (ids), music (clip id with beats), every? 1|2|4, muteClips? (true)} rebuilds the main track as beat length pieces",
+  apply_template: "{template (id or name, see list_templates), at? (s; default end of the timeline), media? (media ids, filled into slots in order; omit to use the library), ids? (captions to restyle), as?} adds a ready made title, lower third, cut pattern or other piece with open slots for clips; a caption style template restyles existing captions instead. Slots without media show as marked empty boxes.",
   marker: "{at, label?}",
   track: "{id, muted?, hidden?, locked?, name?}",
   add_track: "{kind video|audio|text, name?, as?}",

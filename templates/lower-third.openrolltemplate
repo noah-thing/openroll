@@ -1,0 +1,148 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "lower-third",
+  "name": "Lower third",
+  "kind": "timeline",
+  "description": "A name and a line of context in the bottom corner, on a dark plate with a gold edge.",
+  "tags": [
+    "title",
+    "name",
+    "interview"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Plate",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 4500000,
+          "transform": {
+            "x": -470,
+            "y": 330
+          },
+          "shape": {
+            "kind": "rect",
+            "color": "rgba(10,12,11,0.85)",
+            "radius": 6
+          },
+          "width": 900,
+          "height": 190,
+          "animationIn": {
+            "kind": "slide-right",
+            "duration": 450000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Edge",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 4500000,
+          "transform": {
+            "x": -915,
+            "y": 330
+          },
+          "shape": {
+            "kind": "rect",
+            "color": "#f2c23a",
+            "radius": 0
+          },
+          "width": 10,
+          "height": 190,
+          "animationIn": {
+            "kind": "slide-right",
+            "duration": 450000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Name",
+      "items": [
+        {
+          "type": "text",
+          "start": 100000,
+          "duration": 4400000,
+          "transform": {
+            "x": -655,
+            "y": 300
+          },
+          "style": {
+            "text": "Ella Lind",
+            "font": "Familjen Grotesk",
+            "size": 76,
+            "weight": 700,
+            "color": "#ffffff",
+            "align": "left",
+            "lineHeight": 1.1,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "slide-right",
+            "duration": 500000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Role",
+      "items": [
+        {
+          "type": "text",
+          "start": 200000,
+          "duration": 4300000,
+          "transform": {
+            "x": -655,
+            "y": 370
+          },
+          "style": {
+            "text": "Skipper, Sjöbris",
+            "font": "Familjen Grotesk",
+            "size": 44,
+            "weight": 500,
+            "color": "#c9cdc7",
+            "align": "left",
+            "lineHeight": 1.1,
+            "letterSpacing": 0
+          },
+          "animationIn": {
+            "kind": "slide-right",
+            "duration": 500000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 4500000
+}

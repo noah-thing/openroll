@@ -1,0 +1,9 @@
+{
+  "format": "openroll-template-index",
+  "version": 1,
+  "templates": [
+    { "id": "neon-title", "name": "Neon title", "file": "neon-title.openrolltemplate", "kind": "timeline", "author": "QA", "tags": ["neon"] },
+    { "id": "liar", "name": "Liar", "file": "liar.openrolltemplate", "kind": "timeline" },
+    { "id": "gone", "name": "Gone", "file": "gone.openrolltemplate", "kind": "timeline" }
+  ]
+}

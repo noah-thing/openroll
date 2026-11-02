@@ -1,0 +1,112 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "hook-title",
+  "name": "Hook title",
+  "kind": "timeline",
+  "description": "A loud opening line over your first clip, with a slow push in. Made for the first three seconds of a short.",
+  "tags": [
+    "shorts",
+    "title",
+    "hook"
+  ],
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 3000000,
+          "keyframes": {
+            "transform.scale": [
+              {
+                "t": 0,
+                "v": 1,
+                "ease": "easeOut"
+              },
+              {
+                "t": 3000000,
+                "v": 1.12,
+                "ease": "ease"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Underline",
+      "items": [
+        {
+          "type": "shape",
+          "start": 350000,
+          "duration": 2650000,
+          "transform": {
+            "y": -430
+          },
+          "shape": {
+            "kind": "sticker",
+            "color": "#f2c23a",
+            "sticker": "wavy"
+          },
+          "width": 760,
+          "height": 760,
+          "animationIn": {
+            "kind": "slide-left",
+            "duration": 350000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 0,
+          "duration": 3000000,
+          "transform": {
+            "y": -520
+          },
+          "style": {
+            "text": "WAIT FOR IT",
+            "font": "Familjen Grotesk",
+            "size": 168,
+            "weight": 800,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1,
+            "letterSpacing": 0,
+            "stroke": {
+              "color": "#000000",
+              "width": 14
+            }
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 350000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 3000000
+}

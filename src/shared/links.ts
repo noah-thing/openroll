@@ -8,4 +8,6 @@ export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases
 
 /** The team's messages live in the repository, so publishing one is a commit. */
 export const NEWS_FEED = `https://raw.githubusercontent.com/${REPO}/main/news/feed.json`;
+/** Community templates live in the repository too: a pull request adds a file and a line in the index. */
+export const TEMPLATES_BASE = `https://raw.githubusercontent.com/${REPO}/main/templates/`;
 export const releaseByTagApi = (tag: string) => `https://api.github.com/repos/${REPO}/releases/tags/${tag}`;

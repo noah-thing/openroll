@@ -1,0 +1,32 @@
+/* ---------- templates panel */
+.tpl-actions { display: flex; gap: 2px; }
+.tpl-tools { display: grid; gap: 8px; padding: 0 12px 10px; }
+.tpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 8px; padding: 0 12px 6px; }
+.tpl-card { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.tpl-tile {
+  appearance: none; border: 0; padding: 0; cursor: pointer; width: 100%; aspect-ratio: 5 / 6; border-radius: var(--radius);
+  background: var(--sunk); display: grid; place-items: center; overflow: hidden;
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.2s;
+}
+.tpl-tile:hover { transform: translateY(-2px); }
+.tpl-tile:active { transform: scale(0.97); }
+.tpl-tile:focus-visible { box-shadow: 0 0 0 2px var(--sel); outline: 0; }
+.tpl-stage { display: grid; place-items: center; width: 100%; height: 100%; }
+.tpl-stage canvas { max-width: 100%; max-height: 100%; display: block; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.tpl-nogl { color: var(--ink-3); font-size: 12px; padding: 8px; text-align: center; }
+.tpl-meta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 4px; }
+.tpl-name { font-size: 11.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-detail { grid-column: 1 / -1; font-size: 11px; color: var(--ink-3); }
+.tpl-tools-row { display: flex; gap: 0; opacity: 0; transition: opacity 0.15s; }
+.tpl-card:hover .tpl-tools-row, .tpl-card:focus-within .tpl-tools-row { opacity: 1; }
+.tpl-icon { appearance: none; border: 0; background: none; color: var(--ink-3); padding: 2px; border-radius: 4px; cursor: pointer; display: grid; place-items: center; }
+.tpl-icon:hover { color: var(--ink); background: var(--pane-2); }
+.tpl-danger:hover { color: var(--danger); }
+.tpl-empty { margin: 8px 14px; color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+.tpl-save { display: grid; gap: 8px; margin: 0 12px 10px; padding: 10px; background: var(--pane-2); border-radius: var(--radius); }
+.tpl-save .text-input { background: var(--sunk); padding: 7px 9px; }
+.tpl-hint { margin: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.4; }
+.tpl-save-row { display: flex; justify-content: flex-end; gap: 6px; }
+.tpl-primary { appearance: none; border: 0; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: var(--radius); cursor: pointer; }
+.tpl-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.tpl-primary:disabled { opacity: 0.45; cursor: default; }

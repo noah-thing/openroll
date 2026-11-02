@@ -1,0 +1,128 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "chapter-card",
+  "name": "Chapter card",
+  "kind": "timeline",
+  "description": "A full screen divider with a chapter number and title. Drop it between two parts of a longer video.",
+  "tags": [
+    "title",
+    "chapter",
+    "divider"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "color",
+          "start": 0,
+          "duration": 3000000,
+          "color": "#13201a"
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Rule",
+      "items": [
+        {
+          "type": "shape",
+          "start": 200000,
+          "duration": 2600000,
+          "transform": {
+            "y": 40
+          },
+          "shape": {
+            "kind": "rect",
+            "color": "#f2c23a",
+            "radius": 3
+          },
+          "width": 220,
+          "height": 6,
+          "animationIn": {
+            "kind": "zoom-in",
+            "duration": 500000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Chapter",
+      "items": [
+        {
+          "type": "text",
+          "start": 100000,
+          "duration": 2800000,
+          "transform": {
+            "y": -60
+          },
+          "style": {
+            "text": "CHAPTER 2",
+            "font": "Familjen Grotesk",
+            "size": 36,
+            "weight": 600,
+            "color": "#f2c23a",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 10
+          },
+          "animationIn": {
+            "kind": "fade",
+            "duration": 500000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 300000,
+          "duration": 2600000,
+          "transform": {
+            "y": 150
+          },
+          "style": {
+            "text": "The long way round",
+            "font": "Familjen Grotesk",
+            "size": 120,
+            "weight": 700,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": -2
+          },
+          "animationIn": {
+            "kind": "slide-up",
+            "duration": 600000
+          },
+          "animationOut": {
+            "kind": "fade",
+            "duration": 300000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 3000000
+}

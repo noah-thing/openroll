@@ -1,0 +1,44 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "captions-soft-serif",
+  "name": "Soft serif",
+  "description": "Quiet serif subtitles with a gentle shadow, for travel films and anything slow.",
+  "tags": [
+    "captions",
+    "serif",
+    "film"
+  ],
+  "kind": "captions",
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [],
+  "tracks": [],
+  "captions": {
+    "style": {
+      "text": "",
+      "font": "Georgia, serif",
+      "size": 52,
+      "weight": 400,
+      "color": "#ffffff",
+      "align": "center",
+      "lineHeight": 1.1,
+      "letterSpacing": 0,
+      "shadow": {
+        "color": "rgba(0,0,0,0.6)",
+        "blur": 16,
+        "x": 0,
+        "y": 4
+      }
+    },
+    "y": 0.36,
+    "animationIn": {
+      "kind": "fade",
+      "duration": 300000
+    }
+  },
+  "duration": 0
+}

@@ -11,6 +11,7 @@ import { FiltersPanel } from "./panels/FiltersPanel";
 import { TransitionsPanel } from "./panels/TransitionsPanel";
 import { StickersPanel } from "./panels/StickersPanel";
 import { SmartPanel } from "./panels/SmartPanel";
+import { TemplatesPanel } from "./panels/TemplatesPanel";
 import { railEvents } from "../state/smart-events";
 
 const TABS: { id: string; label: string; icon: IconName }[] = [
@@ -22,6 +23,7 @@ const TABS: { id: string; label: string; icon: IconName }[] = [
   { id: "filters", label: "Filters", icon: "filters" },
   { id: "effects", label: "Effects", icon: "effects" },
   { id: "stickers", label: "Stickers", icon: "shapes" },
+  { id: "templates", label: "Templates", icon: "templates" },
   { id: "smart", label: "Smart", icon: "wand" },
 ];
 
@@ -53,6 +55,7 @@ export function Library({ editor, cache }: { editor: Editor; cache: MediaCache }
         {tab === "filters" && <FiltersPanel editor={editor} />}
         {tab === "effects" && <EffectsPanel editor={editor} />}
         {tab === "stickers" && <StickersPanel editor={editor} />}
+        {tab === "templates" && <TemplatesPanel editor={editor} />}
         {tab === "smart" && <SmartPanel editor={editor} cache={cache} />}
       </section>
     </>

@@ -52,6 +52,9 @@ layout {id, layout: pip-br|pip-bl|pip-tr|pip-tl|top|bottom|left|right|full} on a
 Stickers and shapes
 add_shape {kind: "sticker", sticker: id from the catalog, at, duration, x, y, scale} to point at things (arrows, circles, underline). Keep one style per video.
 
+Templates
+list_templates shows ready made pieces: hook titles, lower thirds, end cards, cut patterns with punch zooms, split screens and caption styles. apply_template {template, at?, media?} puts one on the timeline with your clips in its slots, in order; a slot without a clip shows as a marked empty box. Caption styles restyle captions that already exist. Prefer a template to building the same thing by hand, then adjust its text with set.
+
 Trailer or teaser
 Slow open with a wide shot and a line of text, build with shorter shots, a hard cut to black (add_color #000000 for 0.5 s) before the final title, end on the name.`,
 

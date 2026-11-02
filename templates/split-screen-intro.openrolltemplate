@@ -1,0 +1,116 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "split-screen-intro",
+  "name": "Split screen intro",
+  "kind": "timeline",
+  "description": "Two clips side by side with a title across the join. Good for a before and after, or two people in one frame.",
+  "tags": [
+    "split",
+    "intro",
+    "comparison"
+  ],
+  "frame": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "id": "clip1",
+      "label": "Clip 1",
+      "kind": "visual"
+    },
+    {
+      "id": "clip2",
+      "label": "Clip 2",
+      "kind": "visual"
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "video",
+      "name": "Overlay",
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip2",
+          "start": 0,
+          "duration": 4000000,
+          "layout": "right",
+          "animationIn": {
+            "kind": "slide-left",
+            "duration": 500000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Main",
+      "main": true,
+      "items": [
+        {
+          "type": "slot",
+          "slot": "clip1",
+          "start": 0,
+          "duration": 4000000,
+          "layout": "left",
+          "animationIn": {
+            "kind": "slide-right",
+            "duration": 500000
+          }
+        }
+      ]
+    },
+    {
+      "kind": "video",
+      "name": "Divider",
+      "items": [
+        {
+          "type": "shape",
+          "start": 0,
+          "duration": 4000000,
+          "shape": {
+            "kind": "rect",
+            "color": "#ffffff",
+            "radius": 0
+          },
+          "width": 8,
+          "height": 1080
+        }
+      ]
+    },
+    {
+      "kind": "text",
+      "name": "Title",
+      "items": [
+        {
+          "type": "text",
+          "start": 400000,
+          "duration": 3600000,
+          "style": {
+            "text": "Side by side",
+            "font": "Familjen Grotesk",
+            "size": 92,
+            "weight": 700,
+            "color": "#ffffff",
+            "align": "center",
+            "lineHeight": 1.1,
+            "letterSpacing": 0,
+            "background": {
+              "color": "rgba(10,12,11,0.8)",
+              "padding": 28,
+              "radius": 8
+            }
+          },
+          "animationIn": {
+            "kind": "pop",
+            "duration": 400000
+          }
+        }
+      ]
+    }
+  ],
+  "duration": 4000000
+}

@@ -161,6 +161,13 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             </div>
             <div className="set-row">
               <div>
+                <b>Community templates</b>
+                <small>The Templates panel can list templates shared on GitHub. It reads one public file and sends nothing about you.</small>
+              </div>
+              <Switch label="Community templates" value={s.communityTemplates} onChange={communityTemplates => updateSettings({ communityTemplates })} />
+            </div>
+            <div className="set-row">
+              <div>
                 <b>Reduce motion</b>
                 <small>Turns off interface animations.</small>
               </div>

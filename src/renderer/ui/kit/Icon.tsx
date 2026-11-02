@@ -59,6 +59,7 @@ const PATHS = {
   shapes: '<rect x="3.5" y="10.5" width="9" height="9" rx="1.5"/><circle cx="15.5" cy="8.5" r="5"/>',
   command: '<path d="M9 9h6v6H9z"/><path d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9zM15 9V6.5A2.5 2.5 0 1 1 17.5 9zM9 15v2.5A2.5 2.5 0 1 1 6.5 15zM15 15v2.5a2.5 2.5 0 1 0 2.5-2.5z"/>',
   layout: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M3.5 12h17"/>',
+  templates: '<rect x="3.5" y="3.5" width="8" height="10" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6" rx="1.5"/><rect x="3.5" y="16" width="8" height="4.5" rx="1.5"/><rect x="14" y="12" width="6.5" height="8.5" rx="1.5"/>',
   beat: '<path d="M3.5 12h3l2-6 3.5 12 2.5-9 1.5 3h4.5"/>',
   warning:'<path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17v.2"/>',
 } as const;

@@ -162,6 +162,9 @@ function placement(p: Project, item: Item, local: Micros, media?: MediaRef): Pla
   return place;
 }
 
+/** The kinds `motion` below knows how to play. */
+export const ANIMATION_KINDS = ["fade", "slide-up", "slide-down", "slide-left", "slide-right", "zoom-in", "zoom-out", "pop", "spin"] as const;
+
 function applyAnimation(place: Placement, item: Item, local: Micros, p: Project): void {
   const inA = item.animationIn, outA = item.animationOut;
   if (inA && local < inA.duration) motion(place, inA.kind, 1 - easeOut(local / inA.duration), p);

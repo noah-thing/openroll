@@ -1,0 +1,45 @@
+{
+  "format": "openroll-template",
+  "version": 1,
+  "author": "OpenRoll",
+  "id": "captions-karaoke-pop",
+  "name": "Karaoke word pop",
+  "description": "Large centred words, dimmed until spoken. The current word lights up green as the line pops in.",
+  "tags": [
+    "captions",
+    "karaoke",
+    "music"
+  ],
+  "kind": "captions",
+  "frame": {
+    "width": 1080,
+    "height": 1920
+  },
+  "slots": [],
+  "tracks": [],
+  "captions": {
+    "style": {
+      "text": "",
+      "font": "Familjen Grotesk",
+      "size": 100,
+      "weight": 800,
+      "color": "#ffffffb3",
+      "align": "center",
+      "lineHeight": 1.1,
+      "letterSpacing": 0,
+      "shadow": {
+        "color": "rgba(0,0,0,0.65)",
+        "blur": 22,
+        "x": 0,
+        "y": 6
+      }
+    },
+    "highlight": "#7fe36b",
+    "y": 0.02,
+    "animationIn": {
+      "kind": "pop",
+      "duration": 200000
+    }
+  },
+  "duration": 0
+}

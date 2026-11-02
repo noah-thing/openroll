@@ -1,0 +1,255 @@
+{
+  "format": "openroll-template-index",
+  "version": 1,
+  "templates": [
+    {
+      "id": "hook-title",
+      "name": "Hook title",
+      "file": "hook-title.openrolltemplate",
+      "kind": "timeline",
+      "description": "A loud opening line over your first clip, with a slow push in. Made for the first three seconds of a short.",
+      "author": "OpenRoll",
+      "tags": [
+        "shorts",
+        "title",
+        "hook"
+      ]
+    },
+    {
+      "id": "lower-third",
+      "name": "Lower third",
+      "file": "lower-third.openrolltemplate",
+      "kind": "timeline",
+      "description": "A name and a line of context in the bottom corner, on a dark plate with a gold edge.",
+      "author": "OpenRoll",
+      "tags": [
+        "title",
+        "name",
+        "interview"
+      ]
+    },
+    {
+      "id": "chapter-card",
+      "name": "Chapter card",
+      "file": "chapter-card.openrolltemplate",
+      "kind": "timeline",
+      "description": "A full screen divider with a chapter number and title. Drop it between two parts of a longer video.",
+      "author": "OpenRoll",
+      "tags": [
+        "title",
+        "chapter",
+        "divider"
+      ]
+    },
+    {
+      "id": "end-card",
+      "name": "End card",
+      "file": "end-card.openrolltemplate",
+      "kind": "timeline",
+      "description": "Thanks for watching over a softened clip, with a subscribe button and an arrow pointing at it.",
+      "author": "OpenRoll",
+      "tags": [
+        "end",
+        "subscribe",
+        "outro"
+      ]
+    },
+    {
+      "id": "quote-card",
+      "name": "Quote card",
+      "file": "quote-card.openrolltemplate",
+      "kind": "timeline",
+      "description": "A square card with a large quote on paper colour, for sharing a line from the video.",
+      "author": "OpenRoll",
+      "tags": [
+        "quote",
+        "square",
+        "card"
+      ]
+    },
+    {
+      "id": "countdown",
+      "name": "Countdown",
+      "file": "countdown.openrolltemplate",
+      "kind": "timeline",
+      "description": "Three, two, one on a dark field with a ring that pulses on each number. Ends on the cut into your first clip.",
+      "author": "OpenRoll",
+      "tags": [
+        "countdown",
+        "intro",
+        "shorts"
+      ]
+    },
+    {
+      "id": "fast-cuts",
+      "name": "Three fast cuts",
+      "file": "fast-cuts.openrolltemplate",
+      "kind": "timeline",
+      "description": "Three clips, a little over a second each, with a punch zoom on every cut. A marker sits on each cut.",
+      "author": "OpenRoll",
+      "tags": [
+        "shorts",
+        "cuts",
+        "zoom",
+        "montage"
+      ]
+    },
+    {
+      "id": "split-screen-intro",
+      "name": "Split screen intro",
+      "file": "split-screen-intro.openrolltemplate",
+      "kind": "timeline",
+      "description": "Two clips side by side with a title across the join. Good for a before and after, or two people in one frame.",
+      "author": "OpenRoll",
+      "tags": [
+        "split",
+        "intro",
+        "comparison"
+      ]
+    },
+    {
+      "id": "reaction-split",
+      "name": "Reaction split",
+      "file": "reaction-split.openrolltemplate",
+      "kind": "timeline",
+      "description": "One clip over another in a vertical frame: the thing you are reacting to on top, you underneath.",
+      "author": "OpenRoll",
+      "tags": [
+        "split",
+        "reaction",
+        "shorts"
+      ]
+    },
+    {
+      "id": "beat-montage",
+      "name": "Beat montage",
+      "file": "beat-montage.openrolltemplate",
+      "kind": "timeline",
+      "description": "Eight clips on a 120 beats per minute grid with a marker on every beat and a slot for the music. A skeleton to cut to.",
+      "author": "OpenRoll",
+      "tags": [
+        "montage",
+        "beat",
+        "music",
+        "shorts"
+      ]
+    },
+    {
+      "id": "memory-recap",
+      "name": "Memory recap",
+      "file": "memory-recap.openrolltemplate",
+      "kind": "timeline",
+      "description": "Four clips that dissolve into each other under a warm film look, with a title over the first.",
+      "author": "OpenRoll",
+      "tags": [
+        "recap",
+        "travel",
+        "film"
+      ]
+    },
+    {
+      "id": "facecam-bubble",
+      "name": "Facecam bubble",
+      "file": "facecam-bubble.openrolltemplate",
+      "kind": "timeline",
+      "description": "A round picture of you in the corner while the main clip plays full screen. For tutorials and commentary.",
+      "author": "OpenRoll",
+      "tags": [
+        "picture in picture",
+        "tutorial",
+        "commentary"
+      ]
+    },
+    {
+      "id": "callout-arrow",
+      "name": "Callout arrow",
+      "file": "callout-arrow.openrolltemplate",
+      "kind": "timeline",
+      "description": "A hand drawn circle, an arrow and a short label to point at something on screen.",
+      "author": "OpenRoll",
+      "tags": [
+        "callout",
+        "sticker",
+        "explain"
+      ]
+    },
+    {
+      "id": "follow-bug",
+      "name": "Follow reminder",
+      "file": "follow-bug.openrolltemplate",
+      "kind": "timeline",
+      "description": "A small pill near the bottom asking for a follow, with a heart that pops in beside it.",
+      "author": "OpenRoll",
+      "tags": [
+        "shorts",
+        "follow",
+        "call to action"
+      ]
+    },
+    {
+      "id": "glitch-intro",
+      "name": "Glitch intro",
+      "file": "glitch-intro.openrolltemplate",
+      "kind": "timeline",
+      "description": "A short title sting: your clip tears and splits colour while the name slams in, then flashes into the next shot.",
+      "author": "OpenRoll",
+      "tags": [
+        "intro",
+        "glitch",
+        "title"
+      ]
+    },
+    {
+      "id": "captions-yellow-highlight",
+      "name": "Bold yellow highlight",
+      "file": "captions-yellow-highlight.openrolltemplate",
+      "kind": "captions",
+      "description": "Heavy white letters with a black outline. The word being spoken turns yellow and each caption pops in.",
+      "author": "OpenRoll",
+      "tags": [
+        "captions",
+        "shorts",
+        "bold"
+      ]
+    },
+    {
+      "id": "captions-white-box",
+      "name": "Clean white box",
+      "file": "captions-white-box.openrolltemplate",
+      "kind": "captions",
+      "description": "Dark text on a soft white plate. Calm and easy to read on any footage.",
+      "author": "OpenRoll",
+      "tags": [
+        "captions",
+        "clean",
+        "box"
+      ]
+    },
+    {
+      "id": "captions-karaoke-pop",
+      "name": "Karaoke word pop",
+      "file": "captions-karaoke-pop.openrolltemplate",
+      "kind": "captions",
+      "description": "Large centred words, dimmed until spoken. The current word lights up green as the line pops in.",
+      "author": "OpenRoll",
+      "tags": [
+        "captions",
+        "karaoke",
+        "music"
+      ]
+    },
+    {
+      "id": "captions-soft-serif",
+      "name": "Soft serif",
+      "file": "captions-soft-serif.openrolltemplate",
+      "kind": "captions",
+      "description": "Quiet serif subtitles with a gentle shadow, for travel films and anything slow.",
+      "author": "OpenRoll",
+      "tags": [
+        "captions",
+        "serif",
+        "film"
+      ]
+    }
+  ]
+}
