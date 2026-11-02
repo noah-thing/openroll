@@ -17,7 +17,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: dpkg -s openroll | head -3 && ls -la "$(readlink -f "$(command -v openroll)")"
       - if: runner.os == 'macOS'
-        run: ls -d /Applications/OpenRoll.app && /Applications/OpenRoll.app/Contents/MacOS/OpenRoll --version || true
+        run: defaults read /Applications/OpenRoll.app/Contents/Info.plist CFBundleShortVersionString
 
   windows:
     runs-on: windows-latest
