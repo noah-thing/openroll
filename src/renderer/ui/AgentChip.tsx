@@ -16,15 +16,20 @@ export function AgentChip() {
   useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", esc);
+    };
   }, [open]);
 
   if (!clients.length) return null;
   const names = [...new Set(clients.map(c => c.name))];
   return (
     <div className="agent-chip-wrap no-drag" ref={ref}>
-      <button className="agent-chip" onClick={() => setOpen(o => !o)} title="AI tools editing this project">
+      <button className="agent-chip" onClick={() => setOpen(o => !o)} title="AI tools editing this project" aria-expanded={open}>
         <Icon name="sparkle" size={14} />
         {names.length === 1 ? `${names[0]} connected` : `${names.length} AI tools connected`}
       </button>

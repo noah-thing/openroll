@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { captionText } from "../../core/captions";
 import { readAt, setAnimated } from "../../core/look/animated";
 import { findItem, itemEnd, type Item, type Project } from "../../core/project";
 import { fitSize } from "../../core/scene";
@@ -14,8 +15,10 @@ export function baseSize(p: Project, item: Item): { width: number; height: numbe
     if (!m || m.kind === "audio") return null;
     return fitSize(p, m);
   }
-  if (item.type === "text") {
-    const r = rasterText(item.style, item.style.text, -1, undefined, p.settings.width * 0.86, 0.25);
+  if (item.type === "text" || item.type === "caption") {
+    // A caption keeps its words apart from the style, which has no text of its own.
+    const text = item.type === "caption" ? captionText(item) : item.style.text;
+    const r = rasterText(item.style, text, -1, undefined, p.settings.width * 0.86, 0.25);
     return { width: r.width, height: r.height };
   }
   if (item.type === "shape") return { width: item.width, height: item.height };

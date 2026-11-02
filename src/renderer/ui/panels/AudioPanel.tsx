@@ -21,7 +21,9 @@ export function AudioPanel({ editor }: { editor: Editor }) {
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const recorder = useRef<VoiceRecorder | null>(null);
   const meter = useRef<HTMLSpanElement>(null);
-  const cancelled = useRef(false);
+  // Each take gets its own flag, so cancelling and starting again cannot revive the old countdown.
+  const cancelled = useRef({ value: false });
+  const opening = useRef(false);
   const sounds = Object.values(media).filter(m => m.kind === "audio");
 
   useEffect(() => () => recorder.current?.close(), []);
@@ -39,20 +41,26 @@ export function AudioPanel({ editor }: { editor: Editor }) {
   }, [phase.name]);
 
   async function record() {
+    if (opening.current) return;
+    opening.current = true;
     const rec = new VoiceRecorder();
     try {
       await rec.open();
     } catch {
+      rec.close();
+      opening.current = false;
       editor.toast("OpenRoll cannot hear a microphone. Check that one is connected and allowed.", { tone: "error" });
       return;
     }
+    opening.current = false;
     recorder.current = rec;
-    cancelled.current = false;
+    const flag = { value: false };
+    cancelled.current = flag;
     const at = editor.time;
     for (const n of [3, 2, 1]) {
       setPhase({ name: "count", n });
       await new Promise(r => setTimeout(r, 1000));
-      if (cancelled.current) return void rec.close();
+      if (flag.value) return void rec.close();
     }
     rec.start();
     // Play the edit from the playhead so the voice can follow what is on screen.
@@ -62,7 +70,7 @@ export function AudioPanel({ editor }: { editor: Editor }) {
 
   async function stop() {
     if (phase.name === "count") {
-      cancelled.current = true;
+      cancelled.current.value = true;
       recorder.current?.close();
       setPhase({ name: "idle" });
       return;
