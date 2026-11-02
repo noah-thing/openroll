@@ -72,3 +72,18 @@ describe("markdown subset", () => {
     expect(blocks[2].kind === "list" && blocks[2].items.length).toBe(2);
   });
 });
+
+describe("code in release notes", () => {
+  it("keeps a fenced command as one block, written exactly", () => {
+    const blocks = parseBody("## Quick setup\n\n```sh\ncurl -fsSL https://example.org/install.sh | sh\n```\n\nThen open it.");
+    expect(blocks).toEqual([
+      { kind: "heading", parts: [{ kind: "text", text: "Quick setup" }] },
+      { kind: "code", text: "curl -fsSL https://example.org/install.sh | sh" },
+      { kind: "p", parts: [{ kind: "text", text: "Then open it." }] },
+    ]);
+  });
+
+  it("does not let an unclosed fence swallow the notes silently", () => {
+    expect(parseBody("```\nirm https://example.org/install.ps1 | iex")).toEqual([{ kind: "code", text: "irm https://example.org/install.ps1 | iex" }]);
+  });
+});

@@ -27,6 +27,10 @@ export function NoteBody({ body }: { body: string }) {
           <h4 key={i}>
             <Parts parts={b.parts} />
           </h4>
+        ) : b.kind === "code" ? (
+          <pre key={i} className="note-code">
+            <code>{b.text}</code>
+          </pre>
         ) : b.kind === "list" ? (
           <ul key={i}>
             {b.items.map((it, j) => (

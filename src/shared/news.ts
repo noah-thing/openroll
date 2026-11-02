@@ -102,7 +102,7 @@ export function newestFirst(items: NewsItem[]): NewsItem[] {
 
 /** Inline pieces of one line of the markdown subset. */
 export type Inline = { kind: "text"; text: string } | { kind: "bold"; text: string } | { kind: "link"; text: string; url: string };
-export type Block = { kind: "p"; parts: Inline[] } | { kind: "list"; items: Inline[][] } | { kind: "heading"; parts: Inline[] };
+export type Block = { kind: "p"; parts: Inline[] } | { kind: "list"; items: Inline[][] } | { kind: "heading"; parts: Inline[] } | { kind: "code"; text: string };
 
 export function parseInline(line: string): Inline[] {
   const out: Inline[] = [];
@@ -129,8 +129,24 @@ export function parseBody(body: string): Block[] {
     para = [];
     list = [];
   };
+  // Release notes carry the install commands in fenced blocks; they are shown as written.
+  let code: string[] | null = null;
   for (const raw of body.replace(/\r/g, "").split("\n")) {
     const line = raw.trim();
+    if (line.startsWith("```")) {
+      if (code) {
+        blocks.push({ kind: "code", text: code.join("\n") });
+        code = null;
+      } else {
+        flush();
+        code = [];
+      }
+      continue;
+    }
+    if (code) {
+      code.push(raw);
+      continue;
+    }
     if (!line) {
       flush();
       continue;
@@ -148,6 +164,7 @@ export function parseBody(body: string): Block[] {
       para.push(line);
     }
   }
+  if (code) blocks.push({ kind: "code", text: code.join("\n") });
   flush();
   return blocks;
 }
