@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTemplate, sanitizeTemplate, serializeTemplate, TEMPLATE_LIMITS, type Template } from "../../src/core/template";
+import { isTemplateId, parseTemplate, sanitizeTemplate, serializeTemplate, TEMPLATE_LIMITS, type Template } from "../../src/core/template";
 import { parseIndex } from "../../src/core/template-index";
 
 const S = 1_000_000;
@@ -219,5 +219,12 @@ describe("community index", () => {
     expect(parseIndex(null)).toEqual([]);
     expect(parseIndex({ templates: [entry] })).toEqual([]);
     expect(parseIndex({ format: "openroll-template-index", templates: "x" })).toEqual([]);
+  });
+});
+
+describe("template ids", () => {
+  it("refuses names Windows keeps for devices, whatever the case of the rest", () => {
+    for (const id of ["con", "nul", "aux", "prn", "com1", "lpt9"]) expect(isTemplateId(id)).toBe(false);
+    for (const id of ["con-title", "console", "lower-third", "nul1x"]) expect(isTemplateId(id)).toBe(true);
   });
 });

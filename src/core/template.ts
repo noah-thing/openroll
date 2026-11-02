@@ -128,6 +128,10 @@ type Obj = Record<string, unknown>;
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v);
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** Ids become file names, and Windows refuses these whatever the extension. */
+export const isTemplateId = (id: unknown): id is string =>
+  typeof id === "string" && SAFE_ID.test(id) && !/^(con|prn|aux|nul|com\d|lpt\d)$/.test(id);
 const SAFE_SLOT = /^[A-Za-z0-9][\w-]{0,31}$/;
 const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const RGBA = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d{1,3}|1\.0{1,3})\s*)?\)$/;
@@ -199,7 +203,7 @@ export function sanitizeTemplate(raw: unknown): TemplateResult {
   };
   if (!isObj(raw.frame) || raw.frame.width !== frame.width || raw.frame.height !== frame.height) repairs.push("frame");
 
-  const id = typeof raw.id === "string" && SAFE_ID.test(raw.id) ? raw.id : (repairs.push("id"), idFromName(name));
+  const id = isTemplateId(raw.id) ? raw.id : (repairs.push("id"), idFromName(name));
   const slots = readSlots(raw.slots, repairs);
   const tracks = kind === "timeline" ? readTracks(raw.tracks, slots, repairs) : [];
   const captions = kind === "captions" ? readCaptionLook(raw.captions) : undefined;

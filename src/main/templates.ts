@@ -1,7 +1,7 @@
 import { app, dialog, net, type BrowserWindow } from "electron";
 import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
-import { parseTemplate, serializeTemplate, TEMPLATE_EXT, TEMPLATE_LIMITS, sanitizeTemplate, type Template } from "../core/template";
+import { isTemplateId, parseTemplate, serializeTemplate, TEMPLATE_EXT, TEMPLATE_LIMITS, sanitizeTemplate, type Template } from "../core/template";
 import { parseIndex } from "../core/template-index";
 import { safeFileName } from "../shared/paths";
 import { TEMPLATES_BASE } from "../shared/links";
@@ -9,7 +9,6 @@ import type { CommunityState, SaveTemplateResult, TemplateImport } from "../shar
 import { writeFileAtomic } from "./project-files";
 import { readCapped } from "./read-capped";
 
-const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const FETCH_AT_ONCE = 4;
 /** One file of a slow connection should not hold the panel on its spinner. */
 const FETCH_TIMEOUT_MS = 15_000;
@@ -38,7 +37,7 @@ export class Templates {
   }
 
   private path(id: string): string {
-    if (!ID.test(id)) throw new Error("not a template id");
+    if (!isTemplateId(id)) throw new Error("not a template id");
     return join(this.dir, `${id}.${TEMPLATE_EXT}`);
   }
 
@@ -68,7 +67,7 @@ export class Templates {
   }
 
   async remove(id: unknown): Promise<void> {
-    if (typeof id === "string" && ID.test(id)) await rm(this.path(id), { force: true });
+    if (isTemplateId(id)) await rm(this.path(id), { force: true });
   }
 
   async pick(): Promise<TemplateImport> {
