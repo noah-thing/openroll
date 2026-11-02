@@ -3,13 +3,15 @@
 // project must hold after every one of them.
 
 import {
-  MIN_ITEM, addMedia, deleteItems, duplicateItems, insertItems, isMagnetic, mediaItem, moveItem, rippleDeleteRange, setSpeed, setTransition, split, trim,
+  MIN_ITEM, addMedia, deleteItems, duplicateItems, insertItems, isMagnetic, mediaItem, moveItem, rippleDeleteRange, setSpeed, setSpeedRamp, setTransition, split, trim,
 } from "../../src/core/edit";
 import {
   closeAllGaps, closeGap, copyItems, freezeFrame, moveGroup, pasteItems, replaceMedia, reverseItems, rippleDeleteItems, rippleTrim, rollTrim, setMagnetic, slip, trimToTime,
 } from "../../src/core/timeline-edit";
 import { setKey } from "../../src/core/look/keyframes";
-import { IDENTITY, createProject, findItem, itemEnd, newId, sourceSpan, type CaptionItem, type Item, type MediaRef, type Project } from "../../src/core/project";
+import { rampDuration } from "../../src/core/speed";
+import { SPEED_PRESETS } from "../../src/core/speed-presets";
+import { IDENTITY, createProject, findItem, itemEnd, newId, sourceSpan, type CaptionItem, type Ease, type Item, type MediaRef, type Project, type SpeedKey } from "../../src/core/project";
 
 export const S = 1_000_000;
 
@@ -105,6 +107,23 @@ export const STEPS: Step[] = [
     },
   },
   { name: "setSpeed", run: (p, r) => { const it = pickItem(p, r); return it ? setSpeed(p, it.id, r.pick([0.25, 0.3, 0.5, 1, 1.5, 2, 3.7, 100])) : p; } },
+  {
+    name: "speedRamp",
+    run: (p, r) => {
+      const it = pickItem(p, r);
+      if (!it) return p;
+      if (r.f() < 0.5) {
+        const preset = r.pick(SPEED_PRESETS);
+        return setSpeedRamp(p, it.id, preset.keys, preset.id);
+      }
+      const eases: Ease[] = ["linear", "ease", "easeIn", "easeOut", "hold", [0.3, 0.8, 0.5, 1.3]];
+      const n = r.int(2, 5);
+      const xs = [0, ...Array.from({ length: n - 2 }, () => 0.05 + r.f() * 0.9).sort((a, b) => a - b), 1];
+      const keys: SpeedKey[] = xs.map(x => ({ x, v: 0.25 + r.f() * 5, ease: r.pick(eases) }));
+      return setSpeedRamp(p, it.id, keys);
+    },
+  },
+  { name: "clearRamp", run: (p, r) => { const it = pickItem(p, r); return it ? setSpeedRamp(p, it.id, null) : p; } },
   { name: "reverse", run: (p, r) => reverseItems(p, someIds(p, r, 0.4)) },
   { name: "freeze", run: (p, r) => { const it = pickItem(p, r); return it ? freezeFrame(p, it.id, timeNear(p, r), { duration: r.pick([S, 2 * S]) }) : p; } },
   { name: "duplicate", run: (p, r) => duplicateItems(p, someIds(p, r, 0.3)) },
@@ -123,7 +142,7 @@ export const STEPS: Step[] = [
       if (!it) return p;
       const q = structuredClone(p);
       const tgt = findItem(q, it.id)!.item;
-      tgt.keyframes = setKey(tgt.keyframes, r.pick(["transform.scale", "transform.x"]), r.int(0, tgt.duration), r.f() * 3, r.pick(["linear", "ease", "hold"] as const));
+      tgt.keyframes = setKey(tgt.keyframes, r.pick(["transform.scale", "transform.x"]), r.int(0, tgt.duration), r.f() * 3, r.pick<Ease>(["linear", "ease", "hold", [0.2, 0.9, 0.3, 1.2], [0.6, -0.2, 0.9, 1]]));
       return q;
     },
   },
@@ -165,6 +184,18 @@ export function check(p: Project): string[] {
       if (isMagnetic(t) && it.start !== (i ? itemEnd(sorted[i - 1]) : 0)) bad.push(`main not packed at ${i}`);
       if (it.type === "media") {
         const m = p.media[it.mediaId];
+      if (it.ramp) {
+          const ramp = it.ramp;
+          if (!Number.isInteger(ramp.span) || ramp.span < 1) bad.push(`ramp span ${ramp.span}`);
+          if (ramp.keys.length < 2 || ramp.keys[0].x !== 0 || ramp.keys.at(-1)!.x !== 1) bad.push("ramp keys do not cover 0 to 1");
+          ramp.keys.forEach((k, j) => {
+            if (j && k.x <= ramp.keys[j - 1].x) bad.push("ramp keys out of order");
+            if (!(k.v >= 0.1 && k.v <= 100)) bad.push(`ramp speed ${k.v}`);
+          });
+          // Rounding in a few cuts adds up to microseconds; a clip held at the minimum length is exempt.
+          if (it.duration > MIN_ITEM && Math.abs(it.duration - rampDuration(ramp.keys, ramp.span)) > 40 + it.duration * 1e-3) bad.push(`ramp length ${it.duration} against curve ${rampDuration(ramp.keys, ramp.span)}`);
+          if (Math.abs(it.speed - ramp.span / it.duration) > 1e-6) bad.push("average speed out of step with the curve");
+        }
         if (!m) bad.push("missing media");
         else if (m.kind !== "image" && !it.freeze) {
           if (it.in < 0) bad.push(`negative in ${it.in}`);

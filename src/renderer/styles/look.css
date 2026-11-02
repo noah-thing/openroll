@@ -12,7 +12,8 @@
 .flip { transform: scaleX(-1); }
 .kflist { display: grid; gap: 4px; }
 .kflist-name { font-size: 11.5px; color: var(--ink-2); margin-top: 4px; }
-.kfrow { display: grid; grid-template-columns: 52px 1fr 86px 22px; align-items: center; gap: 6px; }
+.kfcell { display: grid; gap: 6px; }
+.kfrow { display: grid; grid-template-columns: 52px 1fr 86px 22px 22px; align-items: center; gap: 6px; }
 .kfrow-time { appearance: none; border: 0; background: none; text-align: left; color: var(--ink); font-size: 12px; cursor: pointer; padding: 2px 0; }
 .kfrow-time:hover { color: var(--accent); }
 .kfrow-value { font-size: 12px; color: var(--ink-2); }
@@ -70,3 +71,22 @@
 .mstem { position: absolute; left: 0; width: 0; border-left: 1px solid rgba(255, 255, 255, 0.7); pointer-events: none !important; }
 .keypick { position: absolute; left: 0; top: 0; cursor: crosshair; }
 .keypick-hint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 12px; padding: 5px 10px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
+
+/* Curve editors: easing for keyframes and the speed graph. */
+.bez { display: grid; gap: 6px; padding: 8px; background: var(--pane-2); border-radius: var(--radius); }
+.bez-graph, .sc-graph { width: 100%; max-width: 280px; height: auto; touch-action: none; user-select: none; }
+.bez-graph { max-width: 160px; justify-self: center; }
+.bez-box { fill: var(--sunk); stroke: var(--line); }
+.bez-diag { stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.bez-curve, .sc-curve { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.bez-arm { stroke: var(--ink-3); stroke-width: 1; }
+.bez-handle, .sc-point { fill: var(--ink); stroke: var(--sunk); stroke-width: 1.5; cursor: grab; }
+.bez-handle:focus-visible, .sc-point:focus-visible { outline: none; stroke: var(--accent); stroke-width: 2.5; }
+.sc { display: grid; gap: 8px; }
+.sc-plot { fill: var(--sunk); stroke: var(--line); }
+.sc-grid { stroke: var(--line); }
+.sc-grid.one { stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.sc-label { fill: var(--ink-3); font-size: 8px; }
+.sc-point.sel { fill: var(--accent); }
+.sc-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.sc-readout strong { color: var(--ink); font-weight: 600; }

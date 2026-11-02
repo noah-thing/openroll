@@ -17,6 +17,7 @@ import {
   packMain,
   pruneTransitions,
   setSpeed,
+  setSpeedRamp,
   sortTrack,
   split,
   trackKindFor,
@@ -38,6 +39,7 @@ import {
   type Track,
   type TrackKind,
 } from "./project";
+import { edgeSpeed, syncSpeed } from "./speed";
 
 /** Items that end after `t`, optionally on one track: "select forward from the playhead". */
 export function itemsFrom(p: Project, t: Micros, trackId?: string): string[] {
@@ -162,7 +164,9 @@ export function pasteStyle(p: Project, source: Item, ids: string[]): Project {
   if (source.type === "media") {
     for (const id of targets) {
       const f = findItem(next, id);
-      if (f && f.item.type === "media" && f.item.speed !== source.speed) next = setSpeed(next, id, source.speed);
+      if (!f || f.item.type !== "media") continue;
+      if (source.ramp) next = setSpeedRamp(next, id, source.ramp.keys, source.ramp.preset);
+      else if (f.item.ramp || f.item.speed !== source.speed) next = setSpeed(next, id, source.speed);
     }
   }
   return next;
@@ -235,6 +239,7 @@ export function freezeFrame(p: Project, id: string, t: Micros, opts: FreezeOptio
     fadeOut: 0,
   };
   delete freeze.reversed;
+  delete freeze.ramp;
   delete freeze.transitionIn;
   delete freeze.keyframes;
   if (isMagnetic(track)) {
@@ -266,12 +271,16 @@ export function replaceMedia(p: Project, id: string, ref: MediaRef): Project {
   if (ref.kind === "image") {
     item.in = 0;
     delete item.freeze;
+    delete item.ramp;
   } else if (!item.freeze) {
+    // A curve that needs more footage than the new file has is dropped; the clip keeps its average speed.
+    if (item.ramp && item.in + item.ramp.span > ref.duration) delete item.ramp;
     item.speed = Math.max(0.1, Math.min(item.speed, ref.duration / MIN_ITEM));
     item.in =Math.min(item.in, Math.max(0, ref.duration - MIN_ITEM));
     item.duration = Math.max(MIN_ITEM, Math.min(item.duration, Math.floor((ref.duration - item.in) / item.speed)));
     // A short file at a fast speed cannot fill the minimum length from where the old in point was.
     item.in = Math.max(0, Math.min(item.in, ref.duration - sourceSpan(item)));
+    syncSpeed(item);
   } else item.in = Math.min(item.in, Math.max(0, ref.duration - 1));
   packMain(track);
   pruneTransitions(next);
@@ -396,11 +405,13 @@ export function moveGroup(p: Project, ids: string[], move: GroupMove): Project {
 
 function startRoom(item: MediaItem, media: MediaRef): number {
   if (media.kind === "image" || item.freeze) return Infinity;
-  return item.reversed ? Math.floor((media.duration - item.in - sourceSpan(item)) / item.speed) : Math.floor(item.in / item.speed);
+  const speed = item.ramp ? edgeSpeed(item, "head") : item.speed;
+  return item.reversed ? Math.floor((media.duration - item.in - sourceSpan(item)) / speed) : Math.floor(item.in / speed);
 }
 
 function endRoom(item: MediaItem, media: MediaRef): number {
   if (media.kind === "image" || item.freeze) return Infinity;
+  if (item.ramp) return Math.floor((item.reversed ? item.in : media.duration - item.in - sourceSpan(item)) / edgeSpeed(item, "tail"));
   return Math.floor((item.reversed ? item.in + sourceSpan(item) : media.duration - item.in) / item.speed) - item.duration;
 }
 

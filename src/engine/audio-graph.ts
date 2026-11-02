@@ -3,6 +3,7 @@
 
 import { chainPlan, duckCurve, fadeCurve, itemGain, speechRanges, valueAt, type Point } from "../core/audio-plan";
 import { dbToGain } from "../core/dsp";
+import { rateSteps } from "../core/speed";
 import { itemEnd, type MediaItem, type MediaRef, type Micros, type Project, type VoiceFx } from "../core/project";
 import workletUrl from "./worklets/dsp.worklet?worker&url";
 
@@ -84,6 +85,21 @@ export function buildChain(ctx: BaseAudioContext, p: Project, item: MediaItem, m
     output = duck;
   }
   return { input, output, latency };
+}
+
+/**
+ * Set how fast a buffer source plays for a clip. A constant speed is one number; a ramp is a
+ * run of short steps that follow the curve across the stretch of source `from` to `to` (seconds)
+ * that this source plays, starting at context time `when`.
+ */
+export function setRate(node: AudioBufferSourceNode, item: MediaItem, when: number, from: number, to: number): void {
+  if (!item.ramp) {
+    node.playbackRate.value = item.speed;
+    return;
+  }
+  const steps = rateSteps(item, from, to);
+  node.playbackRate.value = steps[0].rate;
+  for (let i = 1; i < steps.length; i++) node.playbackRate.setValueAtTime(steps[i].rate, when + steps[i].at);
 }
 
 /** Write a piecewise linear curve onto a param, starting from where playback begins. */

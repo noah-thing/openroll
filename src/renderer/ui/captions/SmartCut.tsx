@@ -18,7 +18,7 @@ export function SmartCut({ editor, settings }: { editor: Editor; settings: Liste
   const found = selection.length === 1 ? findItem(project, selection[0]) : null;
   const item = found?.track.main && found.item.type === "media" ? found.item : null;
   const media = item ? project.media[item.mediaId] : undefined;
-  const usable = !!item && !!media?.hasAudio && !item.reversed && !item.freeze;
+  const usable = !!item && !!media?.hasAudio && !item.reversed && !item.freeze && !item.ramp;
 
   // A fresh listen is exact; captions already on the timeline do for clips heard in an earlier session.
   const words = usable && item ? (service.heard(item, settings) ?? service.fromCaptions(item)) : null;

@@ -88,7 +88,8 @@ function item(i: Item, opts: SummaryOptions) {
   if (i.keyframes && Object.keys(i.keyframes).length) base.keyframes = Object.fromEntries(Object.entries(i.keyframes).map(([k, keys]) => [k, keys.map(x => [sec(x.t + i.start), x.v])]));
   if (i.type === "media") {
     Object.assign(base, { media: i.mediaId, in: sec(i.in) });
-    if (i.speed !== 1) base.speed = i.speed;
+    if (i.ramp && !i.freeze) base.speedCurve = { ...(i.ramp.preset ? { preset: i.ramp.preset } : {}), average: Math.round(i.speed * 1000) / 1000, points: i.ramp.keys.map(k => [Math.round(k.x * 1000) / 1000, Math.round(k.v * 1000) / 1000]) };
+    else if (i.speed !== 1) base.speed = i.speed;
     if (i.volume !== 1) base.volume = i.volume;
     if (i.fadeIn) base.fadeIn = sec(i.fadeIn);
     if (i.fadeOut) base.fadeOut = sec(i.fadeOut);

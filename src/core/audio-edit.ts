@@ -1,6 +1,7 @@
 // Edits that belong to sound: cleanup settings, detaching audio, voiceovers and beats.
 
 import { addMedia, draft, freeTrack, insertItems, mediaItem, sortTrack } from "./edit";
+import { localAtPlayed } from "./speed";
 import { findItem, itemEnd, newId, type AudioCleanup, type MediaItem, type MediaRef, type Micros, type Project, type VoiceFx } from "./project";
 
 /** Merge cleanup settings onto an item, dropping any that are switched off. */
@@ -48,6 +49,7 @@ export function detachAudio(p: Project, id: string): Project {
     duration: video.duration,
     in: video.in,
     speed: video.speed,
+    ...(video.ramp ? { ramp: structuredClone(video.ramp) } : {}),
     volume: video.volume,
     fadeIn: video.fadeIn,
     fadeOut: video.fadeOut,
@@ -81,7 +83,7 @@ export function itemBeats(p: Project, item: MediaItem): Micros[] {
   const out: Micros[] = [];
   const end = itemEnd(item);
   for (const b of beats) {
-    const t = Math.round(item.start + (b - item.in) / item.speed);
+    const t = Math.round(item.start + localAtPlayed(item, b - item.in));
     if (t >= item.start && t <= end) out.push(t);
   }
   return out;

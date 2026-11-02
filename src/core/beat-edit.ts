@@ -2,6 +2,7 @@
 // The planning is pure; applying it swaps the chosen clips for the new pieces.
 
 import { deleteItems, insertItems, MIN_ITEM } from "./edit";
+import { localAtPlayed } from "./speed";
 import { findItem, itemEnd, newId, sourceSpan, type MediaItem, type Micros, type Project } from "./project";
 
 export type Density = 1 | 2 | 4;
@@ -73,7 +74,7 @@ export function planBeatEdit(clips: PlanClip[], beats: Micros[], density: Densit
 
 /** Beats are stored in source time; this is where they sound on the timeline. */
 export function beatsOnTimeline(music: MediaItem, beats: Micros[]): Micros[] {
-  return beats.map(b => music.start + Math.round((b - music.in) / music.speed)).filter(t => t >= music.start && t < itemEnd(music));
+  return beats.map(b => music.start + Math.round(localAtPlayed(music, b - music.in))).filter(t => t >= music.start && t < itemEnd(music));
 }
 
 export interface BeatEditResult {
@@ -115,7 +116,7 @@ export function cutToBeat(p: Project, clipIds: string[], musicId: string, densit
   const byId = new Map(clips.map(c => [c.item.id, c.item as MediaItem]));
   const items: MediaItem[] = plan.map(piece => {
     const src = structuredClone(byId.get(piece.clipId)!);
-    return { ...src, id: newId("i"), start: piece.start, duration: piece.duration, in: piece.in, speed: piece.speed, volume: muteClips ? 0 : src.volume, fadeIn: 0, fadeOut: 0, transitionIn: undefined, keyframes: undefined, link: undefined };
+    return { ...src, id: newId("i"), start: piece.start, duration: piece.duration, in: piece.in, speed: piece.speed, volume: muteClips ? 0 : src.volume, fadeIn: 0, fadeOut: 0, transitionIn: undefined, keyframes: undefined, link: undefined, ramp: undefined };
   });
   for (const i of items) {
     if (i.transitionIn === undefined) delete i.transitionIn;

@@ -5,6 +5,7 @@
 import { sample, valueAt } from "./animate";
 import type { BlendMode, CaptionItem, ChromaKey, ColorItem, Crop, Curves, Fill, Hsl, Item, Mask, MediaItem, MediaRef, Micros, Project, ShapeItem, TextItem, Track } from "./project";
 import { itemEnd } from "./project";
+import { playedOffset } from "./speed";
 
 export interface Placement {
   x: number;
@@ -101,8 +102,9 @@ function visualFor(p: Project, item: Item, t: Micros, overrun: boolean): Visual 
 function sourceAt(item: MediaItem, media: MediaRef, local: Micros, overrun: boolean): Micros {
   if (media.kind === "image" || item.freeze) return item.in;
   const l = overrun ? local : Math.max(0, Math.min(item.duration - 1, local));
-  const offset = Math.round(l * item.speed);
-  const s = item.reversed ? item.in + Math.round(item.duration * item.speed) - offset : item.in + offset;
+  const offset = Math.round(playedOffset(item, l));
+  const span = item.ramp ? item.ramp.span : Math.round(item.duration * item.speed);
+  const s = item.reversed ? item.in + span - offset : item.in + offset;
   return Math.max(0, Math.min(media.duration - 1, s));
 }
 

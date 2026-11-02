@@ -1,7 +1,8 @@
 // Things the timeline can do, as plain functions of the editor. Shortcuts, the context
 // menu and the toolbar all call these, so each action behaves the same wherever it starts.
 
-import { deleteItems, setSpeed, split, updateItem, addMarker } from "../../core/edit";
+import { deleteItems, setSpeed, setSpeedRamp, split, updateItem, addMarker } from "../../core/edit";
+import type { SpeedPreset } from "../../core/speed-presets";
 import {
   type Clip,
   closeGap,
@@ -172,6 +173,10 @@ export function reverseSelection(editor: Editor, ids = editor.selection): void {
 
 export function setSpeedFor(editor: Editor, speed: number, ids = editor.selection): void {
   editor.apply(speed === 1 ? "Normal speed" : `Speed ${speed}x`, p => ids.reduce((q, id) => setSpeed(q, id, speed), p));
+}
+
+export function setSpeedCurveFor(editor: Editor, preset: SpeedPreset, ids = editor.selection): void {
+  editor.apply(`Speed curve, ${preset.label}`, p => ids.reduce((q, id) => setSpeedRamp(q, id, preset.keys, preset.id), p));
 }
 
 export function renameItem(editor: Editor, id: string, name: string): void {

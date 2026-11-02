@@ -1,4 +1,5 @@
 import { allCaptions, captionsFromWords, placeCaptions, type TimedWord } from "../../core/captions";
+import { localAtPlayed } from "../../core/speed";
 import { templateFor, type CaptionChoice } from "../../core/caption-styles";
 import { itemEnd, sourceSpan, SECOND, type MediaItem, type MediaRef, type Micros, type Project } from "../../core/project";
 import type { SpeechModel } from "../../engine/speech-protocol";
@@ -207,8 +208,8 @@ function toTimeline(words: TimedWord[], item: MediaItem): TimedWord[] {
   for (const w of words) {
     const mid = (w.start + w.end) / 2;
     if (mid < item.in || mid >= end) continue;
-    const start = item.start + Math.round((Math.max(w.start, item.in) - item.in) / item.speed);
-    const stop = item.start + Math.round((Math.min(w.end, end) - item.in) / item.speed);
+    const start = item.start + Math.round(localAtPlayed(item, Math.max(w.start, item.in) - item.in));
+    const stop = item.start + Math.round(localAtPlayed(item, Math.min(w.end, end) - item.in));
     out.push({ text: w.text, start, end: Math.max(start + 1, stop) });
   }
   return out;

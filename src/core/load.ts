@@ -2,7 +2,9 @@
 // disk, from older or newer builds and from people with a text editor, so nothing here
 // assumes a field exists. What can be repaired is repaired and listed; what cannot is refused.
 
-import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type Track } from "./project";
+import { isEase } from "./easing";
+import { IDENTITY, newId, type Item, type KeyframeMap, type MediaKind, type MediaRef, type Project, type SpeedRamp, type Track } from "./project";
+import { normalizeKeys } from "./speed";
 
 export const CURRENT_VERSION = 1;
 
@@ -175,6 +177,7 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
     start: clampTime(raw.start),
     duration: Math.min(MAX_TIME, Math.round(raw.duration)),
     transform: { ...IDENTITY, ...(isObj(raw.transform) ? raw.transform : {}) },
+    ...(raw.keyframes === undefined ? {} : { keyframes: repairKeyframes(raw.keyframes, repairs) }),
   };
   switch (raw.type) {
     case "media":
@@ -182,7 +185,7 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
       return {
         ...base,
         in: num(raw.in) && raw.in >= 0 ? clampTime(raw.in) : 0,
-        speed: num(raw.speed) && raw.speed > 0 ? raw.speed : 1,
+        ...repairSpeed(raw, base.duration, repairs),
         volume: num(raw.volume) && raw.volume >= 0 ? raw.volume : 1,
         fadeIn: num(raw.fadeIn) ? raw.fadeIn : 0,
         fadeOut: num(raw.fadeOut) ? raw.fadeOut : 0,
@@ -197,6 +200,43 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
       if (!isObj(raw.shape) || !num(raw.width) || !num(raw.height)) return drop();
       return base as unknown as Item;
   }
+}
+
+/** Speed and the optional curve together, since the item keeps its average speed in step with the curve. */
+function repairSpeed(raw: Obj, duration: number, repairs: string[]): { speed: number; ramp?: SpeedRamp } {
+  const speed = num(raw.speed) && raw.speed > 0 ? raw.speed : 1;
+  if (raw.ramp === undefined) return { speed };
+  const r = raw.ramp;
+  const keys = isObj(r) && Array.isArray(r.keys) ? r.keys.filter((k): k is Obj => isObj(k) && num(k.x) && num(k.v)) : [];
+  const norm = normalizeKeys(keys.map(k => ({ x: k.x as number, v: k.v as number, ...(isEase(k.ease) ? { ease: k.ease } : {}) })));
+  if (!isObj(r) || !norm || !num(r.span) || r.span < 1 || r.span > MAX_TIME) {
+    repairs.push("speed curve");
+    return { speed, ramp: undefined };
+  }
+  const span = Math.round(r.span);
+  const ramp: SpeedRamp = { keys: norm, span, ...(typeof r.preset === "string" && r.preset.length <= 40 ? { preset: r.preset } : {}) };
+  return { speed: span / duration, ramp };
+}
+
+/** Keys with a usable time and value, in time order; an unknown easing becomes the default one. */
+function repairKeyframes(raw: unknown, repairs: string[]): KeyframeMap | undefined {
+  if (!isObj(raw)) {
+    repairs.push("keyframes");
+    return undefined;
+  }
+  const out: KeyframeMap = {};
+  for (const [path, keys] of Object.entries(raw)) {
+    if (path === "__proto__" || !Array.isArray(keys)) {
+      repairs.push("keyframes");
+      continue;
+    }
+    const good = keys.filter((k): k is Obj => isObj(k) && num(k.t) && num(k.v));
+    if (good.length !== keys.length || good.some(k => !isEase(k.ease))) repairs.push("keyframes");
+    const list = good.map(k => ({ t: Math.round(k.t as number), v: k.v as number, ease: isEase(k.ease) ? k.ease : ("ease" as const) }));
+    list.sort((a, b) => a.t - b.t);
+    if (list.length) out[path] = list;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 function repairMarkers(raw: unknown, repairs: string[]): Project["markers"] {

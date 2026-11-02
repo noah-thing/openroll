@@ -2,6 +2,8 @@
 // which is saved as JSON. Times are integer microseconds everywhere, the same unit
 // WebCodecs uses, so a frame timestamp can go straight into the model and back.
 
+import { playedOffset } from "./speed";
+
 export type Micros = number;
 
 export const SECOND: Micros = 1_000_000;
@@ -186,11 +188,39 @@ export type VoiceFx = "pitchUp" | "pitchDown" | "robot" | "radio" | "echo" | "bi
 
 export type Easing = "linear" | "ease" | "easeIn" | "easeOut" | "hold";
 
+/** x1, y1, x2, y2: the inner control points of a curve from (0, 0) to (1, 1), as in CSS. x stays inside 0..1; y may overshoot. */
+export type CubicBezier = [number, number, number, number];
+
+export type Ease = Easing | CubicBezier;
+
 export interface Keyframe {
   /** Time relative to the item start. */
   t: Micros;
   v: number;
-  ease: Easing;
+  /** Shape of the move from this key to the next. */
+  ease: Ease;
+}
+
+export interface SpeedKey {
+  /** Where in the played source span, 0..1. */
+  x: number;
+  /** Playback speed there. */
+  v: number;
+  /** Shape of the change to the next key; smooth when missing. */
+  ease?: Ease;
+}
+
+/**
+ * A clip whose speed changes while it plays. Keys are placed along the source span in
+ * playing order, so the length of the clip follows from the curve and the span. `span` is the
+ * source time the clip uses, kept exact because split and trim cannot recover it from the
+ * rounded duration. `speed` on the item holds the average, for code that only needs a number.
+ */
+export interface SpeedRamp {
+  keys: SpeedKey[];
+  span: Micros;
+  /** Id of the preset this curve came from, until it is edited. */
+  preset?: string;
 }
 
 /** Any numeric property path on an item can be animated, e.g. "transform.scale". */
@@ -241,7 +271,9 @@ export interface MediaItem extends ItemBase {
   mediaId: string;
   /** Where in the source this item begins. */
   in: Micros;
+  /** Playback speed. With a `ramp` this is the average over the clip. */
   speed: number;
+  ramp?: SpeedRamp;
   volume: number;
   fadeIn: Micros;
   fadeOut: Micros;
@@ -413,9 +445,9 @@ export function mainTrack(p: Project): Track {
 export function sourceTime(item: MediaItem, t: Micros, mediaDuration: Micros): Micros {
   const local = Math.max(0, Math.min(item.duration, t - item.start));
   if (item.freeze) return item.in;
-  const offset = local * item.speed;
+  const offset = playedOffset(item, local);
   if (item.reversed) {
-    const span = item.duration * item.speed;
+    const span = item.ramp ? item.ramp.span : item.duration * item.speed;
     return Math.max(0, Math.min(mediaDuration, item.in + span - offset));
   }
   return Math.max(0, Math.min(mediaDuration, item.in + offset));
@@ -423,5 +455,6 @@ export function sourceTime(item: MediaItem, t: Micros, mediaDuration: Micros): M
 
 /** How much of the source an item consumes. */
 export function sourceSpan(item: MediaItem): Micros {
-  return item.freeze ? 0 : Math.round(item.duration * item.speed);
+  if (item.freeze) return 0;
+  return item.ramp ? item.ramp.span : Math.round(item.duration * item.speed);
 }

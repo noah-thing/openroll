@@ -2,6 +2,7 @@
 // and the exporter ask the same questions and tests can check the answers.
 
 import { dbToGain } from "./dsp";
+import { localAtPlayed, rampKeepsAudio } from "./speed";
 import { normalizeGainDb } from "./loudness";
 import { itemEnd, type CaptionItem, type MediaItem, type MediaRef, type Micros, type Project, type VoiceFx } from "./project";
 
@@ -30,9 +31,9 @@ export function itemGain(item: MediaItem, media: MediaRef): number {
   return item.volume * norm;
 }
 
-/** Whether an item makes sound at all. Reversed and frozen items stay silent. */
+/** Whether an item makes sound at all. Reversed and frozen items stay silent, and so do speed curves that leave the band where resampled sound is still usable. */
 export function audible(item: MediaItem, media: MediaRef | undefined): media is MediaRef {
-  return !!media?.hasAudio && !item.muteAudio && !item.reversed && !item.freeze && item.volume > 0;
+  return !!media?.hasAudio && !item.muteAudio && !item.reversed && !item.freeze && item.volume > 0 && (!item.ramp || rampKeepsAudio(item.ramp));
 }
 
 /** Piecewise linear fade multiplier over the item, in timeline time. */
@@ -73,8 +74,8 @@ export function speechRanges(p: Project, self: MediaItem): Range[] {
       if (!audible(item, media) || !media.speech) continue;
       const end = itemEnd(item);
       for (let i = 0; i + 1 < media.speech.length; i += 2) {
-        const a = item.start + (media.speech[i] - item.in) / item.speed;
-        const b = item.start + (media.speech[i + 1] - item.in) / item.speed;
+        const a = item.start + localAtPlayed(item, media.speech[i] - item.in);
+        const b = item.start + localAtPlayed(item, media.speech[i + 1] - item.in);
         const from = Math.max(a, item.start), to = Math.min(b, end);
         if (to > from) out.push([Math.round(from), Math.round(to)]);
       }

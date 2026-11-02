@@ -3,6 +3,7 @@ import type { Edge } from "../../../core/edit";
 import type { Item, MediaRef, Project, Track } from "../../../core/project";
 import { itemBeats } from "../../../core/audio-edit";
 import { keyTimes } from "../../../core/look/keyframes";
+import { playedOffset } from "../../../core/speed";
 import { PEAKS_PER_SECOND } from "../../../engine/media-protocol";
 import { span } from "../../lib/format";
 import { framePlace, type MediaCache } from "../../state/media-cache";
@@ -56,7 +57,10 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
     g.clearRect(0, 0, w, h);
     if (item.type !== "media") return;
     const speed = item.speed;
-    const srcAt = (x: number) => (item.reversed ? item.in + (item.duration - (x / pps) * 1e6) * speed : item.in + (x / pps) * 1e6 * speed);
+    const ramp = item.ramp;
+    const srcAt = ramp
+      ? (x: number) => (item.reversed ? item.in + ramp.span - playedOffset(item, (x / pps) * 1e6) : item.in + playedOffset(item, (x / pps) * 1e6))
+      : (x: number) => (item.reversed ? item.in + (item.duration - (x / pps) * 1e6) * speed : item.in + (x / pps) * 1e6 * speed);
 
     const audioOnly = media.kind === "audio" || track.kind === "audio";
     const waveH = audioOnly ? h - 16 : track.main && media.hasAudio ? 14 : 0;
@@ -87,7 +91,8 @@ export const ClipView = memo(function ClipView({ item, project, track, pps, view
       <div className="clip-label" style={{ left: Math.max(6, view.left - left + 6) }}>
         {item.type === "media" && item.reversed && <span className="clip-badge">◀</span>}
         {item.type === "media" && item.freeze && <span className="clip-badge">Still</span>}
-        {item.type === "media" && item.speed !== 1 && <span className="clip-badge">{fmtSpeed(item.speed)}</span>}
+        {item.type === "media" && item.ramp && !item.freeze && <span className="clip-badge">Curve</span>}
+        {item.type === "media" && !item.ramp && item.speed !== 1 && <span className="clip-badge">{fmtSpeed(item.speed)}</span>}
         {item.transitionIn && <span className="clip-badge">⇄</span>}
         {badge && <span className={"clip-badge clip-badge-" + badge}>{BADGE_TEXT[badge]}</span>}
         <span className="clip-name">{label}</span>

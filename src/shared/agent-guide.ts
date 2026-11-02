@@ -78,9 +78,10 @@ Slow open with a wide shot and a line of text, build with shorter shots, a hard 
 - cutout: true removes the background around people.`,
 
   motion: `Motion
-- Keyframes animate any numeric property: transform.x, transform.y, transform.scale, transform.rotation, transform.opacity, adjust.*, effect amounts. Time is on the timeline; ease is linear, ease, easeIn, easeOut or hold.
+- Keyframes animate any numeric property: transform.x, transform.y, transform.scale, transform.rotation, transform.opacity, adjust.*, effect amounts. Time is on the timeline; ease is linear, ease, easeIn, easeOut or hold, or a cubic bezier [x1, y1, x2, y2] (x between 0 and 1, y may overshoot) such as [0.2, 0.8, 0.2, 1] for a fast start that settles. Naming ease on a key that exists changes how it eases.
 - A slow push in (scale 1 -> 1.08 over the whole clip, ease) makes stills and static shots feel alive.
 - animationIn and animationOut on text and overlays: fade, slide-up, slide-down, slide-left, slide-right, zoom-in, zoom-out, pop, spin, with duration in seconds (0.25 to 0.5 feels quick).
+- speed_ramp changes speed during a clip. Presets: montage (slow, fast, slow), hero (a slow beat in the middle), bullet (a very slow burst), jump-cut (steps between normal and fast), flash-in (fast start that settles), flash-out (normal into a fast finish). Or give points: [{at: 0..1 along the footage, speed, ease?}]. The clip gets longer or shorter to match and the result reports the new duration, so move later clips if they are not on the main track. Sound plays on a curve only while it stays between 0.25x and 4x, and its pitch follows the speed; outside that the clip is silent, so use a steady speed for talking.
 - speed below 1 with slowMotion "flow" gives smooth slow motion; motionBlur {amount 0..1} for fast moves; stabilize {strength 0..1} for shaky handheld.
 - make_vertical reframes a clip on its subject with keyframes when the frame shape changes.`,
 

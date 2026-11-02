@@ -3,6 +3,7 @@
 // markers and the selection are current.
 
 import { LAYOUTS } from "../../core/layouts";
+import { SPEED_PRESETS } from "../../core/speed-presets";
 import { GUIDES } from "../../core/safe-zones";
 import { STICKERS } from "../../core/stickers";
 import { changeFrame, RATIOS } from "../ui/RatioPicker";
@@ -13,7 +14,7 @@ import type { Editor } from "./editor";
 import { chooseApp, toggleGuide } from "./guides";
 import { showRail } from "./smart-events";
 import { addShape, addTextPreset, addTransition, generateCaptions, removeSilences, setLayout } from "./smart-actions";
-import { closeAllGapsOn, detachAudio, setSpeedFor } from "./timeline-actions";
+import { closeAllGapsOn, detachAudio, setSpeedCurveFor, setSpeedFor } from "./timeline-actions";
 import { TEXT_PRESETS } from "../ui/panels/text-presets";
 
 export interface Action {
@@ -108,6 +109,7 @@ export function buildActions(editor: Editor): Action[] {
   }
 
   for (const s of [0.5, 1.5, 2, 3]) act(`speed-${s}`, `Change speed to ${s}x`, "Speed", e => setSpeedFor(e, s), { keywords: s > 1 ? "faster fast" : "slower slow motion", enabled: hasVideoSelected });
+  for (const pr of SPEED_PRESETS) act(`speed-curve-${pr.id}`, `Speed curve: ${pr.label}`, "Speed", e => setSpeedCurveFor(e, pr), { enabled: hasVideoSelected, keywords: "ramp montage hero bullet flash jump cut slow motion" });
   act("speed-1", "Normal speed", "Speed", e => setSpeedFor(e, 1), { enabled: hasVideoSelected, keywords: "reset" });
   act("detach-audio", "Detach audio from clip", "Editing", e => detachAudio(e), { enabled: hasVideoSelected, keywords: "separate extract sound" });
   act("close-gaps", "Close all gaps on the main track", "Editing", e => closeAllGapsOn(e, e.project.tracks.find(t => t.main)!.id), { keywords: "empty space" });

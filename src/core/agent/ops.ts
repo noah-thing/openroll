@@ -3,8 +3,11 @@
 // undo step. Operations can name what they create ("as") and later ones refer to it
 // as "$name", so a whole edit fits in one call.
 
-import { MIN_ITEM, addMarker, deleteItems, insertItems, isMagnetic, mediaItem, moveItem, packMain, pruneTransitions, resolveOverlap, rippleDeleteRange, setSpeed, setTrack, setTransition, split, updateItem } from "../edit";
-import { setKey } from "../look/keyframes";
+import { MIN_ITEM, addMarker, deleteItems, insertItems, isMagnetic, mediaItem, moveItem, packMain, pruneTransitions, resolveOverlap, rippleDeleteRange, setSpeed, setSpeedRamp, setTrack, setTransition, split, trim, updateItem } from "../edit";
+import { isEase } from "../easing";
+import { setEase, setKey } from "../look/keyframes";
+import { MAX_SPEED, MAX_SPEED_KEYS, MIN_SPEED } from "../speed";
+import { SPEED_PRESETS, presetById } from "../speed-presets";
 import { addEffectTo, setFilter } from "../look/edit";
 import { EFFECTS } from "../look/effects";
 import { FILTERS } from "../look/filters";
@@ -13,12 +16,13 @@ import {
   IDENTITY,
   mainTrack,
   newId,
-  type Easing,
+  type Ease,
   type Item,
   type MediaItem,
   type Micros,
   type Project,
   type ShapeKind,
+  type SpeedKey,
   type TextItem,
   type TextStyle,
   type TrackKind,
@@ -39,7 +43,8 @@ export type Op =
   | { op: "delete"; ids: string[] }
   | { op: "remove_range"; from: number; to: number }
   | { op: "set"; id: string; props: Record<string, unknown> }
-  | { op: "keyframe"; id: string; prop: string; at: number; value: number; ease?: Easing }
+  | { op: "keyframe"; id: string; prop: string; at: number; value: number; ease?: Ease }
+  | { op: "speed_ramp"; id: string; preset?: string; points?: { at: number; speed: number; ease?: Ease }[] }
   | { op: "transition"; id: string; kind: string | null; duration?: number }
   | { op: "filter"; id: string; filter: string | null; amount?: number }
   | { op: "effect"; id: string; kind: string; amount?: number; speed?: number; style?: number }
@@ -51,7 +56,7 @@ export type Op =
   | { op: "layout"; id: string; layout: Layout }
   | { op: "cut_to_beat"; clips: string[]; music: string; every?: 1 | 2 | 4; muteClips?: boolean };
 
-export const OP_NAMES = ["add_clip", "add_text", "add_color", "move", "trim", "split", "delete", "remove_range", "set", "keyframe", "transition", "filter", "effect", "marker", "track", "add_track", "project", "add_shape", "layout", "cut_to_beat"];
+export const OP_NAMES = ["add_clip", "add_text", "add_color", "move", "trim", "split", "delete", "remove_range", "set", "keyframe", "speed_ramp", "transition", "filter", "effect", "marker", "track", "add_track", "project", "add_shape", "layout", "cut_to_beat"];
 
 export interface OpResult {
   op: string;
@@ -59,6 +64,8 @@ export interface OpResult {
   ids?: string[];
   /** cut_to_beat: how many clips the footage was cut into; their ids are in changed.added. */
   pieces?: number;
+  /** speed_ramp: the clip's new length in seconds. */
+  duration?: number;
 }
 
 export class OpError extends Error {
@@ -169,6 +176,17 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
         }
         case "trim": {
           const it = item(o.id);
+          const media0 = it.type === "media" ? p.media[it.mediaId] : undefined;
+          if (it.type === "media" && it.ramp && !it.freeze && media0) {
+            // A speed curve ties length to footage, so the end moves through trim and the in point slides the window.
+            if (o.in !== undefined) {
+              const want = Math.max(0, Math.min(media0.duration - it.ramp.span, us(o.in, "in")));
+              p = updateItem(p, it.id, { in: want } as Partial<Item>);
+            }
+            if (o.duration !== undefined) p = trim(p, it.id, "end", span(o.duration, "duration") - it.duration);
+            result.id = it.id;
+            break;
+          }
           const patch: Partial<MediaItem> = {};
           if (o.in !== undefined) {
             if (it.type !== "media") throw new Error("only media clips have an in point");
@@ -217,8 +235,35 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           const local = us(o.at, "at") - it.start;
           if (local < 0 || local > it.duration) throw new Error(`${o.at} s is outside the clip`);
           if (typeof o.prop !== "string" || !/^[A-Za-z][\w.:-]*$/.test(o.prop)) throw new Error("prop is a path like transform.scale");
-          p = updateItem(p, it.id, { keyframes: setKey(it.keyframes, o.prop, local, finite(o.value, "value"), o.ease ?? "ease") });
+          if (o.ease !== undefined && !isEase(o.ease)) throw new Error("ease is linear, ease, easeIn, easeOut, hold or four numbers [x1, y1, x2, y2] with x1 and x2 between 0 and 1");
+          let keys = setKey(it.keyframes, o.prop, local, finite(o.value, "value"), o.ease ?? "ease");
+          // An existing key keeps its easing unless the call names one.
+          if (o.ease !== undefined) keys = setEase(keys, o.prop, local, o.ease);
+          p = updateItem(p, it.id, { keyframes: keys });
           result.id = it.id;
+          break;
+        }
+        case "speed_ramp": {
+          const it = item(o.id);
+          if (it.type !== "media" || it.freeze || p.media[it.mediaId]?.kind === "image") throw new Error("speed curves apply to video and audio clips that play footage");
+          if ((o.preset === undefined) === (o.points === undefined)) throw new Error(`give either preset (none or ${SPEED_PRESETS.map(x => x.id).join(", ")}) or points`);
+          let keys: SpeedKey[] | null = null;
+          let preset: string | undefined;
+          if (o.preset !== undefined) {
+            if (o.preset !== "none") {
+              const found = presetById(o.preset);
+              if (!found) throw new Error(`unknown preset ${o.preset}; use none or ${SPEED_PRESETS.map(x => x.id).join(", ")}`);
+              keys = found.keys;
+              preset = found.id;
+            }
+          } else {
+            keys = rampPoints(o.points);
+          }
+          const next = setSpeedRamp(p, it.id, keys, preset);
+          if (next === p && keys) throw new Error("the speed curve could not be applied; the clip is locked or does not play footage");
+          p = next;
+          result.id = it.id;
+          result.duration = findItem(p, it.id)!.item.duration / S;
           break;
         }
         case "transition": {
@@ -341,6 +386,19 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
   }
 }
 
+function rampPoints(points: unknown): SpeedKey[] {
+  if (!Array.isArray(points) || points.length < 2 || points.length > MAX_SPEED_KEYS) throw new Error(`points is a list of 2 to ${MAX_SPEED_KEYS} entries like {at, speed}`);
+  return points.map((raw, i) => {
+    const pt = raw as { at?: unknown; speed?: unknown; ease?: unknown };
+    const x = finite(pt?.at, `points[${i}].at`);
+    const v = finite(pt?.speed, `points[${i}].speed`);
+    if (x < 0 || x > 1) throw new Error(`points[${i}].at is a fraction of the clip's footage between 0 and 1`);
+    if (v < MIN_SPEED || v > MAX_SPEED) throw new Error(`points[${i}].speed is between ${MIN_SPEED} and ${MAX_SPEED}`);
+    if (pt.ease !== undefined && !isEase(pt.ease)) throw new Error(`points[${i}].ease is linear, ease, easeIn, easeOut, hold or four numbers [x1, y1, x2, y2]`);
+    return { x, v, ...(pt.ease !== undefined ? { ease: pt.ease } : {}) };
+  });
+}
+
 /** After a length change made through updateItem: keep the track packed or clear of neighbours, and the transitions legal. */
 function repack(p: Project, id: string): Project {
   if (!findItem(p, id)) return p;
@@ -394,6 +452,8 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
     }
   }
   if (transformTouched) patch.transform = transform;
+  // A frozen clip plays no footage, so a curve would have nothing to shape.
+  if (patch.freeze === true) patch.ramp = undefined;
   let next = Object.keys(patch).length ? updateItem(p, it.id, patch as Partial<Item>) : p;
   if (speed !== undefined) {
     if (it.type !== "media") throw new Error("speed only applies to media clips");

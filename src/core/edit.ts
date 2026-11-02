@@ -4,12 +4,15 @@
 // callers use to tell "nothing happened" apart from a real edit.
 
 import { sample } from "./animate";
+import { sliceEase } from "./easing";
+import { edgeSpeed, normalizeKeys, rampDuration, reshapeRamp, syncSpeed } from "./speed";
 import {
   type Item,
   type MediaItem,
   type MediaRef,
   type Micros,
   type Project,
+  type SpeedKey,
   type Track,
   type TrackKind,
   IDENTITY,
@@ -239,17 +242,29 @@ export function split(p: Project, t: Micros, ids?: string[], minPiece: Micros = 
     const right = structuredClone(item) as Item;
     right.id = newId("i");
     right.start = t;
-    right.duration = item.duration - cut;
+    const whole = item.duration;
+    right.duration = whole - cut;
     item.duration = cut;
     delete right.transitionIn;
     if (item.type === "media" && right.type === "media") {
+      // A curve is cut at the same point in both halves, so the footage they show adds up to the original.
+      let headSpan = Math.round(cut * item.speed);
+      if (item.ramp && !item.freeze) {
+        const l = reshapeRamp(item.ramp, whole, 0, whole - cut);
+        const r = reshapeRamp(item.ramp, whole, cut, 0);
+        item.ramp = l.ramp;
+        right.ramp = r.ramp;
+        headSpan = r.headSpan;
+        syncSpeed(item);
+        syncSpeed(right);
+      }
       if (runsSource(next, item)) {
         if (item.reversed) {
           // reversed: the left half shows the end of the source span
           right.in = item.in;
           item.in = item.in + sourceSpan(right);
         } else {
-          right.in = item.in + Math.round(cut * item.speed);
+          right.in = item.in + headSpan;
         }
       }
       right.fadeIn = 0;
@@ -287,7 +302,13 @@ function splitKeyframes(left: Item, right: Item, cut: Micros): void {
     l[prop] = [...before, ...at];
     r[prop] = [...at, ...after].map(k => ({ ...k, t: k.t - cut }));
     if (!at.length && after.length) l[prop].push({ t: cut, v, ease: "linear" });
-    if (!at.length && before.length) r[prop].unshift({ t: 0, v, ease: before[before.length - 1].ease });
+    if (!at.length && before.length) {
+      // Each side keeps its share of the segment the cut fell in, so the motion is the same as before the split.
+      const a = before[before.length - 1], b = after[0];
+      const f = b ? (cut - a.t) / (b.t - a.t) : 1;
+      if (b) l[prop][before.length - 1] = { ...a, ease: sliceEase(a.ease, 0, f) };
+      r[prop].unshift({ t: 0, v, ease: b ? sliceEase(a.ease, f, 1) : a.ease });
+    }
   }
   left.keyframes = l;
   right.keyframes = r;
@@ -354,8 +375,13 @@ export function trim(p: Project, id: string, edge: Edge, delta: Micros): Project
     let dur = item.duration + delta;
     if (bounded) {
       const it = item as MediaItem;
-      const room = it.reversed ? it.in + sourceSpan(it) : media.duration - it.in;
-      dur = Math.min(dur, Math.floor(room / it.speed));
+      if (it.ramp) {
+        const room = it.reversed ? it.in : media.duration - it.in - sourceSpan(it);
+        dur = Math.min(dur, it.duration + Math.floor(room / edgeSpeed(it, "tail")));
+      } else {
+        const room = it.reversed ? it.in + sourceSpan(it) : media.duration - it.in;
+        dur = Math.min(dur, Math.floor(room / it.speed));
+      }
     }
     if (free) {
       const wall = Math.min(Infinity, ...others.filter(i => i.start >= item.start).map(i => i.start));
@@ -366,15 +392,24 @@ export function trim(p: Project, id: string, edge: Edge, delta: Micros): Project
     let d = Math.min(delta, item.duration - MIN_ITEM);
     if (bounded) {
       const it = item as MediaItem;
-      if (!it.reversed) d = Math.max(d, -Math.floor(it.in / it.speed));
-      else d = Math.max(d, -Math.floor((media.duration - it.in - sourceSpan(it)) / it.speed));
+      const speed = it.ramp ? edgeSpeed(it, "head") : it.speed;
+      if (!it.reversed) d = Math.max(d, -Math.floor(it.in / speed));
+      else d = Math.max(d, -Math.floor((media.duration - it.in - sourceSpan(it)) / speed));
     }
     if (free) {
       const floor = others.filter(i => i.start < item.start).reduce((m, i) => Math.max(m, itemEnd(i)), 0);
       d = Math.max(d, Math.min(0, floor - item.start));
     }
-    if (runsSource(next, item) && !item.reversed) item.in += Math.round(d * item.speed);
-    item.duration -= d;
+    if (item.type === "media" && item.ramp && !item.freeze) {
+      const re = reshapeRamp(item.ramp, item.duration, d, 0);
+      item.ramp = re.ramp;
+      if (runsSource(next, item) && !item.reversed) item.in += re.headSpan;
+      item.duration -= d;
+      syncSpeed(item);
+    } else {
+      if (runsSource(next, item) && !item.reversed) item.in += Math.round(d * item.speed);
+      item.duration -= d;
+    }
     if (free) item.start += d;
     shiftKeyframes(item, -d);
     if (item.type === "caption") {
@@ -398,8 +433,18 @@ function shiftKeyframes(item: Item, by: Micros): void {
 
 /** Change where the end edge sits. A reversed item plays its source backwards, so its end is the source in point. */
 function setLength(p: Project, item: Item, duration: Micros): void {
-  if (runsSource(p, item) && item.reversed) item.in -= Math.round((duration - item.duration) * item.speed);
-  item.duration = duration;
+  if (item.type === "media" && item.ramp && !item.freeze) {
+    if (duration !== item.duration) {
+      const re = reshapeRamp(item.ramp, item.duration, 0, item.duration - duration);
+      item.ramp = re.ramp;
+      if (item.reversed) item.in += re.tailSpan;
+      item.duration = duration;
+      syncSpeed(item);
+    }
+  } else {
+    if (runsSource(p, item) && item.reversed) item.in -= Math.round((duration - item.duration) * item.speed);
+    item.duration = duration;
+  }
   fitWords(item);
 }
 
@@ -440,6 +485,7 @@ export function setSpeed(p: Project, id: string, speed: number): Project {
   const next = draft(p);
   const { track, item } = findItem(next, id)! as { track: Track; item: MediaItem };
   const span = sourceSpan(item);
+  delete item.ramp;
   item.speed = s;
   item.duration = Math.max(MIN_ITEM, Math.round(span / s));
   if (bounded) {
@@ -450,6 +496,31 @@ export function setSpeed(p: Project, id: string, speed: number): Project {
       else item.in = Math.max(0, item.in - over);
     }
   }
+  if (isMagnetic(track)) packMain(track);
+  else resolveOverlap(next, track, item);
+  pruneTransitions(next);
+  return next;
+}
+
+/**
+ * Give a clip a speed curve, or take it off with null. The clip keeps the footage it shows
+ * and its length follows from the curve. A curve that is the same speed everywhere is
+ * stored as a plain speed.
+ */
+export function setSpeedRamp(p: Project, id: string, keys: SpeedKey[] | null, preset?: string): Project {
+  const found = findItem(p, id);
+  if (!found || found.item.type !== "media" || found.item.freeze || found.track.locked) return p;
+  if (p.media[found.item.mediaId]?.kind === "image") return p;
+  const norm = keys && normalizeKeys(keys);
+  if (keys && !norm) return p;
+  if (norm && norm.every(k => k.v === norm[0].v)) return setSpeed(p, id, norm[0].v);
+  if (!norm) return found.item.ramp ? setSpeed(p, id, found.item.speed) : p;
+  const next = draft(p);
+  const { track, item } = findItem(next, id)! as { track: Track; item: MediaItem };
+  const span = sourceSpan(item);
+  item.ramp = { keys: norm, span, ...(preset ? { preset } : {}) };
+  item.duration = Math.max(MIN_ITEM, rampDuration(norm, span));
+  syncSpeed(item);
   if (isMagnetic(track)) packMain(track);
   else resolveOverlap(next, track, item);
   pruneTransitions(next);

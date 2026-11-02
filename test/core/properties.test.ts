@@ -4,7 +4,7 @@ import { valueAt } from "../../src/core/animate";
 import { History } from "../../src/core/history";
 import { setKey } from "../../src/core/look/keyframes";
 import { buildScene } from "../../src/core/scene";
-import { findItem, itemEnd, type Item, type Project } from "../../src/core/project";
+import { findItem, itemEnd, type Ease, type Item, type Project } from "../../src/core/project";
 import { S, STEPS, begin, check, grow, rng } from "./model-gen";
 
 const SEEDS = Number(process.env.SEEDS ?? 60);
@@ -132,7 +132,7 @@ describe("keyframes on split", { timeout: SLOW }, () => {
       const id = p.tracks[0].items[0].id;
       p = structuredClone(p);
       const target = p.tracks[0].items[0];
-      for (let k = 0; k < r.int(1, 4); k++) target.keyframes = setKey(target.keyframes, "transform.x", r.int(0, target.duration), r.int(-500, 500), r.pick(["linear", "ease", "hold"] as const));
+      for (let k = 0; k < r.int(1, 4); k++) target.keyframes = setKey(target.keyframes, "transform.x", r.int(0, target.duration), r.int(-500, 500), r.pick<Ease>(["linear", "ease", "easeIn", "hold", [0.2, 0.9, 0.3, 1.2], [0.6, -0.2, 0.9, 1]]));
       const cut = r.int(MIN_ITEM, target.duration - MIN_ITEM);
       const whole = structuredClone(target);
       const q = split(p, cut);
@@ -148,6 +148,12 @@ describe("keyframes on split", { timeout: SLOW }, () => {
       expect(valueAt(right, "transform.x", 0)).toBeCloseTo(valueAt(whole, "transform.x", cut), 6);
       expect(valueAt(left, "transform.x", 0)).toBeCloseTo(valueAt(whole, "transform.x", 0), 6);
       expect(valueAt(right, "transform.x", right.duration)).toBeCloseTo(valueAt(whole, "transform.x", whole.duration), 6);
+      // and between the ends they trace the curve the whole had
+      for (let i = 1; i < 12; i++) {
+        const tl = Math.floor((cut * i) / 12), tr = Math.floor(((right.duration) * i) / 12);
+        if (tl < cut) expect(valueAt(left, "transform.x", tl)).toBeCloseTo(valueAt(whole, "transform.x", tl), 4);
+        expect(valueAt(right, "transform.x", tr)).toBeCloseTo(valueAt(whole, "transform.x", cut + tr), 4);
+      }
     }
   });
 });
