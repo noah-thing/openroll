@@ -96,6 +96,8 @@ export class Player {
     this.sent = p;
     // Audio restarts from where we are only when the edit changes what you hear.
     if (this.playing && was !== p && audioKey(p, urls) !== this.heard) this.restart();
+    // A silent edit can move the end of the timeline, and the stop timer was set against the old one.
+    else if (this.playing && was !== p) this.scheduleEnd();
     if (!this.playing && this.still > this.duration) this.seek(this.duration);
   }
 

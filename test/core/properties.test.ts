@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MIN_ITEM, insertItems, mediaItem, split } from "../../src/core/edit";
+import { MIN_ITEM, insertItems, mediaItem, setSpeedRamp, split, trim } from "../../src/core/edit";
 import { valueAt } from "../../src/core/animate";
 import { History } from "../../src/core/history";
 import { setKey } from "../../src/core/look/keyframes";
 import { buildScene } from "../../src/core/scene";
-import { findItem, itemEnd, type Ease, type Item, type Project } from "../../src/core/project";
+import { findItem, itemEnd, sourceTime, type Ease, type Item, type MediaItem, type Project, type SpeedKey } from "../../src/core/project";
 import { S, STEPS, begin, check, grow, rng } from "./model-gen";
 
 const SEEDS = Number(process.env.SEEDS ?? 60);
@@ -153,6 +153,66 @@ describe("keyframes on split", { timeout: SLOW }, () => {
         const tl = Math.floor((cut * i) / 12), tr = Math.floor(((right.duration) * i) / 12);
         if (tl < cut) expect(valueAt(left, "transform.x", tl)).toBeCloseTo(valueAt(whole, "transform.x", tl), 4);
         expect(valueAt(right, "transform.x", tr)).toBeCloseTo(valueAt(whole, "transform.x", cut + tr), 4);
+      }
+    }
+  });
+});
+
+describe("extreme speed curves", { timeout: SLOW }, () => {
+  // Eases that stay inside 0..1, so the curve never leans on the speed limits and a cut can reproduce it exactly.
+  let EASES: Ease[] = ["linear", "ease", "easeIn", "easeOut", "hold"];
+
+  /** Timeline microseconds, in source terms at the speed the clip has there. Tables interpolate between cells, which on a steep curve is good to about a tenth of a millisecond. */
+  function timelineSlack(item: MediaItem, t: number, micros: number): number {
+    const media = 10 * S;
+    const speed = Math.abs(sourceTime(item, t + 500, media) - sourceTime(item, t - 500, media)) / 1000;
+    return micros * Math.max(1, speed) + 2;
+  }
+
+  function wild(seed: number): { p: Project; id: string; whole: MediaItem } {
+    const r = rng(seed);
+    const keys: SpeedKey[] = Array.from({ length: r.int(2, 24) }, () => ({ x: r.f(), v: r.pick([0.1, 0.25, 4, 100, 1, 2 + r.f() * 6]), ease: r.pick(EASES) }));
+    let p = insertItems(begin(), [mediaItem(begin().media.a, 0)]);
+    const id = p.tracks[0].items[0].id;
+    p = setSpeedRamp(p, id, keys);
+    return { p, id, whole: findItem(p, id)!.item as MediaItem };
+  }
+
+  it("keep every frame in place when split, wherever the cut falls", () => {
+    for (let seed = 1; seed <= 150; seed++) {
+      const { p, id, whole } = wild(seed);
+      if (!whole.ramp) continue;
+      const r = rng(seed * 13);
+      const media = p.media.a.duration;
+      const cut = whole.start + r.int(MIN_ITEM, Math.max(MIN_ITEM, whole.duration - MIN_ITEM));
+      const q = split(p, cut);
+      if (q === p) continue;
+      expect(check(q), `seed ${seed}`).toEqual([]);
+      const [a, b] = q.tracks[0].items as MediaItem[];
+      for (let i = 0; i < 40; i++) {
+        const t = r.f() < 0.3 ? cut + r.int(-60_000, 60_000) : whole.start + r.int(0, whole.duration - 1);
+        if (t < whole.start || t >= itemEnd(whole)) continue;
+        const item = t < b.start ? a : b;
+        expect(Math.abs(sourceTime(item, t, media) - sourceTime(whole, t, media)), `seed ${seed} at ${t - cut} from the cut (${id})`).toBeLessThanOrEqual(timelineSlack(whole, t, 300));
+      }
+    }
+  });
+
+  it("keep the frames that remain when an edge is trimmed", () => {
+    for (let seed = 1; seed <= 150; seed++) {
+      const { p, id, whole } = wild(seed);
+      if (!whole.ramp) continue;
+      const r = rng(seed * 29);
+      const media = p.media.a.duration;
+      const edge = r.pick(["start", "end"] as const);
+      const q = trim(p, id, edge, edge === "start" ? r.int(1, whole.duration - MIN_ITEM) : -r.int(1, whole.duration - MIN_ITEM));
+      const it = findItem(q, id)!.item as MediaItem;
+      expect(check(q), `seed ${seed} ${edge} ${JSON.stringify(whole.ramp)} ${whole.duration}`).toEqual([]);
+      for (let i = 0; i < 20; i++) {
+        const t = it.start + r.int(0, it.duration - 1);
+        const was = whole.start + (edge === "start" ? t - it.start + (whole.duration - it.duration) : t - it.start);
+        if (was < whole.start || was >= itemEnd(whole)) continue;
+        expect(Math.abs(sourceTime(it, t, media) - sourceTime(whole, was, media)), `seed ${seed} ${edge} at ${t - it.start}`).toBeLessThanOrEqual(timelineSlack(whole, was, 300));
       }
     }
   });

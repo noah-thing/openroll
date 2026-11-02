@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { setSpeedRamp } from "../../../core/edit";
 import { sliceEase } from "../../../core/easing";
 import type { MediaItem, MediaRef, SpeedKey } from "../../../core/project";
-import { MAX_SPEED, MIN_SPEED, rampKeepsAudio, speedAt } from "../../../core/speed";
+import { MAX_SPEED, MAX_SPEED_KEYS, MIN_SPEED, rampKeepsAudio, speedAt } from "../../../core/speed";
 import { SPEED_PRESETS } from "../../../core/speed-presets";
 import { span } from "../../lib/format";
 import type { Editor } from "../../state/editor";
@@ -80,7 +80,7 @@ export function SpeedCurve({ editor, item, media }: { editor: Editor; item: Medi
   }
 
   function addPoint(e: React.MouseEvent) {
-    if (locked) return;
+    if (locked || keys.length >= MAX_SPEED_KEYS) return;
     const x = Math.round(((point(e).x - LEFT) / (W - LEFT - RIGHT)) * 1000) / 1000;
     if (x <= GAP || x >= 1 - GAP || keys.some(k => Math.abs(k.x - x) < GAP)) return;
     const i = keys.findIndex(k => k.x > x);
