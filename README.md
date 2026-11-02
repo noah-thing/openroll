@@ -6,7 +6,7 @@
 
 <p align="center">
   A free video editor for macOS, Windows and Linux.<br>
-  No account, no watermark, and nothing leaves your computer.
+  No account, no watermark, and your videos never leave your computer.
 </p>
 
 <p align="center">
