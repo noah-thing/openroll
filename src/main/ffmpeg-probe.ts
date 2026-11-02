@@ -69,7 +69,8 @@ interface Found {
 export function parseProbe(text: string): StreamSummary {
   const streams: Found[] = [];
   let container = 0;
-  for (const line of text.split("\n")) {
+  // Windows builds of ffmpeg end lines with \r\n.
+  for (const line of text.split(/\r?\n/)) {
     const stream = /^ {2}Stream #\d+:\d+(?:\[0x[0-9a-f]+\])?(?:\([^)]*\))?: (\w+): (.*)$/.exec(line);
     if (stream) {
       const body = stream[2];

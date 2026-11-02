@@ -58,6 +58,20 @@ describe("probe summary", () => {
     expect(s.duration).toBe(10);
   });
 
+  it("reads the Windows build's output, whose lines end in \\r\\n", () => {
+    const s = parseProbe(
+      [
+        "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'C:\\clips\\a.mov':",
+        "  Duration: 00:00:05.00, start: 0.000000, bitrate: 39827 kb/s",
+        "  Stream #0:0[0x1](und): Video: prores (HQ) (apch / 0x68637061), yuv422p10le(tv, bt709, progressive), 1280x720, 25 fps, 25 tbr, 12800 tbn (default)",
+        "  Stream #0:1[0x2](und): Audio: ac3 (ac-3 / 0x332D6361), 48000 Hz, stereo, fltp, 192 kb/s (default)",
+        "",
+      ].join("\r\n"),
+    );
+    expect(s.video).toMatchObject({ codec: "prores", width: 1280, height: 720, fps: 25 });
+    expect(s.audio).toMatchObject({ codec: "ac3", channels: 2, sampleRate: 48000 });
+  });
+
   it("ignores cover art and snaps near rates", () => {
     const s = parseProbe(
       [
