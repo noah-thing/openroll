@@ -2,7 +2,7 @@ appId: app.openroll.desktop
 productName: OpenRoll
 copyright: Copyright 2026 OpenRoll contributors, GPL-3.0-or-later
 asar: true
-compression: normal
+compression: maximum
 electronLanguages: [en-US, sv]
 directories:
   buildResources: build
