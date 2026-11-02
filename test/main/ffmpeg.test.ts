@@ -128,6 +128,41 @@ describe("probe summary", () => {
     expect(s.audio).toMatchObject({ channels: 2 });
   });
 
+  it("reads streams that ffmpeg nests in a group, such as a QuickTime timecode track", () => {
+    const s = parseProbe(
+      [
+        "  Duration: 00:00:02.00, start: 0.000000, bitrate: 278 kb/s",
+        "  Stream group #0:0[0x2]: Track Reference:",
+        "    Metadata:",
+        "      rotate          : 90",
+        "    Stream #0:0[0x1]: Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 320x240 [SAR 1:1 DAR 4:3], 270 kb/s, 25 fps, 25 tbr, 12800 tbn (default)",
+        "      Metadata:",
+        "        handler_name    : VideoHandler",
+        "      Side data:",
+        "        Display Matrix: rotation of -90.00 degrees",
+        "    Stream #0:1[0x2](eng): Data: none (tmcd / 0x64636D74), 0 kb/s",
+      ].join("\n"),
+    );
+    expect(s.video).toMatchObject({ codec: "h264", width: 240, height: 320, fps: 25 });
+    expect(s.duration).toBe(2);
+  });
+
+  it("does not take an indented tag for a stream outside a group", () => {
+    const s = parseProbe(["  Metadata:", "    Stream #0:0: Video: h264, yuv420p, 640x360, 25 fps", "  Stream #0:0: Audio: aac, 44100 Hz, mono"].join("\n"));
+    expect(s.video).toBeNull();
+    expect(s.audio).toMatchObject({ channels: 1 });
+  });
+
+  it("keeps a stream whose language tag holds a parenthesis", () => {
+    const s = parseProbe("  Stream #0:0(en)x): Video: h264, yuv420p(progressive), 640x360, 25 fps\n");
+    expect(s.video).toMatchObject({ width: 640, height: 360 });
+  });
+
+  it("skips cover art that carries a second disposition", () => {
+    const s = parseProbe("  Stream #0:0: Video: mjpeg, yuvj420p, 300x300, 90k tbr (attached pic) (timed thumbnails)\n");
+    expect(s.video).toBeNull();
+  });
+
   it("measures the keyframe gap", () => {
     expect(keyframeInterval([0, 2, 4, 6, 8, 10], 30)).toBe(2);
     expect(keyframeInterval([0], 5)).toBeNull();

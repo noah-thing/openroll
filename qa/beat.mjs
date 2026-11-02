@@ -3,6 +3,8 @@ import { check, openProject, project } from "./lib.mjs";
 
 export default async function ({ page, shot }) {
   await openProject(page, ["h264_1080p30_60s.mp4", "longgop_1080p60_20s.mp4", "tone_90s.mp3"]);
+  // The automatic analysis writes its own beats when it finishes, so inject after it.
+  await page.waitForFunction(() => Object.values(window.__or.editor.project.media).find(m => m.kind === "audio")?.loudness !== undefined, null, { timeout: 30000, polling: 200 });
   await page.evaluate(() => {
     const e = window.__or.editor;
     const song = Object.values(e.project.media).find(m => m.kind === "audio");

@@ -75,16 +75,20 @@ const MAX_CAPTURE = 16 * 1024 * 1024;
 
 const MAX_STDERR = 256 * 1024;
 
+const ENDS_STDERR = 64 * 1024;
+
 /**
  * Runs a short command to completion and returns what it printed. Stderr keeps its last few
  * thousand characters, where an error ends up, or with "head" its first 256 KiB, where ffmpeg lists a file's streams.
+ * "ends" keeps 64 KiB from each end, for a listing that puts thousands of chapters between the duration and the streams.
  */
-export function capture(bin: string, args: string[], timeoutMs = 20_000, keep: "tail" | "head" = "tail"): Promise<{ stdout: string; stderr: string; code: number | null }> {
+export function capture(bin: string, args: string[], timeoutMs = 20_000, keep: "tail" | "head" | "ends" = "tail"): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let flooded = false;
+    let late = "";
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
     child.stdout!.setEncoding("utf8").on("data", (c: string) => {
       // A crafted file can carry endless tags or streams, and ffmpeg would print them all.
@@ -97,11 +101,16 @@ export function capture(bin: string, args: string[], timeoutMs = 20_000, keep: "
     });
     child.stderr!.setEncoding("utf8").on("data", (c: string) => {
       if (keep === "tail") stderr = (stderr + c).slice(-8000);
-      else if (stderr.length < MAX_STDERR) stderr += c.slice(0, MAX_STDERR - stderr.length);
+      else if (keep === "ends") {
+        if (stderr.length < ENDS_STDERR) stderr += c.slice(0, ENDS_STDERR - stderr.length);
+        else late = (late + c).slice(-ENDS_STDERR);
+      } else if (stderr.length < MAX_STDERR) stderr += c.slice(0, MAX_STDERR - stderr.length);
     });
     child.on("error", reject);
     child.on("close", code => {
       clearTimeout(timer);
+      // The newline keeps the tail's first, probably partial, line from gluing onto the head.
+      if (late) stderr += "\n" + late;
       resolve({ stdout: flooded ? "" : stdout, stderr, code: flooded ? null : code });
     });
   });

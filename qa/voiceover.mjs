@@ -15,7 +15,8 @@ export default async function ({ page, shot }) {
   await page.click(".aud-rec");
   await page.waitForSelector(".aud-count");
   await shot("voiceover-countin");
-  await page.waitForSelector(".aud-rec.live", { timeout: 6000 });
+  // The button is already live during the count in, and a click then cancels instead of stopping.
+  await page.waitForFunction(() => !document.querySelector(".aud-count"), null, { timeout: 6000 });
   await page.waitForTimeout(2500);
   await shot("voiceover-recording");
   const level = await page.evaluate(() => document.querySelector(".aud-meter > span").style.transform);

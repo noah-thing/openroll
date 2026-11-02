@@ -60,6 +60,8 @@ interface Found {
   attachedPic: boolean;
   rotation: number;
   duration: number;
+  /** Set once a group header follows, whose own tags must not be read as this stream's. */
+  closed: boolean;
 }
 
 /**
@@ -69,12 +71,23 @@ interface Found {
 export function parseProbe(text: string): StreamSummary {
   const streams: Found[] = [];
   let container = 0;
+  // ffmpeg 7 and later nest the streams of a group (timecode tracks, for one) one level deeper.
+  let grouped = false;
+  let indent = 2;
   // Windows builds of ffmpeg end lines with \r\n.
   for (const line of text.split(/\r?\n/)) {
-    const stream = /^ {2}Stream #\d+:\d+(?:\[0x[0-9a-f]+\])?(?:\([^)]*\))?: (\w+): (.*)$/.exec(line);
-    if (stream) {
-      const body = stream[2];
-      streams.push({ kind: stream[1], fields: fields(body), attachedPic: body.endsWith("(attached pic)"), rotation: 0, duration: 0 });
+    if (/^ {2}Stream group #/.test(line)) {
+      grouped = true;
+      for (const s of streams) s.closed = true;
+      continue;
+    }
+    if (/^ {2}\S/.test(line)) grouped = false;
+    // The language is a free tag printed in parentheses, so it may hold a parenthesis of its own.
+    const stream = /^( +)Stream #\d+:\d+(?:\[0x[0-9a-f]+\])?(?:\(.*?\))?: (\w+): (.*)$/.exec(line);
+    if (stream && stream[1].length === (grouped ? 4 : 2)) {
+      const body = stream[3];
+      indent = stream[1].length;
+      streams.push({ kind: stream[2], fields: fields(body), attachedPic: body.includes("(attached pic)"), rotation: 0, duration: 0, closed: false });
       continue;
     }
     if (/^ {2}Duration: /.test(line)) {
@@ -82,10 +95,11 @@ export function parseProbe(text: string): StreamSummary {
       continue;
     }
     const last = streams[streams.length - 1];
-    if (!last || !line.startsWith("      ")) continue;
-    const turn = /^ {6}(?:display ?matrix: rotation of (-?[\d.]+)|rotate\s*: (-?[\d.]+))/i.exec(line);
+    if (!last || last.closed || !line.startsWith(" ".repeat(indent + 4))) continue;
+    const detail = line.slice(indent + 4);
+    const turn = /^(?:display ?matrix: rotation of (-?[\d.]+)|rotate\s*: (-?[\d.]+))/i.exec(detail);
     if (turn) last.rotation = Number(turn[1] ?? turn[2]);
-    else if (/^ {6}DURATION\s*:/.test(line)) last.duration = seconds(line);
+    else if (/^DURATION\s*:/.test(detail)) last.duration = seconds(detail);
   }
 
   const v = streams.find(s => s.kind === "Video" && !s.attachedPic);

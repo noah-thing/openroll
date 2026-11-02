@@ -62,7 +62,7 @@ export class MediaService {
     const bins = findBinaries();
     if (!bins) return null;
     // With no output given ffmpeg lists the streams and exits with an error, which is the whole answer here.
-    const r = await capture(bins.ffmpeg, ["-hide_banner", "-nostdin", ...LOCAL_ONLY, "-i", path], 20_000, "head").catch(() => null);
+    const r = await capture(bins.ffmpeg, ["-hide_banner", "-nostdin", ...LOCAL_ONLY, "-i", path], 20_000, "ends").catch(() => null);
     if (!r) return null;
     const info = parseProbe(r.stderr);
     return info.video || info.audio ? info : null;

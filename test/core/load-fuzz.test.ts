@@ -69,7 +69,8 @@ describe("hostile project files", { timeout: 60_000 }, () => {
         }
         // The steps pick from the fixture media by name, which the damage may have removed.
         let p: Project = { ...res.project, media: { ...begin().media, ...res.project.media } };
-        const problems = check(p).filter(b => !/source span|short item|^missing media|^freeze or image|^negative in/.test(b));
+        // A curve that disagrees with its clip's length is stretched to fit on load, which is the documented repair.
+        const problems = check(p).filter(b => !/source span|short item|^ramp length|^missing media|^freeze or image|^negative in/.test(b));
         if (problems.length) throw new Error(`loaded project breaks a rule: ${problems[0].replace(/[-\d.]+/g, "#")}`);
         blowUp(p);
         for (let n = 0; n < 8; n++) {

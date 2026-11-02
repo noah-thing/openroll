@@ -125,6 +125,17 @@ describe.skipIf(!have)("real ffmpeg", { timeout: 120_000 }, () => {
     expect(streams(proxy)[0]).toMatchObject({ codec_name: "h264", width: 1706 });
     expect(decodedFrames(proxy)).toBe(60);
   });
+
+  it("reads a QuickTime file with a timecode track and a stream with an odd language tag", () => {
+    const timed = join(tmp, "timecode.mov");
+    run(["-f", "lavfi", "-i", "testsrc2=s=320x240:r=25:d=2", "-c:v", "libx264", "-timecode", "01:00:00:00", timed]);
+    expect(probe(timed).video).toMatchObject({ codec: "h264", width: 320, fps: 25 });
+
+    const odd = join(tmp, "odd-language.mkv");
+    run(["-f", "lavfi", "-i", "testsrc2=s=320x240:r=25:d=1", "-c:v", "libx264", "-metadata:s:v:0", "language=en)x", odd]);
+    expect(probe(odd).video).toMatchObject({ codec: "h264", width: 320 });
+  });
+
   it("encodes an audio only m4a from the staged mix, for Chromium builds with no AAC encoder", () => {
     const spec: PipeSpec = { format: "m4a-aac", width: W, height: H, fps: 30, transparent: false, bitrate: 0, hasAudio: true };
     const out = join(tmp, "sound.m4a");
