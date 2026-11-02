@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readProject } from "../../src/core/load";
-import { addMedia, insertItems, mediaItem, setSpeedRamp } from "../../src/core/edit";
+import { addMedia, insertItems, mediaItem } from "../../src/core/edit";
 import { createProject, mainTrack, type MediaRef } from "../../src/core/project";
 
 const clip: MediaRef = { id: "m1", kind: "video", path: "/v/a.mp4", name: "a.mp4", size: 10, mtime: 5, duration: 2_000_000, width: 1920, height: 1080, fps: 30, hasAudio: true, hasVideo: true };
@@ -19,22 +19,6 @@ describe("readProject", () => {
     const r = load(p);
     expect(r.ok && r.repairs).toEqual([]);
     expect(r.ok && r.project).toEqual(p);
-  });
-
-  it("keeps a speed curve that matches its clip and drops one that no longer does", () => {
-    const keys = [{ x: 0, v: 1 }, { x: 1, v: 2 }];
-    const base = sample();
-    const ramped = setSpeedRamp(base, base.tracks[0].items[0].id, keys);
-    const item = ramped.tracks[0].items[0];
-    expect(item.type === "media" && item.ramp).toBeTruthy();
-    const kept = load(ramped);
-    expect(kept.ok && kept.repairs).toEqual([]);
-    const edited = JSON.parse(JSON.stringify(ramped));
-    edited.tracks[0].items[0].duration *= 3;
-    const r = load(edited);
-    expect(r.ok && r.repairs).toContain("speed curve");
-    const back = r.ok ? r.project.tracks[0].items[0] : null;
-    expect(back && "ramp" in back ? back.ramp : "none").toBeUndefined();
   });
 
   it("refuses empty, truncated and foreign files with a reason", () => {

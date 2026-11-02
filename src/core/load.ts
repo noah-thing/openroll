@@ -5,8 +5,7 @@
 import { DEFAULT_FONT, isKnownFont } from "./fonts";
 import { isEase } from "./easing";
 import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type SpeedRamp, type Track, type Transform } from "./project";
-import { MIN_ITEM } from "./edit";
-import { normalizeKeys, rampDuration } from "./speed";
+import { normalizeKeys } from "./speed";
 
 export const CURRENT_VERSION = 1;
 
@@ -394,12 +393,6 @@ function repairSpeed(raw: Obj, duration: number, repairs: string[]): { speed: nu
     return { speed, ramp: undefined };
   }
   const span = Math.round(r.span);
-  // A clip held at the minimum length may be shorter than its curve, but otherwise the two must agree
-  // or the average speed and the speed at each point stop describing the same playback.
-  if (duration > MIN_ITEM && Math.abs(duration - rampDuration(norm, span)) > 40 + duration * 1e-3) {
-    repairs.push("speed curve");
-    return { speed, ramp: undefined };
-  }
   const ramp: SpeedRamp = { keys: norm, span, ...(typeof r.preset === "string" && r.preset.length <= 40 ? { preset: r.preset } : {}) };
   return { speed: span / duration, ramp };
 }
