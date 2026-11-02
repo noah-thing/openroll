@@ -39,5 +39,5 @@ export default async function ({ page }) {
   await page.waitForSelector(".modal");
   await page.click(".modal .export");
   await page.waitForSelector(".modal-done, .modal-warn", { timeout: 300000 });
-  console.log((await page.locator(".modal-body").innerText()).replace(/\n/g, " | "));
+  console.log((await page.locator(".export-jobs").innerText()).replace(/\n/g, " | "));
 }

@@ -114,3 +114,30 @@ export function duckCurve(speech: Range[], from: Micros, to: Micros, depthDb = D
   for (const [a, b] of merged) pts.push({ t: a - DUCK_ATTACK, g: 1 }, { t: a, g: low }, { t: b, g: low }, { t: b + DUCK_RELEASE, g: 1 });
   return pts.length ? pts : [{ t: from, g: 1 }];
 }
+
+/**
+ * Everything the live mix reads from a project. While playing, an edit that leaves this
+ * unchanged cannot be heard, so the audio keeps running instead of restarting.
+ */
+export function audioKey(p: Project, urls: Record<string, string>): string {
+  const voices: unknown[] = [];
+  // Where people speak only matters to items that duck under speech.
+  const speech: unknown[] = [];
+  let ducks = false;
+  for (const track of p.tracks) {
+    if (track.muted) continue;
+    for (const item of track.items) {
+      if (item.type === "caption") {
+        speech.push([item.id, item.start, item.duration, item.words]);
+        continue;
+      }
+      if (item.type !== "media") continue;
+      const media = p.media[item.mediaId];
+      if (!audible(item, media)) continue;
+      if (item.audio?.duckUnder) ducks = true;
+      voices.push([item.id, item.start, item.duration, item.in, item.speed, item.volume, item.fadeIn, item.fadeOut, item.audio, item.voiceFx, media.id, media.loudness, !!urls[media.id]]);
+      if (media.speech) speech.push([item.id, media.speech]);
+    }
+  }
+  return JSON.stringify([voices, ducks ? speech : null]);
+}

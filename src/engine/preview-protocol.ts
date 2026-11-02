@@ -1,9 +1,12 @@
 import type { Project } from "../core/project";
 import type { AiSync } from "./ai/protocol";
+import type { ProjectPatch } from "./project-patch";
 
 export type PreviewIn =
   | { type: "init"; canvas: OffscreenCanvas }
   | { type: "project"; project: Project; urls: Record<string, string> }
+  /** Only what differs from the project the worker already holds. */
+  | { type: "patch"; patch: ProjectPatch; urls: Record<string, string> }
   | { type: "size"; width: number; height: number }
   | { type: "decode"; hardware: boolean }
   | { type: "ai"; sync: AiSync }
@@ -16,7 +19,7 @@ export type PreviewIn =
 export type PreviewOut =
   | { type: "ready" }
   | { type: "error"; message: string }
-  | { type: "stats"; fps: number; late: number; worstMs: number; readers: number; open: number; decoders: number; seekMs: number; seekP95: number; seeks: number }
+  | { type: "stats"; fps: number; skipped: number; late: number; worstMs: number; readers: number; open: number; decoders: number; seekMs: number; seekP95: number; seeks: number }
   | { type: "snapshot"; id: number; image: ImageData }
   /** Playback drew many late frames from this source: it decodes slower than it plays. */
   | { type: "slow-decode"; mediaId: string };

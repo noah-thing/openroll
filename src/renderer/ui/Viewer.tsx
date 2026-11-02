@@ -77,8 +77,12 @@ export function Viewer({ editor }: { editor: Editor }) {
   const fps = settings.fps.num / settings.fps.den;
   useFrame(() => {
     if (!player) return;
-    if (nowRef.current) nowRef.current.textContent = timecode(player.time, fps);
-    if (durRef.current) durRef.current.textContent = timecode(player.duration, fps);
+    // Assigning text replaces the node, which repaints even when the words are the same.
+    const write = (el: HTMLElement | null, text: string) => {
+      if (el && el.textContent !== text) el.textContent = text;
+    };
+    write(nowRef.current, timecode(player.time, fps));
+    write(durRef.current, timecode(player.duration, fps));
   });
 
   return (
