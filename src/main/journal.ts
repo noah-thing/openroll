@@ -20,7 +20,7 @@ interface Meta {
   name: string;
 }
 
-const SAFE_ID = /^[\w.-]{1,80}$/;
+const SAFE_ID = /^\w[\w.-]{0,79}$/;
 
 export class Journal {
   private queue = new Serial();

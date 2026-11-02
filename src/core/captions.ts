@@ -261,6 +261,9 @@ function cleanCueText(raw: string): string {
     .join("\n");
 }
 
+const MAX_CUE_END: Micros = 360_000 * 1_000_000;
+const MAX_CUES = 50_000;
+
 /** Read SRT or WebVTT. Unreadable blocks are skipped rather than failing the whole file. */
 export function parseSubtitles(source: string): Cue[] {
   const text = source.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
@@ -273,9 +276,11 @@ export function parseSubtitles(source: string): Cue[] {
     if (!m) continue;
     const start = parseStamp(m[1]);
     const end = parseStamp(m[2]);
-    if (start === null || end === null || end <= start) continue;
+    // The hours field takes any number of digits; a cue past a hundred hours is not a real caption.
+    if (start === null || end === null || end <= start || end > MAX_CUE_END) continue;
     const body = cleanCueText(lines.slice(at + 1).join("\n"));
     if (body) cues.push({ start, end, text: body });
+    if (cues.length >= MAX_CUES) break;
   }
   return cues.sort((x, y) => x.start - y.start);
 }

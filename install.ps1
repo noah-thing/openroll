@@ -24,6 +24,8 @@ try {
 		$sums = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
 		if ($release.draft -or -not $asset) { throw 'This release has no build for Windows yet.' }
 		if (-not $sums) { throw 'This release has no SHA256SUMS.txt, so its files cannot be checked.' }
+		# The name becomes a file name in the temp folder, and the file must come from this repository's own releases
+		if ($asset.name -ne [IO.Path]::GetFileName($asset.name) -or $asset.browser_download_url -notlike "https://github.com/$repo/releases/download/*" -or $sums.browser_download_url -notlike "https://github.com/$repo/releases/download/*") { throw 'The release lists a file this installer does not trust.' }
 
 		$file = Join-Path ([IO.Path]::GetTempPath()) $asset.name
 		Write-Host "Downloading $($asset.name)"

@@ -19,6 +19,10 @@ interface RawStream {
   side_data_list?: { rotation?: number }[];
 }
 
+const MAX_SECONDS = 360_000;
+const MAX_SIDE = 32_768;
+const sane = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n > 0 && n <= MAX_SIDE;
+
 const COMMON_RATES = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60];
 
 export function parseRate(text: string | undefined): number {
@@ -41,10 +45,11 @@ export function parseProbe(json: unknown): StreamSummary {
   const streams = doc.streams ?? [];
   const v = streams.find(s => s.codec_type === "video" && !s.disposition?.attached_pic);
   const a = streams.find(s => s.codec_type === "audio");
-  const durations = [doc.format?.duration, v?.duration, a?.duration].map(Number).filter(n => Number.isFinite(n) && n > 0);
+  // Claimed by the file, so bounded: a hundred hours and a frame no decoder here could hold are nonsense, not media.
+  const durations = [doc.format?.duration, v?.duration, a?.duration].map(Number).filter(n => Number.isFinite(n) && n > 0).map(n => Math.min(n, MAX_SECONDS));
 
   let video: VideoInfo | null = null;
-  if (v && v.width && v.height) {
+  if (v && sane(v.width) && sane(v.height)) {
     const rotation = Math.abs(Math.round(v.side_data_list?.find(s => s.rotation !== undefined)?.rotation ?? Number(v.tags?.rotate ?? 0))) % 360;
     const turned = rotation === 90 || rotation === 270;
     const rate = parseRate(v.avg_frame_rate) || parseRate(v.r_frame_rate);

@@ -14,6 +14,8 @@ REPO="noah-thing/openroll"
 say() { printf '%s\n' "$*"; }
 step() { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+# Nothing here may fall back to plain http, not even through a redirect.
+get() { curl --proto '=https' --proto-redir '=https' --tlsv1.2 "$@"; }
 
 command -v curl >/dev/null 2>&1 || fail "curl is required"
 
@@ -37,12 +39,12 @@ else
 fi
 
 step "Finding the latest OpenRoll release"
-RELEASE=$(curl -fsSL -H "Accept: application/vnd.github+json" "$API") || fail "could not read the release from GitHub (no internet, no release with that version, or GitHub is rate limiting you; try again in a few minutes)"
+RELEASE=$(get -fsSL -H "Accept: application/vnd.github+json" "$API") || fail "could not read the release from GitHub (no internet, no release with that version, or GitHub is rate limiting you; try again in a few minutes)"
 TAG=$(printf '%s' "$RELEASE" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 
-# The download URL of the first asset whose name ends in $1.
+# The download URL of the first asset whose name ends in $1. Only this repository's own release files count.
 asset() {
-	printf '%s' "$RELEASE" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(https[^"]*\)"$/\1/' | grep -- "$1\$" | head -1
+	printf '%s' "$RELEASE" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(https[^"]*\)"$/\1/' | grep -F "https://github.com/$REPO/releases/download/" | grep -- "$1\$" | head -1
 }
 
 TMP=$(mktemp -d)
@@ -55,12 +57,12 @@ sha_of() {
 # Every release lists the sha256 of each file in SHA256SUMS.txt, the same list the in app updater trusts.
 SUMS_URL=$(asset "/SHA256SUMS.txt")
 [ -n "$SUMS_URL" ] || fail "this release has no SHA256SUMS.txt, so its files cannot be checked"
-curl -fsSL -o "$TMP/SHA256SUMS.txt" "$SUMS_URL" || fail "could not download SHA256SUMS.txt"
+get -fsSL -o "$TMP/SHA256SUMS.txt" "$SUMS_URL" || fail "could not download SHA256SUMS.txt"
 
 download() {
 	NAME=$(basename "$1")
 	say "Downloading $NAME"
-	curl -fL --progress-bar -o "$TMP/$2" "$1" || fail "download failed"
+	get -fL --progress-bar -o "$TMP/$2" "$1" || fail "download failed"
 	WANT=$(grep -- " \*\{0,1\}$NAME\$" "$TMP/SHA256SUMS.txt" | cut -d' ' -f1 | tr 'A-F' 'a-f')
 	[ -n "$WANT" ] || fail "$NAME is not listed in SHA256SUMS.txt"
 	[ "$(sha_of "$TMP/$2" | tr 'A-F' 'a-f')" = "$WANT" ] || fail "$NAME does not match its checksum; nothing was installed"

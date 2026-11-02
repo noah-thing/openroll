@@ -17,6 +17,11 @@ afterEach(() => rm(dir, { recursive: true, force: true }));
 describe("Journal", () => {
   const meta = () => ({ path: join(dir, "a.openroll"), name: "a" });
 
+  it("refuses ids that name a folder outside its own", () => {
+    for (const id of ["..", ".", ".x"]) expect(Journal.idOf(JSON.stringify({ id }))).toBeNull();
+    expect(Journal.idOf(JSON.stringify({ id: "p_1-a.b" }))).toBe("p_1-a.b");
+  });
+
   it("folds saves that come close together into one version", async () => {
     const t = 1_000_000;
     for (let i = 0; i < 10; i++) await journal.record(doc(i), meta(), { now: t + i * 1000 });

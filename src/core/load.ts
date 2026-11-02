@@ -16,7 +16,10 @@ const MIGRATIONS: Record<number, (doc: Obj) => Obj> = {};
 const KINDS: MediaKind[] = ["video", "audio", "image"];
 const TRACK_KINDS = ["video", "audio", "text"];
 const ITEM_TYPES = ["media", "text", "caption", "color", "shape"];
-const SAFE_ID = /^[\w.-]{1,80}$/;
+const SAFE_ID = /^\w[\w.-]{0,79}$/;
+/** Ten hours in microseconds. Past any real edit; a larger number is a typo or an attempt to stall the renderer. */
+const MAX_TIME = 36_000 * 1_000_000;
+const clampTime = (v: number) => Math.min(MAX_TIME, Math.max(0, Math.round(v)));
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v);
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -94,6 +97,11 @@ function repairMedia(raw: unknown, repairs: string[]): Record<string, MediaRef> 
   if (raw !== undefined && !isObj(raw)) repairs.push("media");
   if (!isObj(raw)) return out;
   for (const [id, v] of Object.entries(raw)) {
+    // `out["__proto__"] = v` would swap the map's prototype instead of adding a key.
+    if (id === "__proto__") {
+      repairs.push("media id");
+      continue;
+    }
     if (!isObj(v)) {
       repairs.push(`media ${id}`);
       continue;
@@ -108,7 +116,7 @@ function repairMedia(raw: unknown, repairs: string[]): Record<string, MediaRef> 
       name: typeof v.name === "string" ? v.name : path.replace(/^.*[\\/]/, "") || id,
       size: num(v.size) ? v.size : 0,
       mtime: num(v.mtime) ? v.mtime : 0,
-      duration: num(v.duration) && v.duration >= 0 ? Math.round(v.duration) : 0,
+      duration: num(v.duration) && v.duration >= 0 ? clampTime(v.duration) : 0,
       hasAudio: typeof v.hasAudio === "boolean" ? v.hasAudio : kind === "audio",
       hasVideo: typeof v.hasVideo === "boolean" ? v.hasVideo : kind !== "audio",
     } as MediaRef;
@@ -164,16 +172,16 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
   if (!isObj(raw) || !ITEM_TYPES.includes(raw.type as string) || !num(raw.start) || !num(raw.duration) || raw.duration < 1) return drop();
   const base = {
     ...raw,
-    start: Math.max(0, Math.round(raw.start)),
-    duration: Math.round(raw.duration),
+    start: clampTime(raw.start),
+    duration: Math.min(MAX_TIME, Math.round(raw.duration)),
     transform: { ...IDENTITY, ...(isObj(raw.transform) ? raw.transform : {}) },
   };
   switch (raw.type) {
     case "media":
-      if (typeof raw.mediaId !== "string" || !media[raw.mediaId]) return drop();
+      if (typeof raw.mediaId !== "string" || !Object.hasOwn(media, raw.mediaId)) return drop();
       return {
         ...base,
-        in: num(raw.in) && raw.in >= 0 ? Math.round(raw.in) : 0,
+        in: num(raw.in) && raw.in >= 0 ? clampTime(raw.in) : 0,
         speed: num(raw.speed) && raw.speed > 0 ? raw.speed : 1,
         volume: num(raw.volume) && raw.volume >= 0 ? raw.volume : 1,
         fadeIn: num(raw.fadeIn) ? raw.fadeIn : 0,

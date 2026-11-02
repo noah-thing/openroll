@@ -44,3 +44,33 @@ export function safeFileName(name: string, fallback: string): string {
   const ext = /\.[A-Za-z0-9]{1,5}$/.exec(out)?.[0] ?? "";
   return (out.length > 180 ? out.slice(0, 180 - ext.length) + ext : out) || fallback;
 }
+
+const SYSTEM_DIRS: Record<string, string[]> = {
+  win32: ["windows", "program files", "program files (x86)", "programdata"],
+  darwin: ["system", "usr", "bin", "sbin", "etc", "library", "applications"],
+  linux: ["usr", "bin", "sbin", "etc", "lib", "lib64", "boot", "dev", "proc", "sys"],
+};
+
+/**
+ * Why an AI tool may not use this path, or null when it may. Tools name files themselves, so:
+ * no network shares (opening one sends the person's Windows credentials to that server), no
+ * hidden folders in the home directory (.ssh, .aws, .config), and for writing also no app
+ * bundles, system folders or the per user Library and AppData folders.
+ */
+export function agentPathProblem(path: string, platform: string, home: string, access: "read" | "write"): string | null {
+  if (path.includes("\0")) return "The path is not valid.";
+  if (platform === "win32" && /^[\\/]{2}/.test(path)) return "Network paths are not allowed for AI tools. Copy the file to a local folder first.";
+  const key = pathKey(path, platform);
+  const parts = key.split("/").filter(Boolean);
+  if (isInside(path, home, platform)) {
+    const below = key.slice(pathKey(home, platform).length).split("/").filter(Boolean);
+    if (below[0]?.startsWith(".")) return "AI tools cannot use hidden folders in the home directory.";
+    if (access === "write" && (below[0] === "library" || below[0] === "appdata")) return "AI tools cannot write into the Library or AppData folder.";
+  }
+  if (access === "write") {
+    if (parts.some(part => part.endsWith(".app"))) return "AI tools cannot write inside an application bundle.";
+    const top = platform === "win32" ? parts[1] : parts[0];
+    if (top && SYSTEM_DIRS[platform]?.includes(top)) return "AI tools cannot write into system folders.";
+  }
+  return null;
+}
