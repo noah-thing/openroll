@@ -1,7 +1,7 @@
 {
   "name": "openroll",
   "productName": "OpenRoll",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A free, open source video editor for macOS, Windows and Linux.",
   "license": "GPL-3.0-or-later",
