@@ -7,6 +7,7 @@ import type { Editor } from "../../state/editor";
 import { captionService, listenTargets, type ListenSettings } from "../../state/captions";
 import { Icon } from "../kit/Icon";
 import { Segmented } from "../kit/Field";
+import { FontPicker } from "../kit/FontPicker";
 import { SmartCut } from "./SmartCut";
 import { Specimen } from "./Specimen";
 import { Transcript } from "./Transcript";
@@ -219,9 +220,20 @@ function StylePicker({ choice, onChange, hasCaptions }: { choice: CaptionChoice;
     <div className="cap-styles">
       <div className="cap-grid">
         {CAPTION_PRESETS.map(p => (
-          <Specimen key={p.id} preset={p} highlight={choice.preset === p.id ? choice.highlight : p.highlight ?? null} selected={choice.preset === p.id} onPick={() => onChange({ ...choice, preset: p.id, highlight: p.highlight ?? choice.highlight })} />
+          <Specimen key={p.id} preset={p} font={choice.font} highlight={choice.preset === p.id ? choice.highlight : p.highlight ?? null} selected={choice.preset === p.id} onPick={() => onChange({ ...choice, preset: p.id, highlight: p.highlight ?? choice.highlight })} />
         ))}
       </div>
+      <section className="group">
+        <h3>
+          Font
+          {choice.font && (
+            <button className="reset" onClick={() => onChange({ ...choice, font: undefined })}>
+              Use the look's font
+            </button>
+          )}
+        </h3>
+        <FontPicker value={choice.font ?? preset.style.font} onChange={font => onChange({ ...choice, font })} />
+      </section>
       <section className="group">
         <h3>Spoken word</h3>
         <div className="swatches">

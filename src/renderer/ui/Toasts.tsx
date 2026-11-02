@@ -10,8 +10,19 @@ export function Toasts({ editor }: { editor: Editor }) {
         <div key={t.id} className={"toast" + (t.tone === "error" ? " toast-error" : "")}>
           <span>{t.message}</span>
           {t.action && (
-            <button className="toast-undo" onClick={() => t.action!.run()}>
+            <button
+              className="toast-undo"
+              onClick={() => {
+                t.action!.run();
+                editor.dismissToast(t.id);
+              }}
+            >
               {t.action.label}
+            </button>
+          )}
+          {t.decline && (
+            <button className="toast-undo" onClick={() => editor.dismissToast(t.id)}>
+              {t.decline}
             </button>
           )}
           {t.undo && (

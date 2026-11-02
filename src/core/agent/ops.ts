@@ -4,6 +4,7 @@
 // as "$name", so a whole edit fits in one call.
 
 import { MIN_ITEM, addMarker, deleteItems, insertItems, isMagnetic, mediaItem, moveItem, packMain, pruneTransitions, resolveOverlap, rippleDeleteRange, setSpeed, setTrack, setTransition, split, updateItem } from "../edit";
+import { DEFAULT_FONT, FONTS, isKnownFont, snapWeight } from "../fonts";
 import { setKey } from "../look/keyframes";
 import { addEffectTo, setFilter } from "../look/edit";
 import { EFFECTS } from "../look/effects";
@@ -142,7 +143,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
             start: at(o.at, "at"),
             duration: span(o.duration ?? 3, "duration"),
             transform: { ...IDENTITY, x: o.x === undefined ? 0 : finite(o.x, "x"), y: o.y === undefined ? 0 : finite(o.y, "y") },
-            style: { text: o.text, font: "Familjen Grotesk", size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0, ...o.style },
+            style: textStyle({ text: o.text, font: DEFAULT_FONT, size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0 }, o.style),
             name: o.text.slice(0, 40),
           };
           const textTrack = trackFor(o.track) ?? p.tracks.find(t => t.kind === "text")?.id;
@@ -352,6 +353,13 @@ function repack(p: Project, id: string): Project {
   return next;
 }
 
+/** Applies a partial style. A font that is not bundled is an error, so the AI picks from the catalog instead of getting a quiet fallback. */
+function textStyle(base: TextStyle, patch: Partial<TextStyle> | undefined): TextStyle {
+  const style = { ...base, ...patch };
+  if (patch?.font !== undefined && !isKnownFont(patch.font)) throw new Error(`unknown font ${JSON.stringify(patch.font)}. Available: ${FONTS.map(f => f.family).join(", ")}`);
+  return { ...style, weight: snapWeight(style.font, style.weight) };
+}
+
 const TIME_PROPS = new Set(["fadeIn", "fadeOut"]);
 const TRANSFORM_PROPS = new Set(["x", "y", "scale", "rotation", "opacity"]);
 const PLAIN_PROPS = new Set([
@@ -385,8 +393,7 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
       }
     } else if (key === "text" || key === "style") {
       if (it.type !== "text" && it.type !== "caption") throw new Error(`${key} only applies to text`);
-      const style = { ...it.style, ...(key === "text" ? { text: String(value) } : (value as object)) };
-      patch.style = style;
+      patch.style = key === "text" ? { ...it.style, text: String(value) } : textStyle(it.style, value as Partial<TextStyle>);
     } else if (PLAIN_PROPS.has(key)) {
       patch[key] = value === null ? undefined : value;
     } else {

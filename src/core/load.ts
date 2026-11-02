@@ -2,6 +2,7 @@
 // disk, from older or newer builds and from people with a text editor, so nothing here
 // assumes a field exists. What can be repaired is repaired and listed; what cannot is refused.
 
+import { DEFAULT_FONT, isKnownFont } from "./fonts";
 import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type Track } from "./project";
 
 export const CURRENT_VERSION = 1;
@@ -190,13 +191,20 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
     case "text":
     case "caption":
       if (!isObj(raw.style) || typeof raw.style.text !== "string") return drop();
-      return (raw.type === "caption" ? { ...base, words: Array.isArray(raw.words) ? raw.words : [] } : base) as unknown as Item;
+      return { ...base, style: repairFont(raw.style, repairs), ...(raw.type === "caption" ? { words: Array.isArray(raw.words) ? raw.words : [] } : {}) } as unknown as Item;
     case "color":
       return { ...base, color: typeof raw.color === "string" ? raw.color : "#000000" } as unknown as Item;
     default:
       if (!isObj(raw.shape) || !num(raw.width) || !num(raw.height)) return drop();
       return base as unknown as Item;
   }
+}
+
+/** A font this build does not bundle would draw as the system default, so the preview and the export could disagree. */
+function repairFont(style: Obj, repairs: string[]): Obj {
+  if (isKnownFont(style.font)) return style;
+  if (style.font !== undefined) repairs.push("font");
+  return { ...style, font: DEFAULT_FONT };
 }
 
 function repairMarkers(raw: unknown, repairs: string[]): Project["markers"] {

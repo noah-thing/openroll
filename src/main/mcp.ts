@@ -169,6 +169,7 @@ export async function runMcp(): Promise<void> {
       style: z.string().optional().describe("caption style id from the catalog"),
       highlight: z.boolean().optional().describe("colour the word being spoken"),
       position: z.enum(["top", "middle", "lower"]).optional(),
+      font: z.string().optional().describe("font family from the catalog, overrides the style's font"),
       language: z.string().optional(),
     },
   }, run("captions.generate"));

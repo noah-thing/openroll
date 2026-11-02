@@ -6,6 +6,7 @@ import { buildScene } from "../../core/scene";
 import { applyCuts, describePlan, planCuts } from "../../core/smartcut";
 import { createProject, findItem, itemEnd, projectDuration, type Project } from "../../core/project";
 import { CAPTION_PRESETS } from "../../core/caption-styles";
+import { FONTS, isKnownFont } from "../../core/fonts";
 import { hasExtension } from "../../engine/export-formats";
 import { aiFor } from "../state/ai";
 import { captionService, listenTargets } from "../state/captions";
@@ -163,10 +164,12 @@ const handlers: Record<string, Handler> = {
     const e = editor();
     const before = allCaptions(e.project).length;
     const style = CAPTION_PRESETS.find(c => c.id === params.style)?.id ?? "outline";
+    if (params.font !== undefined && !isKnownFont(params.font)) throw new Error(`unknown font ${JSON.stringify(params.font)}. Available: ${FONTS.map(f => f.family).join(", ")}`);
     await captionService(e).generate(null, { language: typeof params.language === "string" ? params.language : null, model: "base" }, {
       preset: style,
       highlight: params.highlight === false ? null : (CAPTION_PRESETS.find(c => c.id === style)?.highlight ?? "#f2c23a"),
       position: (["top", "middle", "lower"].includes(String(params.position)) ? params.position : "lower") as "top" | "middle" | "lower",
+      font: params.font as string | undefined,
     });
     const after = allCaptions(e.project);
     if (after.length === before) return { captions: after.length, added: 0, note: "No speech was found on the timeline, so nothing was added. Check that a clip with talking is on it." };

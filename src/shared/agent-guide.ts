@@ -58,6 +58,7 @@ Slow open with a wide shot and a line of text, build with shorter shots, a hard 
   captions: `Captions
 - captions transcribes and places captions for the whole timeline, chunked into readable lines (5 to 7 words, breaking on pauses and punctuation).
 - Styles: see catalog captionStyles. Word highlight colours the word being spoken.
+- Fonts: catalog fonts lists the families. Pass font to captions, or set {style: {font: "Anton"}} on any text or caption. Display faces (Anton, Bebas Neue) have one weight; use them big, short and in capitals.
 - Position "lower" for most videos, "middle" for vertical social content with faces in the lower half.
 - Edit a caption's words with set {text: "..."}; timing is kept.
 - export_subtitles writes SRT or VTT.`,

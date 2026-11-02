@@ -5,6 +5,7 @@ import { derived } from "../state/derived-media";
 import { checkMissing } from "../state/relink";
 import { useSettings } from "../state/settings";
 import { useAutoAnalysis } from "../state/auto-analyze";
+import { useCaptionOffer } from "../state/caption-offer";
 import { useAiBackground } from "../state/ai";
 import { useShortcuts } from "../state/shortcuts";
 import { Inspector } from "./Inspector";
@@ -41,6 +42,7 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
     void checkMissing(editor).then(() => derived.restore(Object.values(editor.project.media)));
   }, [editor, proxyMode]);
   useAutoAnalysis(editor, cache);
+  useCaptionOffer(editor);
   useAiBackground(editor);
   useShortcuts(editor, { onExport: () => setExporting(true), onHome: onClose });
 
