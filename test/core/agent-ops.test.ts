@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyOps, OpError, type Op } from "../../src/core/agent/ops";
 import { summarize } from "../../src/core/agent/summary";
-import { addMedia } from "../../src/core/edit";
+import { addMedia, insertItems } from "../../src/core/edit";
+import { setMagnetic } from "../../src/core/timeline-edit";
 import { createProject, mainTrack, type MediaRef, type Project } from "../../src/core/project";
 
 const S = 1_000_000;
@@ -94,5 +95,37 @@ describe("applyOps", () => {
     const { project } = applyOps(base(), [{ op: "project", ratio: "9:16", fps: 60, name: "Vertical cut" }]);
     expect(project.settings).toMatchObject({ width: 1080, height: 1920, fps: { num: 60, den: 1 } });
     expect(project.name).toBe("Vertical cut");
+  });
+
+  it("appends to a main track that is not magnetic instead of parking the clip at the end of time", () => {
+    const loose = setMagnetic(base(), mainTrack(base()).id, false);
+    const { project } = applyOps(loose, [{ op: "add_clip", media: "a", duration: 2 }, { op: "add_clip", media: "b" }]);
+    expect(mainTrack(project).items.map(i => i.start / S)).toEqual([0, 2]);
+  });
+
+  it("refuses values a clip cannot hold instead of saving them", () => {
+    const start = applyOps(base(), [{ op: "add_clip", media: "a" }, { op: "add_text", text: "hi", at: 0, as: "t" }]);
+    const id = mainTrack(start.project).items[0].id;
+    const bad: Op[] = [
+      { op: "set", id, props: { blend: "burn" } },
+      { op: "set", id, props: { mask: "round" } },
+      { op: "set", id, props: { crop: { left: "a" } } },
+      { op: "set", id: start.results[1].id!, props: { style: { size: "huge" } } },
+      { op: "add_text", text: "x", at: 0, style: { align: "middle" } as never },
+      { op: "add_color", color: 5 as never, at: 0, duration: 1 },
+      { op: "keyframe", id, prop: "transform.x", at: 1, value: 1, ease: "bounce" as never },
+      { op: "keyframe", id, prop: "__proto__", at: 1, value: 1 },
+    ];
+    for (const op of bad) expect(() => applyOps(start.project, [op])).toThrow(OpError);
+    const ok = applyOps(start.project, [{ op: "set", id, props: { blend: "screen", volume: 500, mask: null } }]);
+    expect(mainTrack(ok.project).items[0]).toMatchObject({ blend: "screen", volume: 100 });
+  });
+
+  it("cuts a caption's words when a trim shortens it", () => {
+    const words = [{ text: "a", start: 0, end: 2 * S }, { text: "b", start: 2 * S, end: 4 * S }];
+    const cap = { id: "cap", type: "caption" as const, start: 0, duration: 4 * S, transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 }, style: { text: "", font: "x", size: 10, weight: 400, color: "#fff", align: "center" as const, lineHeight: 1, letterSpacing: 0 }, words };
+    const p = insertItems(base(), [cap]);
+    const out = applyOps(p, [{ op: "trim", id: "cap", duration: 1 }]).project;
+    expect(out.tracks.flatMap(t => t.items).find(i => i.id === "cap")).toMatchObject({ words: [{ text: "a", start: 0, end: S }] });
   });
 });

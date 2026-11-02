@@ -4,7 +4,7 @@
 // as "$name", so a whole edit fits in one call.
 
 import { MIN_ITEM, addMarker, deleteItems, insertItems, isMagnetic, mediaItem, moveItem, packMain, pruneTransitions, resolveOverlap, rippleDeleteRange, setSpeed, setTrack, setTransition, split, updateItem } from "../edit";
-import { setKey } from "../look/keyframes";
+import { EASINGS, setKey } from "../look/keyframes";
 import { addEffectTo, setFilter } from "../look/edit";
 import { EFFECTS } from "../look/effects";
 import { FILTERS } from "../look/filters";
@@ -25,6 +25,7 @@ import {
 } from "../project";
 import { TRANSITIONS } from "../../engine/shaders";
 import { cutToBeat } from "../beat-edit";
+import { repairLook, repairStyle } from "../load";
 import { applyLayout, LAYOUTS, type Layout } from "../layouts";
 import { newShape, placeOverlay } from "../shapes";
 import { STICKERS } from "../stickers";
@@ -119,7 +120,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
         case "add_clip": {
           const media = p.media[ref(o.media)] ?? Object.values(p.media).find(m => m.path === o.media || m.name === o.media);
           if (!media) throw new Error(`no media ${o.media}; pass a media id from import_media, or an absolute file path`);
-          const it = mediaItem(media, o.at === undefined ? Number.MAX_SAFE_INTEGER : at(o.at, "at"));
+          const it = mediaItem(media, o.at === undefined ? 0 : at(o.at, "at"));
           if (o.in !== undefined) it.in = Math.max(0, us(o.in, "in"));
           if (o.duration !== undefined) it.duration = span(o.duration, "duration");
           if (media.kind !== "image") it.duration = Math.min(it.duration, media.duration - it.in);
@@ -127,8 +128,8 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           const trackId = trackFor(o.track);
           const audio = media.kind === "audio";
           const toMain = !audio && (o.track === undefined || o.track === "main");
-          // Without a time the clip goes after what is on its lane; the main track appends on its own.
-          if (!toMain && o.at === undefined) it.start = Math.max(0, ...(p.tracks.find(t => t.id === trackId)?.items.map(i => i.start + i.duration) ?? []));
+          // Without a time the clip goes after what is on its lane. A main track that is not magnetic does not append on its own.
+          if (o.at === undefined) it.start = Math.max(0, ...(p.tracks.find(t => t.id === (toMain ? mainTrack(p).id : trackId))?.items.map(i => i.start + i.duration) ?? []));
           p = insertItems(p, [it], toMain ? { trackId: mainTrack(p).id } : trackId ? { trackId } : {});
           result.id = it.id;
           name(o.as, it.id);
@@ -142,7 +143,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
             start: at(o.at, "at"),
             duration: span(o.duration ?? 3, "duration"),
             transform: { ...IDENTITY, x: o.x === undefined ? 0 : finite(o.x, "x"), y: o.y === undefined ? 0 : finite(o.y, "y") },
-            style: { text: o.text, font: "Familjen Grotesk", size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0, ...o.style },
+            style: textStyle({ text: o.text, font: "Familjen Grotesk", size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0 }, o.style),
             name: o.text.slice(0, 40),
           };
           const textTrack = trackFor(o.track) ?? p.tracks.find(t => t.kind === "text")?.id;
@@ -152,6 +153,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           break;
         }
         case "add_color": {
+          if (typeof o.color !== "string" || !o.color) throw new Error("color must be a colour such as #ff0000");
           const it: Item = { id: newId("i"), type: "color", color: o.color, start: at(o.at, "at"), duration: span(o.duration, "duration"), transform: { ...IDENTITY } };
           const trackId = trackFor(o.track);
           p = insertItems(p, [it], trackId ? { trackId } : {});
@@ -216,7 +218,8 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
           const it = item(o.id);
           const local = us(o.at, "at") - it.start;
           if (local < 0 || local > it.duration) throw new Error(`${o.at} s is outside the clip`);
-          if (typeof o.prop !== "string" || !/^[A-Za-z][\w.:-]*$/.test(o.prop)) throw new Error("prop is a path like transform.scale");
+          if (o.ease !== undefined && !EASINGS.some(e => e.value === o.ease)) throw new Error(`ease is one of ${EASINGS.map(e => e.value).join(", ")}`);
+          if (typeof o.prop !== "string" || !/^[A-Za-z][\w.:-]*$/.test(o.prop) || o.prop.includes("__proto__")) throw new Error("prop is a path like transform.scale");
           p = updateItem(p, it.id, { keyframes: setKey(it.keyframes, o.prop, local, finite(o.value, "value"), o.ease ?? "ease") });
           result.id = it.id;
           break;
@@ -372,7 +375,7 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
     } else if (TIME_PROPS.has(key)) {
       patch[key] = Math.max(0, us(value, key));
     } else if (key === "volume") {
-      patch[key] = Math.max(0, finite(value, key));
+      patch[key] = Math.min(100, Math.max(0, finite(value, key)));
     } else if (key === "speed") {
       if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) throw new Error("speed must be above 0");
       speed = value;
@@ -385,9 +388,9 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
       }
     } else if (key === "text" || key === "style") {
       if (it.type !== "text" && it.type !== "caption") throw new Error(`${key} only applies to text`);
-      const style = { ...it.style, ...(key === "text" ? { text: String(value) } : (value as object)) };
-      patch.style = style;
+      patch.style = textStyle(it.style, key === "text" ? { text: String(value) } : value);
     } else if (PLAIN_PROPS.has(key)) {
+      if (value !== null && !plainValueOk(key, value)) throw new Error(`${key} does not accept ${JSON.stringify(value)?.slice(0, 60)}; see the catalog for its fields`);
       patch[key] = value === null ? undefined : value;
     } else {
       throw new Error(`unknown property ${key}. Allowed: ${[...TRANSFORM_PROPS, ...TIME_PROPS, "volume", ...PLAIN_PROPS, "speed", "text", "style", "animationIn", "animationOut"].join(", ")}`);
@@ -400,6 +403,25 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
     next = setSpeed(next, it.id, speed);
   }
   return next;
+}
+
+/** Text style with the caller's fields on top, refused when a field has the wrong type or range. */
+function textStyle(base: TextStyle, over: unknown): TextStyle {
+  if (over === undefined || over === null) return base;
+  if (typeof over !== "object" || Array.isArray(over)) throw new Error("style must be an object of style fields");
+  const merged = { ...base, ...over } as Record<string, unknown>;
+  const clean = repairStyle(merged);
+  const bad = Object.keys(clean).find(k => JSON.stringify(clean[k]) !== JSON.stringify(merged[k]));
+  if (bad) throw new Error(`style.${bad} does not accept ${JSON.stringify(merged[bad])?.slice(0, 60)}`);
+  return merged as unknown as TextStyle;
+}
+
+/** Whether a look or flag field holds something the compositor can read. */
+function plainValueOk(key: string, value: unknown): boolean {
+  if (key === "name" || key === "color" || key === "highlight") return typeof value === "string";
+  const probe: Record<string, unknown> = { [key]: value };
+  repairLook(probe);
+  return key in probe;
 }
 
 const RATIOS: Record<string, [number, number]> = { "16:9": [1920, 1080], "9:16": [1080, 1920], "1:1": [1080, 1080], "4:5": [1080, 1350], "4:3": [1440, 1080], "21:9": [2560, 1080] };
