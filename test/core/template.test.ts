@@ -121,6 +121,19 @@ describe("hostile templates", () => {
     expect(item.style.shadow?.color).toBe("rgba(0,0,0,0.5)");
   });
 
+  it("swaps a font this build does not bundle for the default, so the project never stores it", () => {
+    const raw = good();
+    const text = (raw.tracks as { items: Record<string, unknown>[] }[])[1].items[0];
+    text.style = { text: "x", font: "Comic Sans MS" };
+    const kept = (font: string) => {
+      text.style = { text: "x", font };
+      const item = read(raw).tracks[1].items[0];
+      return item.type === "text" && item.style.font;
+    };
+    expect(kept("Comic Sans MS")).toBe("Familjen Grotesk");
+    expect(kept("Anton")).toBe("Anton");
+  });
+
   it("allows only known transitions, effects, filters, stickers and animation kinds", () => {
     const raw = good();
     const slot = (raw.tracks as { items: Record<string, unknown>[] }[])[0].items[0];

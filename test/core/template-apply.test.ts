@@ -36,6 +36,17 @@ function withMedia(): Project {
   return addMedia(createProject("p"), [ref("one", 10), ref("two", 1), ref("song", 30, "audio")]);
 }
 
+describe("chooseFills", () => {
+  it("does not take clips from a locked track, which the template could not replace", () => {
+    const p = withMedia();
+    const placed = insertItems(p, [mediaItem(p.media.one, 0)], { trackId: mainTrack(p).id });
+    const clip = mainTrack(placed).items[0];
+    expect(chooseFills(placed, cuts, [clip.id]).consume).toEqual([clip.id]);
+    mainTrack(placed).locked = true;
+    expect(chooseFills(placed, cuts, [clip.id]).consume).toEqual([]);
+  });
+});
+
 describe("applyTemplate", () => {
   it("fills slots in order from the library, trims to the slot, and puts the song on audio", () => {
     const p = withMedia();

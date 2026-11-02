@@ -337,9 +337,11 @@ export function chooseFills(p: Project, t: Template, selection: readonly string[
   const visual = t.slots.filter(s => s.kind === "visual");
   const audio = t.slots.filter(s => s.kind === "audio");
   const order = (id: string) => p.tracks.findIndex(tr => tr.items.some(i => i.id === id));
+  // A locked track keeps its clips, so they cannot be swapped out for the template and are left alone.
+  const trackOf = (id: string) => p.tracks[order(id)];
   const picked = selection
     .map(id => findItem(p, id)?.item)
-    .filter((i): i is MediaItem => i?.type === "media" && !!p.media[i.mediaId])
+    .filter((i): i is MediaItem => i?.type === "media" && !!p.media[i.mediaId] && !trackOf(i.id)?.locked)
     .sort((a, b) => a.start - b.start || order(a.id) - order(b.id));
 
   const fills = new Map<string, SlotFill>();

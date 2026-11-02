@@ -4,6 +4,7 @@
 // and anything unknown is left out. Nothing here can name a file, a path or a project media id.
 
 import { TRANSITIONS } from "../engine/shaders";
+import { safeFont } from "./fonts";
 import { LAYOUTS, type Layout } from "./layouts";
 import { EFFECTS } from "./look/effects";
 import { FILTERS } from "./look/filters";
@@ -128,7 +129,6 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v);
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SAFE_SLOT = /^[A-Za-z0-9][\w-]{0,31}$/;
-const SAFE_FONT = /^[A-Za-z0-9][A-Za-z0-9 ,-]{0,79}$/;
 const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const RGBA = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d{1,3}|1\.0{1,3})\s*)?\)$/;
 const KEY_PATH = /^(transform\.(x|y|scale|rotation|opacity)|filter\.amount|adjust\.[a-z]{3,12})$/;
@@ -446,7 +446,6 @@ export function readStyle(raw: unknown, withText: boolean): TextStyle | null {
   if (!isObj(raw)) return null;
   const sample = withText ? text(raw.text, TEMPLATE_LIMITS.text, true) : undefined;
   if (withText && !sample) return null;
-  const font = typeof raw.font === "string" && SAFE_FONT.test(raw.font) ? raw.font : "Familjen Grotesk";
   const stroke = isObj(raw.stroke) ? { color: colour(raw.stroke.color) ?? "#000000", width: number(raw.stroke.width, 0, 200) ?? 0 } : undefined;
   const shadow = isObj(raw.shadow)
     ? { color: colour(raw.shadow.color) ?? "rgba(0,0,0,0.5)", blur: number(raw.shadow.blur, 0, 200) ?? 0, x: number(raw.shadow.x, -200, 200) ?? 0, y: number(raw.shadow.y, -200, 200) ?? 0 }
@@ -454,6 +453,8 @@ export function readStyle(raw: unknown, withText: boolean): TextStyle | null {
   const background = isObj(raw.background)
     ? { color: colour(raw.background.color) ?? "#000000", padding: number(raw.background.padding, 0, 400) ?? 0, radius: number(raw.background.radius, 0, 400) ?? 0 }
     : undefined;
+  // A face this build does not bundle would be stored in the project and drawn as the default.
+  const font = safeFont(raw.font);
   return compact({
     text: sample ?? "",
     font,
