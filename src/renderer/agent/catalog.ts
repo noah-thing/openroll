@@ -1,4 +1,5 @@
 import { CAPTION_PRESETS, HIGHLIGHT_COLORS } from "../../core/caption-styles";
+import { FONTS } from "../../core/fonts";
 import { LAYOUTS } from "../../core/layouts";
 import { EFFECTS } from "../../core/look/effects";
 import { FILTERS, type FilterLook } from "../../core/look/filters";
@@ -65,7 +66,7 @@ const ANIMATIONS = {
 
 const OPS = {
   add_clip: "{media (id, path or name), at? (timeline s; omit to append on main), track? (\"main\", \"auto\" or a track id), in? (source s), duration? (s), as?}",
-  add_text: "{text, at, duration? (3), style? (font, size, weight, color, align, letterSpacing, lineHeight, stroke {color,width}, shadow {color,blur,x,y}, background {color,padding,radius}), x?, y? (pixels from frame centre, y down), as?}",
+  add_text: "{text, at, duration? (3), style? (font from the fonts list, size, weight, color, align, letterSpacing, lineHeight, stroke {color,width}, shadow {color,blur,x,y}, background {color,padding,radius}), x?, y? (pixels from frame centre, y down), as?}",
   add_color: "{color #rrggbb, at, duration, track?, as?} solid colour clip, e.g. black for a beat of silence",
   add_shape: "{kind rect|ellipse|line|sticker, sticker? (id), at, duration?, color?, x?, y?, scale?, as?}",
   move: "{id, at, track?} on the main track this picks a slot; elsewhere it lands exactly there",
@@ -99,7 +100,7 @@ const PROPS = {
   stabilize: "{strength 0..1}", enhance: "{amount 0..1, upscale? boolean}", slowMotion: "blend|flow (flow is smoother below speed 1)", motionBlur: "{amount 0..1}",
   audio: "{denoise 0..1, voice boolean, normalize boolean, duckUnder boolean}", voiceFx: "pitchUp|pitchDown|robot|radio|echo|bigRoom", muteAudio: "boolean",
   animationIn: "{kind, duration s} or null", animationOut: "{kind, duration s} or null",
-  text: "string, for text and caption clips", style: "partial text style, for text and caption clips", name: "string", color: "#rrggbb for colour clips",
+  text: "string, for text and caption clips", style: "partial text style, for text and caption clips (font must be a family from the fonts list; weight snaps to what the font has)", name: "string", color: "#rrggbb for colour clips",
 };
 
 export function buildCatalog() {
@@ -112,6 +113,7 @@ export function buildCatalog() {
     effects: EFFECTS.filter(e => !e.internal).map(e => ({ kind: e.kind, name: e.name, group: e.group, defaultAmount: e.amount, ...(e.speed ? { speed: e.speed } : {}), ...(e.styles ? { styles: e.styles } : {}), use: EFFECT_USE[e.kind] ?? "" })),
     animations: ANIMATIONS,
     textPresets: TEXT_PRESETS.map(t => ({ id: t.id, name: t.name, style: t.style, y: Math.round(t.y * 100) / 100, animationIn: t.animationIn })),
+    fonts: FONTS.map(f => ({ family: f.family, category: f.category, weights: f.minWeight === f.maxWeight ? [f.minWeight] : [f.minWeight, f.maxWeight] })),
     captionStyles: CAPTION_PRESETS.map(c => ({ id: c.id, name: c.name, sample: c.sample })),
     highlightColors: HIGHLIGHT_COLORS,
     layouts: LAYOUTS,

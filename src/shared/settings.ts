@@ -15,6 +15,8 @@ export interface Settings {
   /** Let AI tools on this computer (Claude Code, Codex, Cursor) edit through the control socket. */
   aiControl: boolean;
   reduceMotion: boolean;
+  /** Ask whether to add captions when a clip with speech arrives. */
+  offerCaptions: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   news: true,
   aiControl: true,
   reduceMotion: false,
+  offerCaptions: true,
 };
 
 const PROXY_MODES: ProxyMode[] = ["off", "auto", "always"];
@@ -47,5 +50,6 @@ export function sanitizeSettings(raw: unknown): Settings {
     news: typeof r.news === "boolean" ? r.news : d.news,
     aiControl: typeof r.aiControl === "boolean" ? r.aiControl : d.aiControl,
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
+    offerCaptions: typeof r.offerCaptions === "boolean" ? r.offerCaptions : d.offerCaptions,
   };
 }

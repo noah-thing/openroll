@@ -6,7 +6,9 @@ import { span } from "../lib/format";
 import type { Editor } from "../state/editor";
 import { CaptionHighlight } from "./captions/CaptionHighlight";
 import { CaptionTextField } from "./captions/CaptionTextField";
+import { fontWeights, snapWeight } from "../../core/fonts";
 import { Section, Segmented, Slider, Toggle } from "./kit/Field";
+import { FontPicker } from "./kit/FontPicker";
 import { AudioInspector, ReadAloudSection } from "./panels/AudioInspector";
 import { useAnim } from "./inspector/anim";
 import { BlendSection, CanvasSection, KeySection, MaskSection, TransformSection } from "./inspector/FrameSections";
@@ -238,6 +240,8 @@ const COLORS = ["#ffffff", "#14130e", "#f2c23a", "#e2674f", "#7fb4e8", "#8fbf8a"
 
 function TextSection({ item, set, done, words, extra }: { item: TextItem | CaptionItem; set: Setter; done(): void; words?: React.ReactNode; extra?: React.ReactNode }) {
   const s = item.style;
+  const weights = fontWeights(s.font);
+  const weight = Math.min(weights.at(-1)!, Math.max(weights[0], s.weight));
   const style = (label: string, patch: Partial<TextItem["style"]>, group: string) => set(label, { style: { ...s, ...patch } } as Partial<Item>, group);
   return (
     <>
@@ -255,8 +259,18 @@ function TextSection({ item, set, done, words, extra }: { item: TextItem | Capti
       </Section>
       {extra}
       <Section title="Style">
+        <FontPicker value={s.font} onChange={font => (style("Text font", { font, weight: snapWeight(font, s.weight) }, "font"), done())} />
         <Slider label="Size" value={s.size} min={12} max={400} reset={96} onChange={v => style("Text size", { size: v }, "size")} onCommit={done} />
-        <Slider label="Weight" value={s.weight} min={300} max={700} step={100} onChange={v => style("Text weight", { weight: v }, "weight")} onCommit={done} />
+        {weights.length > 1 ? (
+          <Slider label="Weight" value={weight} min={weights[0]} max={weights.at(-1)!} step={100} onChange={v => style("Text weight", { weight: v }, "weight")} onCommit={done} />
+        ) : (
+          <div className="field">
+            <span className="field-label">
+              <span className="field-label-text">Weight</span>
+            </span>
+            <span className="field-note">{s.font.split(",")[0]} has one weight</span>
+          </div>
+        )}
         <Slider label="Spacing" value={s.letterSpacing} min={-10} max={40} reset={0} onChange={v => style("Letter spacing", { letterSpacing: v }, "ls")} onCommit={done} />
         <Segmented
           options={[

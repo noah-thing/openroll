@@ -13,6 +13,10 @@ export interface Toast {
   tone?: "error";
   /** A button on the toast, e.g. offering to reframe clips. */
   action?: { label: string; run(): void };
+  /** A second button that only dismisses, for questions with a no. */
+  decline?: string;
+  /** Runs once when the toast goes away for any reason. */
+  onClose?(): void;
 }
 
 const SAVE_DELAY = 400;
@@ -224,12 +228,19 @@ export class Editor {
 
   toast(message: string, opts: Omit<Toast, "id" | "message"> = {}): void {
     const t: Toast = { id: ++this.toastId, message, ...opts };
+    const crowded = this.toasts.slice(0, -2);
     this.toasts = [...this.toasts.slice(-2), t];
     this.emit();
-    setTimeout(() => {
-      this.toasts = this.toasts.filter(x => x !== t);
-      this.emit();
-    }, opts.action ? 10_000 : opts.tone === "error" ? 6000 : 3200);
+    for (const old of crowded) old.onClose?.();
+    setTimeout(() => this.dismissToast(t.id), opts.action ? 10_000 : opts.tone === "error" ? 6000 : 3200);
+  }
+
+  dismissToast(id: number): void {
+    const t = this.toasts.find(x => x.id === id);
+    if (!t) return;
+    this.toasts = this.toasts.filter(x => x !== t);
+    this.emit();
+    t.onClose?.();
   }
 
   private scheduleSave(): void {

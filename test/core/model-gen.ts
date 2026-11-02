@@ -38,7 +38,7 @@ const ref = (id: string, seconds: number, kind: MediaRef["kind"] = "video"): Med
 function caption(start: number, duration: number): CaptionItem {
   const n = 5;
   const words = Array.from({ length: n }, (_, i) => ({ text: "w" + i, start: Math.floor((duration * i) / n), end: Math.floor((duration * (i + 1)) / n) }));
-  return { id: newId("i"), type: "caption", start, duration, transform: { ...IDENTITY }, style: { text: "", font: "x", size: 10, weight: 400, color: "#fff", align: "center", lineHeight: 1, letterSpacing: 0 }, words };
+  return { id: newId("i"), type: "caption", start, duration, transform: { ...IDENTITY }, style: { text: "", font: "Familjen Grotesk", size: 10, weight: 400, color: "#fff", align: "center", lineHeight: 1, letterSpacing: 0 }, words };
 }
 
 export function begin(): Project {

@@ -2,6 +2,7 @@ import { addMedia, insertItems, mediaItem } from "../../core/edit";
 import { mainTrack, projectDuration, type MediaRef, type Micros, type Project } from "../../core/project";
 import { NeedsPrepError, probe, UnsupportedMediaError } from "../../engine/probe";
 import type { FileInfo } from "../../shared/api";
+import { noteArrived } from "./caption-offer";
 import { derived } from "./derived-media";
 import type { Editor } from "./editor";
 import { importViaConverter } from "./prepare-import";
@@ -60,6 +61,7 @@ export async function importFiles(editor: Editor, files: FileInfo[], opts: Impor
   await Promise.all([work(), work(), work()]);
 
   const refs = results.filter((r): r is MediaRef => !!r);
+  noteArrived(refs.map(r => r.id));
   const fresh = refs.filter(r => !editor.project.media[r.id]);
   for (const r of fresh) void derived.maybeProxy(r);
   const timelineWasEmpty = projectDuration(editor.project) === 0;

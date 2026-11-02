@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { CaptionPreset } from "../../../core/caption-styles";
+import { fontStack, snapWeight } from "../../../core/fonts";
 
 /** A caption style drawn as live type. Hovering steps the highlight through the words. */
-export function Specimen({ preset, highlight, selected, onPick }: { preset: CaptionPreset; highlight: string | null; selected: boolean; onPick(): void }) {
+export function Specimen({ preset, font, highlight, selected, onPick }: { preset: CaptionPreset; font?: string; highlight: string | null; selected: boolean; onPick(): void }) {
   const words = preset.sample.split(" ");
   const [lit, setLit] = useState(1);
   const [hover, setHover] = useState(false);
@@ -19,8 +20,8 @@ export function Specimen({ preset, highlight, selected, onPick }: { preset: Capt
   const s = preset.style;
   const k = 0.22;
   const box: React.CSSProperties = {
-    fontFamily: s.font.includes(",") ? s.font : `"${s.font}"`,
-    fontWeight: s.weight,
+    fontFamily: fontStack(font ?? s.font),
+    fontWeight: snapWeight(font ?? s.font, s.weight),
     fontSize: s.size * k,
     letterSpacing: s.letterSpacing * k,
     color: s.color,

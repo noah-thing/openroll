@@ -1,3 +1,4 @@
+import { fontStack, safeFont, snapWeight } from "../core/fonts";
 import type { TextStyle } from "../core/project";
 
 export interface RasterText {
@@ -26,7 +27,8 @@ export function rasterText(style: TextStyle, text: string, highlight: number, hi
   }
 
   const s = Math.max(0.1, scale);
-  const font = `${style.weight} ${style.size * s}px ${quoteFamily(style.font)}`;
+  const family = safeFont(style.font);
+  const font = `${snapWeight(family, style.weight)} ${style.size * s}px ${fontStack(family)}`;
   const probe = new OffscreenCanvas(1, 1).getContext("2d")!;
   probe.font = font;
   if ("letterSpacing" in probe) probe.letterSpacing = `${style.letterSpacing * s}px`;
@@ -123,11 +125,4 @@ function trimLine(g: OffscreenCanvasRenderingContext2D, line: Line): Line {
 function roundRect(g: OffscreenCanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   g.beginPath();
   g.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
-}
-
-function quoteFamily(f: string): string {
-  return f.split(",").map(part => {
-    const p = part.trim();
-    return /^(serif|sans-serif|monospace|system-ui|cursive)$/.test(p) || p.startsWith('"') ? p : `"${p}"`;
-  }).join(", ");
 }

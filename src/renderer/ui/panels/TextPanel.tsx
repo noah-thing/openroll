@@ -1,4 +1,5 @@
 import { insertItems } from "../../../core/edit";
+import { fontStack, snapWeight } from "../../../core/fonts";
 import type { Editor } from "../../state/editor";
 import { TEXT_DRAG_TYPE, TEXT_PRESETS, textFromPreset, type TextPreset } from "./text-presets";
 
@@ -40,8 +41,8 @@ export function TextPanel({ editor }: { editor: Editor }) {
 function specimen(p: TextPreset): React.CSSProperties {
   const s = p.style;
   return {
-    fontFamily: s.font.includes(",") ? s.font : `"${s.font}"`,
-    fontWeight: s.weight,
+    fontFamily: fontStack(s.font),
+    fontWeight: snapWeight(s.font, s.weight),
     fontSize: Math.max(13, Math.min(22, s.size / 4.6)),
     letterSpacing: s.letterSpacing / 4.6,
     color: s.color,

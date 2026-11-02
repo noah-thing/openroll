@@ -2,6 +2,7 @@
 // disk, from older or newer builds and from people with a text editor, so nothing here
 // assumes a field exists. What can be repaired is repaired and listed; what cannot is refused.
 
+import { DEFAULT_FONT, isKnownFont } from "./fonts";
 import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type Track, type Transform } from "./project";
 
 export const CURRENT_VERSION = 1;
@@ -258,7 +259,7 @@ function repairKeyframes(raw: unknown): Item["keyframes"] {
 export function repairStyle(raw: Obj): Obj {
   const out: Obj = {
     ...raw,
-    font: str(raw.font, "Familjen Grotesk"),
+    font: raw.font,
     size: between(raw.size, 1, 4000) ? raw.size : 96,
     weight: between(raw.weight, 1, 1000) ? raw.weight : 700,
     color: str(raw.color, "#ffffff"),
@@ -334,6 +335,8 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
     }
   }
   if (JSON.stringify(item) !== JSON.stringify(raw)) repairs.push("clip");
+  // Fonts are checked on their own so an old project without one opens quietly and a bad one is named as such.
+  if (raw.type === "text" || raw.type === "caption") item.style = repairFont(item.style as Obj, repairs);
   return item as unknown as Item;
 }
 
@@ -368,6 +371,13 @@ export function repairLook(item: Obj): void {
   keep("audio", isObj(item.audio));
   keep("curves", isObj(item.curves) && Object.values(item.curves).every(c => Array.isArray(c) && c.every(pt => hasNumbers(pt, ["x", "y"]))));
   keep("hsl", isObj(item.hsl) && Object.values(item.hsl).every(b => hasNumbers(b, ["hue", "sat", "light"])));
+}
+
+/** A font this build does not bundle would draw as the system default, so the preview and the export could disagree. */
+function repairFont(style: Obj, repairs: string[]): Obj {
+  if (isKnownFont(style.font)) return style;
+  if (style.font !== undefined) repairs.push("font");
+  return { ...style, font: DEFAULT_FONT };
 }
 
 function repairMarkers(raw: unknown, repairs: string[]): Project["markers"] {

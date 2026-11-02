@@ -53,6 +53,8 @@ export interface MediaRef {
   loudness?: number;
   /** Flat start, end pairs in microseconds where speech was detected. */
   speech?: Micros[];
+  /** The person was already asked whether to caption this file, so they are not asked again. */
+  captionsAsked?: boolean;
   /** Made by OpenRoll rather than imported. */
   origin?: "recording" | "speech" | "effect";
 }
@@ -203,6 +205,7 @@ export interface Transition {
 
 export interface TextStyle {
   text: string;
+  /** A family from `fonts.ts`; the loader replaces anything else. */
   font: string;
   size: number;
   weight: number;

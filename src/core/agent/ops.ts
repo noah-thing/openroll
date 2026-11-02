@@ -4,6 +4,7 @@
 // as "$name", so a whole edit fits in one call.
 
 import { MIN_ITEM, addMarker, deleteItems, insertItems, isMagnetic, mediaItem, moveItem, packMain, pruneTransitions, resolveOverlap, rippleDeleteRange, setSpeed, setTrack, setTransition, split, updateItem } from "../edit";
+import { DEFAULT_FONT, FONTS, isKnownFont, snapWeight } from "../fonts";
 import { EASINGS, setKey } from "../look/keyframes";
 import { addEffectTo, setFilter } from "../look/edit";
 import { EFFECTS } from "../look/effects";
@@ -143,7 +144,7 @@ export function applyOps(start: Project, ops: Op[]): { project: Project; results
             start: at(o.at, "at"),
             duration: span(o.duration ?? 3, "duration"),
             transform: { ...IDENTITY, x: o.x === undefined ? 0 : finite(o.x, "x"), y: o.y === undefined ? 0 : finite(o.y, "y") },
-            style: textStyle({ text: o.text, font: "Familjen Grotesk", size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0 }, o.style),
+            style: textStyle({ text: o.text, font: DEFAULT_FONT, size: 96, weight: 700, color: "#ffffff", align: "center", lineHeight: 1.1, letterSpacing: 0 }, o.style),
             name: o.text.slice(0, 40),
           };
           const textTrack = trackFor(o.track) ?? p.tracks.find(t => t.kind === "text")?.id;
@@ -405,15 +406,21 @@ function setProps(p: Project, it: Item, props: Record<string, unknown>): Project
   return next;
 }
 
-/** Text style with the caller's fields on top, refused when a field has the wrong type or range. */
+/**
+ * Text style with the caller's fields on top, refused when a field has the wrong type or range.
+ * A font that is not bundled is an error too, so the AI picks from the catalog instead of getting a quiet fallback.
+ */
 function textStyle(base: TextStyle, over: unknown): TextStyle {
   if (over === undefined || over === null) return base;
   if (typeof over !== "object" || Array.isArray(over)) throw new Error("style must be an object of style fields");
+  const font = (over as Record<string, unknown>).font;
+  if (font !== undefined && !isKnownFont(font as string)) throw new Error(`unknown font ${JSON.stringify(font)}. Available: ${FONTS.map(f => f.family).join(", ")}`);
   const merged = { ...base, ...over } as Record<string, unknown>;
   const clean = repairStyle(merged);
   const bad = Object.keys(clean).find(k => JSON.stringify(clean[k]) !== JSON.stringify(merged[k]));
   if (bad) throw new Error(`style.${bad} does not accept ${JSON.stringify(merged[bad])?.slice(0, 60)}`);
-  return merged as unknown as TextStyle;
+  const style = merged as unknown as TextStyle;
+  return { ...style, weight: snapWeight(style.font, style.weight) };
 }
 
 /** Whether a look or flag field holds something the compositor can read. */

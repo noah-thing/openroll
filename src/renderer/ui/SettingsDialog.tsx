@@ -161,6 +161,13 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             </div>
             <div className="set-row">
               <div>
+                <b>Offer captions for speech</b>
+                <small>After you bring in a clip with talking, a small message asks if you want captions. Each file is only asked about once.</small>
+              </div>
+              <Switch label="Offer captions for speech" value={s.offerCaptions} onChange={offerCaptions => updateSettings({ offerCaptions })} />
+            </div>
+            <div className="set-row">
+              <div>
                 <b>Reduce motion</b>
                 <small>Turns off interface animations.</small>
               </div>

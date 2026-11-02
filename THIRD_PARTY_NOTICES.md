@@ -35,3 +35,24 @@ OpenRoll bundles these libraries into the app. Their full licence texts ship ins
 | [Zod](https://zod.dev) | MIT | Checking what AI tools send |
 
 Models are downloaded on first use from Hugging Face, each under the licence stated on its model page.
+
+## Fonts
+
+OpenRoll bundles these fonts for text and captions. The Latin and Latin Extended subsets, as served by Google Fonts, are stored as WOFF2 files in `src/renderer/fonts`, and exported videos draw text from the same files. Each font is free software: the SIL Open Font License 1.1 (https://openfontlicense.org) lets you use, embed and redistribute it, including in the videos you make, as long as the font is not sold by itself. Permanent Marker is under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Each font keeps the copyright of its authors, listed on its Google Fonts page.
+
+| Font | Licence | Authors and source |
+| --- | --- | --- |
+| Familjen Grotesk | OFL-1.1 | Familjen Grotesk Project Authors. https://fonts.google.com/specimen/Familjen+Grotesk |
+| Inter | OFL-1.1 | Rasmus Andersson and the Inter Project Authors. https://fonts.google.com/specimen/Inter |
+| Montserrat | OFL-1.1 | Julieta Ulanovsky and the Montserrat Project Authors. https://fonts.google.com/specimen/Montserrat |
+| Nunito | OFL-1.1 | Vernon Adams, Cyreal and the Nunito Project Authors. https://fonts.google.com/specimen/Nunito |
+| Oswald | OFL-1.1 | Vernon Adams, Kalapi Gajjar, Cyreal and the Oswald Project Authors. https://fonts.google.com/specimen/Oswald |
+| Anton | OFL-1.1 | Vernon Adams and the Anton Project Authors. https://fonts.google.com/specimen/Anton |
+| Bebas Neue | OFL-1.1 | Ryoichi Tsunekawa, Dharma Type and the Bebas Neue Project Authors. https://fonts.google.com/specimen/Bebas+Neue |
+| Archivo Black | OFL-1.1 | Omnibus-Type and the Archivo Black Project Authors. https://fonts.google.com/specimen/Archivo+Black |
+| Bangers | OFL-1.1 | Vernon Adams and the Bangers Project Authors. https://fonts.google.com/specimen/Bangers |
+| Playfair Display | OFL-1.1 | Claus Eggers Sørensen and the Playfair Project Authors. https://fonts.google.com/specimen/Playfair+Display |
+| DM Serif Display | OFL-1.1 | Colophon Foundry and the DM Serif Display Project Authors. https://fonts.google.com/specimen/DM+Serif+Display |
+| Caveat | OFL-1.1 | Impallari Type and the Caveat Project Authors. https://fonts.google.com/specimen/Caveat |
+| Permanent Marker | Apache-2.0 | Font Diner and the Permanent Marker Project Authors. https://fonts.google.com/specimen/Permanent+Marker |
+| JetBrains Mono | OFL-1.1 | JetBrains and the JetBrains Mono Project Authors. https://fonts.google.com/specimen/JetBrains+Mono |

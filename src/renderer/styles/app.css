@@ -264,6 +264,19 @@ input, textarea { font: inherit; color: inherit; user-select: text; }
 .swatch.on { box-shadow: 0 0 0 2px var(--pane), 0 0 0 4px var(--ink); }
 .text-input { background: var(--pane-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; resize: vertical; min-height: 60px; }
 .text-input:focus { border-color: var(--ink-3); }
+.font-trigger { appearance: none; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--pane-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); padding: 6px 9px; font-size: 14px; cursor: pointer; text-align: left; }
+.font-trigger:hover, .font-trigger[aria-expanded="true"] { border-color: var(--ink-3); }
+.font-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.font-trigger svg { flex: none; color: var(--ink-3); }
+.font-list { position: fixed; z-index: 60; overflow: auto; padding: 4px; background: #2a2a2e; border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow-pop); outline: none; }
+.font-group { padding: 8px 8px 3px; font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.font-option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; color: var(--ink); }
+.font-option.active { background: var(--pane-3); }
+.font-list:focus-visible .font-option.active { box-shadow: inset 0 0 0 1px var(--accent); }
+.font-name { flex: 1; min-width: 0; font-size: 17px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.font-weights { flex: none; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.font-option svg { flex: none; color: var(--accent); }
+.field-note { grid-column: 2 / -1; font-size: 12px; color: var(--ink-3); }
 
 /* ---------- timeline */
 .tl { grid-area: tl; display: flex; flex-direction: column; min-height: 0; background: var(--pane); }
