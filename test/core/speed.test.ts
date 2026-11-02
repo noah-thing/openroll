@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MIN_ITEM, insertItems, mediaItem, setSpeed, setSpeedRamp, split, trim } from "../../src/core/edit";
 import { audible } from "../../src/core/audio-plan";
 import { buildScene } from "../../src/core/scene";
+import { readProject } from "../../src/core/load";
 import { findItem, itemEnd, sourceSpan, sourceTime, type Ease, type MediaItem, type Project, type SpeedKey } from "../../src/core/project";
 import {
   AUDIO_SPEED_RANGE, averageSpeed, localAtPlayed, normalizeKeys, playedOffset, rampDuration, rampKeepsAudio, rampLocal, rampOffset, rateSteps, reshapeRamp, sliceKeys, speedAt, speedRange,
@@ -338,5 +339,51 @@ describe("sound on a ramped clip", () => {
     expect(audible(get(mild.p, mild.id), mild.p.media.a)).toBe(true);
     expect(audible(get(wild.p, wild.id), wild.p.media.a)).toBe(false);
     expect(AUDIO_SPEED_RANGE).toEqual([0.25, 4]);
+  });
+});
+
+describe("curves with a steep stretch or a jump close to a cut", () => {
+  it("measures a 0.1 to 100 ramp over a narrow stretch to within a hair", () => {
+    const keys: SpeedKey[] = [{ x: 0, v: 100 }, { x: 0.45, v: 100, ease: "linear" }, { x: 0.5, v: 0.1, ease: "linear" }, { x: 0.55, v: 100 }, { x: 1, v: 100 }];
+    expect(1 / averageSpeed(keys) / referenceTau(keys)).toBeCloseTo(1, 3);
+  });
+
+  it("splitting just after a hold jump keeps the last frames on the new speed", () => {
+    const keys: SpeedKey[] = [{ x: 0, v: 3, ease: "hold" }, { x: 0.5, v: 1, ease: "hold" }, { x: 1, v: 1 }];
+    const { p, id } = clip(keys, { in: 0, duration: 10 * S });
+    const whole = get(p, id);
+    const jump = whole.start + rampLocal(whole.ramp!, whole.duration, whole.ramp!.span / 2);
+    // 10 ms past the jump is inside the merge distance keys used to have on a ten second span.
+    const q = split(p, Math.round(jump) + 10_000);
+    expect(q).not.toBe(p);
+    const a = q.tracks[0].items[0] as MediaItem;
+    const media = q.media.a.duration;
+    for (const t of [a.start + a.duration - 8_000, a.start + a.duration - 1]) {
+      expect(Math.abs(sourceTime(a, t, media) - sourceTime(whole, t, media))).toBeLessThanOrEqual(12);
+    }
+  });
+});
+
+describe("curves with a lot of points", () => {
+  const busy = (): SpeedKey[] => Array.from({ length: 24 }, (_, i) => ({ x: 0.02 + i * 0.04, v: i % 2 ? 3 : 0.5, ease: "linear" as const }));
+
+  it("keep their shape when a clip is trimmed after the end points were added", () => {
+    const { p, id } = clip(busy(), { duration: 9 * S });
+    const whole = get(p, id);
+    expect(whole.ramp!.keys.length).toBeGreaterThan(24);
+    const q = trim(p, id, "end", -100_000);
+    const cut = get(q, id);
+    expect(check(q)).toEqual([]);
+    for (let i = 0; i < 30; i++) {
+      const t = Math.floor((cut.duration * i) / 30);
+      expect(Math.abs(sourceTime(cut, t, q.media.a.duration) - sourceTime(whole, t, q.media.a.duration))).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it("are not changed by saving and opening the project", () => {
+    const { p } = clip(busy(), { duration: 9 * S });
+    const r = readProject(JSON.stringify(trim(p, p.tracks[0].items[0].id, "end", -2 * S)));
+    expect(r.ok && r.repairs).toEqual([]);
+    expect(r.ok && r.project.tracks[0].items[0]).toEqual(trim(p, p.tracks[0].items[0].id, "end", -2 * S).tracks[0].items[0]);
   });
 });

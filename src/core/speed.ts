@@ -8,9 +8,14 @@ import type { Ease, MediaItem, Micros, SpeedKey, SpeedRamp } from "./project";
 
 export const MIN_SPEED = 0.1;
 export const MAX_SPEED = 100;
+/** Most points a person or the assistant places on a curve. */
 export const MAX_SPEED_KEYS = 24;
-/** Keys closer than this along the span are one key. Keeps every segment wide enough to integrate. */
+/** Most a stored curve holds: cutting and growing a clip add a few keys to what was placed, and dropping any would change the footage. */
+const STORED_KEYS = 256;
+/** Keys closer than this along the span are one key, so a drag cannot stack keys on top of each other. */
 const MIN_GAP = 0.002;
+/** Keys cut from a longer curve stay apart however close they sit: merging them would move frames a split or trim had placed. */
+export const CUT_GAP = 1e-9;
 /** Audio is kept only while the whole curve stays inside this band; outside it resampling turns speech into noise. */
 export const AUDIO_SPEED_RANGE: [number, number] = [0.25, 4];
 
@@ -45,6 +50,10 @@ const TABLE_LIMIT = 48;
 /** Integration cells for a segment as wide as the whole span. */
 const CELLS = 2048;
 
+/** A cell is split in two while its own estimate and the finer one disagree by more than this, which a steep stretch of 1 / speed (a 0.1 to 100 ramp) needs far beyond the base cell count. */
+const CELL_TOLERANCE = 1e-7;
+const CELL_DEPTH = 10;
+
 function tableFor(keys: SpeedKey[]): Table {
   const sig = JSON.stringify(keys);
   const hit = tables.get(sig);
@@ -56,11 +65,23 @@ function tableFor(keys: SpeedKey[]): Table {
     const w = b.x - a.x;
     const cells = Math.min(CELLS, Math.max(16, Math.ceil(CELLS * w)));
     const g = (f: number) => 1 / segmentSpeed(a, b, f);
+    const simpson = (f0: number, f1: number, g0: number, gm: number, g1: number) => ((w * (f1 - f0)) / 6) * (g0 + 4 * gm + g1);
+    const cell = (f0: number, f1: number, g0: number, gm: number, g1: number, depth: number): void => {
+      const mid = (f0 + f1) / 2;
+      const gl = g((f0 + mid) / 2), gr = g((mid + f1) / 2);
+      const whole = simpson(f0, f1, g0, gm, g1);
+      const halves = simpson(f0, mid, g0, gl, gm) + simpson(mid, f1, gm, gr, g1);
+      if (depth < CELL_DEPTH && Math.abs(halves - whole) > CELL_TOLERANCE * halves) {
+        cell(f0, mid, g0, gl, gm, depth + 1);
+        cell(mid, f1, gm, gr, g1, depth + 1);
+        return;
+      }
+      tau.push(tau[tau.length - 1] + halves);
+      xs.push(f1 >= 1 ? b.x : a.x + w * f1);
+    };
     for (let c = 0; c < cells; c++) {
       const f0 = c / cells, f1 = (c + 1) / cells;
-      const h = (w * (f1 - f0)) / 6;
-      tau.push(tau[tau.length - 1] + h * (g(f0) + 4 * g((f0 + f1) / 2) + g(f1)));
-      xs.push(c === cells - 1 ? b.x : a.x + w * f1);
+      cell(f0, f1, g(f0), g((f0 + f1) / 2), g(f1), 0);
     }
   }
   const table = { xs: Float64Array.from(xs), tau: Float64Array.from(tau) };
@@ -173,17 +194,18 @@ export function rampKeepsAudio(r: SpeedRamp): boolean {
 }
 
 /** Sorted keys covering 0..1 with legal speeds and eases; null when nothing usable was given. */
-export function normalizeKeys(keys: SpeedKey[]): SpeedKey[] | null {
+export function normalizeKeys(keys: SpeedKey[], gap = MIN_GAP): SpeedKey[] | null {
   const ok = keys.filter(k => Number.isFinite(k.x) && Number.isFinite(k.v));
   if (!ok.length) return null;
   const sorted = ok
     .map(k => ({ x: Math.min(1, Math.max(0, k.x)), v: clampSpeed(k.v), ...(k.ease !== undefined ? { ease: k.ease } : {}) }))
-    .sort((a, b) => a.x - b.x)
-    .slice(0, MAX_SPEED_KEYS);
+    .sort((a, b) => a.x - b.x);
+  // Past the limit the middle goes, never the end, which would change where the clip finishes.
+  if (sorted.length > STORED_KEYS) sorted.splice(STORED_KEYS - 1, sorted.length - STORED_KEYS + 1, sorted[sorted.length - 1]);
   const out: SpeedKey[] = [];
   for (const k of sorted) {
     const last = out[out.length - 1];
-    if (last && k.x - last.x < MIN_GAP) {
+    if (last && k.x - last.x < gap) {
       // The later key wins so a dragged point replaces the one it landed on.
       out[out.length - 1] = { ...k, x: last.x };
       continue;
@@ -194,11 +216,11 @@ export function normalizeKeys(keys: SpeedKey[]): SpeedKey[] | null {
   else out[0].x = 0;
   const end = out[out.length - 1];
   if (end.x < 1) {
-    if (1 - end.x < MIN_GAP && out.length > 1) end.x = 1;
+    if (1 - end.x < gap && out.length > 1) end.x = 1;
     else out.push({ x: 1, v: end.v });
   }
   if (out.length < 2) out.push({ x: 1, v: out[0].v });
-  if (out.length > 2 && 1 - out[out.length - 2].x < MIN_GAP) out.splice(out.length - 2, 1);
+  if (out.length > 2 && 1 - out[out.length - 2].x < gap) out.splice(out.length - 2, 1);
   out[out.length - 1].x = 1;
   return out;
 }
@@ -262,7 +284,7 @@ export function reshapeRamp(source: SpeedRamp, duration: Micros, head: Micros, t
     span += growHead + growTail;
     keys = abs.map(k => ({ ...k, x: k.x / span }));
   }
-  const ramp: SpeedRamp = { keys: normalizeKeys(keys) ?? keys, span };
+  const ramp: SpeedRamp = { keys: normalizeKeys(keys, CUT_GAP) ?? keys, span };
   return { ramp, headSpan: growHead > 0 ? -growHead : sA, tailSpan: growTail > 0 ? -growTail : r.span - sB };
 }
 

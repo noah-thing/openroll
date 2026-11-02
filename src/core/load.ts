@@ -5,7 +5,7 @@
 import { DEFAULT_FONT, isKnownFont } from "./fonts";
 import { isEase } from "./easing";
 import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type SpeedRamp, type Track, type Transform } from "./project";
-import { normalizeKeys } from "./speed";
+import { CUT_GAP, normalizeKeys } from "./speed";
 
 export const CURRENT_VERSION = 1;
 
@@ -387,7 +387,7 @@ function repairSpeed(raw: Obj, duration: number, repairs: string[]): { speed: nu
   if (raw.ramp === undefined) return { speed };
   const r = raw.ramp;
   const keys = isObj(r) && Array.isArray(r.keys) ? r.keys.filter((k): k is Obj => isObj(k) && num(k.x) && num(k.v)) : [];
-  const norm = normalizeKeys(keys.map(k => ({ x: k.x as number, v: k.v as number, ...(isEase(k.ease) ? { ease: k.ease } : {}) })));
+  const norm = normalizeKeys(keys.map(k => ({ x: k.x as number, v: k.v as number, ...(isEase(k.ease) ? { ease: k.ease } : {}) })), CUT_GAP);
   if (!isObj(r) || !norm || !num(r.span) || r.span < 1 || r.span > MAX_TIME) {
     repairs.push("speed curve");
     return { speed, ramp: undefined };
