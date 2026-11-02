@@ -3,6 +3,7 @@
 // results are kept in. Nothing here touches a model or a frame, so it is all testable.
 
 import type { Keyframe, MediaItem, Micros } from "./project";
+import { localAtPlayed } from "./speed";
 
 /** Camera motion measured between frames, accumulated from the first frame. */
 export interface CameraPath {
@@ -216,9 +217,9 @@ export function thin(keys: Keyframe[], tolerance: number): Keyframe[] {
 /** Source seconds to time on the clip, the inverse of how the scene reads a media item. */
 export function localTime(item: MediaItem, sourceSeconds: number): Micros {
   const src = sourceSeconds * 1e6;
-  const span = item.duration * item.speed;
-  const offset = item.reversed ? item.in + span - src : src - item.in;
-  return Math.round(Math.max(0, Math.min(item.duration, offset / item.speed)));
+  const span = item.ramp ? item.ramp.span : item.duration * item.speed;
+  const played = item.reversed ? item.in + span - src : src - item.in;
+  return Math.round(Math.max(0, Math.min(item.duration, localAtPlayed(item, played))));
 }
 
 function clamp(v: number, lo: number, hi: number): number {

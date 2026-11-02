@@ -2,7 +2,8 @@ import { ALL_FORMATS, AudioBufferSink, AudioSample, AudioSampleSource, Input, Mp
 import { audible } from "../core/audio-plan";
 import { itemEnd, type MediaItem, type Project } from "../core/project";
 import type { PipeSpec } from "../shared/ffexport";
-import { buildChain, calibrate, createBus, loadWorklet, needsWorklet } from "./audio-graph";
+import { localAtPlayed, playedOffset } from "../core/speed";
+import { buildChain, calibrate, createBus, loadWorklet, needsWorklet, setRate } from "./audio-graph";
 import { ensureAac } from "./aac";
 import { ladder, pipeFormat } from "./export-formats";
 import type { ExportIn, ExportOut, ExportSettings } from "./export-protocol";
@@ -310,18 +311,19 @@ export class Exporter {
     chain.output.connect(bus);
     const from = Math.max(winStart, item.start);
     const to = Math.min(winEnd, itemEnd(item));
-    const srcFrom = (item.in + (from - item.start) * item.speed) / 1e6;
-    const srcTo = (item.in + (to - item.start) * item.speed) / 1e6;
+    const srcFrom = (item.in + playedOffset(item, from - item.start)) / 1e6;
+    const srcTo = (item.in + playedOffset(item, to - item.start)) / 1e6;
     const sink = new AudioBufferSink(track);
     for await (const { buffer, timestamp } of sink.buffers(srcFrom, srcTo)) {
       const node = ctx.createBufferSource();
       node.buffer = buffer;
-      node.playbackRate.value = item.speed;
       node.connect(chain.input);
       const offset = Math.max(0, srcFrom - timestamp);
-      const tl = item.start + ((timestamp + offset) * 1e6 - item.in) / item.speed;
+      const tl = item.start + localAtPlayed(item, (timestamp + offset) * 1e6 - item.in);
       const dur = Math.min(buffer.duration - offset, srcTo - (timestamp + offset));
-      if (dur > 0) node.start(Math.max(0, at(tl) - chain.latency), offset, dur);
+      const when = Math.max(0, at(tl) - chain.latency);
+      setRate(node, item, when, timestamp + offset, timestamp + offset + dur);
+      if (dur > 0) node.start(when, offset, dur);
     }
   }
 }

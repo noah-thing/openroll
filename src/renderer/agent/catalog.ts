@@ -3,6 +3,7 @@ import { FONTS } from "../../core/fonts";
 import { LAYOUTS } from "../../core/layouts";
 import { EFFECTS } from "../../core/look/effects";
 import { FILTERS, type FilterLook } from "../../core/look/filters";
+import { SPEED_PRESETS } from "../../core/speed-presets";
 import { STICKERS } from "../../core/stickers";
 import { TRANSITIONS } from "../../engine/shaders";
 import { VOICES } from "../../engine/tts-protocol";
@@ -75,7 +76,8 @@ const OPS = {
   delete: "{ids} main track gaps close; other tracks keep their gaps",
   remove_range: "{from, to} cuts a stretch out of every unlocked track and closes it",
   set: "{id, props} see props",
-  keyframe: "{id, prop (e.g. transform.scale, transform.x, transform.opacity, adjust.exposure), at (timeline s), value, ease? linear|ease|easeIn|easeOut|hold}",
+  keyframe: "{id, prop (e.g. transform.scale, transform.x, transform.opacity, adjust.exposure), at (timeline s), value, ease? linear|ease|easeIn|easeOut|hold or [x1, y1, x2, y2] cubic bezier with x between 0 and 1; naming ease on an existing key changes it}",
+  speed_ramp: "{id, preset (none|montage|hero|bullet|jump-cut|flash-in|flash-out) or points [{at 0..1 along the clip's footage in playing order, speed 0.1..100, ease? same as keyframe}]} speed changes during the clip and the clip length follows; the result reports the new duration. set speed replaces a curve with one steady speed",
   transition: "{id (the clip after the cut), kind, duration? (0.5)} kind null removes",
   filter: "{id, filter (id) or null, amount? 0..1}",
   effect: "{id, kind, amount? 0..1, speed?, style? (index into styles)}",
@@ -90,7 +92,7 @@ const OPS = {
 
 const PROPS = {
   x: "number, pixels from frame centre", y: "number, pixels from frame centre (down is positive)", scale: "number, 1 = fitted", rotation: "degrees", opacity: "0..1",
-  volume: "0..2, 1 is original", fadeIn: "seconds", fadeOut: "seconds", speed: "0.1..100; the clip length changes to match", reversed: "boolean", freeze: "boolean, holds the first frame",
+  volume: "0..2, 1 is original", fadeIn: "seconds", fadeOut: "seconds", speed: "0.1..100; the clip length changes to match, and a speed curve is removed (a clip with a curve reports its average)", reversed: "boolean", freeze: "boolean, holds the first frame",
   blend: "normal|screen|multiply|overlay|add|lighten|darken",
   adjust: "{exposure, contrast, saturation, temperature, tint, highlights, shadows, vignette, fade, sharpen, grain} each -100..100 (fade, sharpen, grain 0..100)",
   crop: "{left, top, right, bottom} fractions 0..1 of the source",
@@ -121,7 +123,8 @@ export function buildCatalog() {
     stickers: STICKERS.map(s => ({ id: s.id, name: s.name, group: s.group })),
     voices: VOICES,
     blendModes: ["normal", "screen", "multiply", "overlay", "add", "lighten", "darken"],
-    easings: ["linear", "ease", "easeIn", "easeOut", "hold"],
+    easings: ["linear", "ease", "easeIn", "easeOut", "hold", "[x1, y1, x2, y2] cubic bezier"],
+    speedPresets: SPEED_PRESETS.map(x => ({ id: x.id, name: x.label, points: x.keys.map(k => ({ at: k.x, speed: k.v })) })),
   };
 }
 

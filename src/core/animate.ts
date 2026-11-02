@@ -1,12 +1,5 @@
-import type { Easing, Item, Keyframe, Micros } from "./project";
-
-const EASE: Record<Easing, (x: number) => number> = {
-  linear: x => x,
-  ease: x => x * x * (3 - 2 * x),
-  easeIn: x => x * x * x,
-  easeOut: x => 1 - (1 - x) ** 3,
-  hold: () => 0,
-};
+import { easeAt } from "./easing";
+import type { Item, Keyframe, Micros } from "./project";
 
 export function sample(keys: Keyframe[], t: Micros): number {
   if (!keys.length) return NaN;
@@ -17,7 +10,9 @@ export function sample(keys: Keyframe[], t: Micros): number {
   while (keys[i].t < t) i++;
   const a = keys[i - 1], b = keys[i];
   const x = (t - a.t) / (b.t - a.t || 1);
-  return a.v + (b.v - a.v) * EASE[a.ease](x);
+  // A held value changes at the next key, not a frame after it.
+  if (a.ease === "hold") return x >= 1 ? b.v : a.v;
+  return a.v + (b.v - a.v) * easeAt(a.ease, x);
 }
 
 /** Read a numeric property, animated if it has keyframes. `path` is like "transform.scale". */

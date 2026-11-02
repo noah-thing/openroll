@@ -1,12 +1,14 @@
 import { EASINGS, keyIndexAt, neighbourKey, removeKey, setEase } from "../../../core/look/keyframes";
 import { effectDef } from "../../../core/look/effects";
-import type { Easing, Item, KeyframeMap } from "../../../core/project";
+import { useState } from "react";
+import type { Ease, Item, KeyframeMap } from "../../../core/project";
 import { updateItem } from "../../../core/edit";
 import { shortTime } from "../../lib/format";
 import type { Editor } from "../../state/editor";
 import { Icon } from "../kit/Icon";
 import { Section } from "../kit/Field";
 import type { Anim } from "./anim";
+import { BezierEditor } from "./BezierEditor";
 
 const NAMES: Record<string, string> = {
   "transform.x": "Position X",
@@ -30,8 +32,8 @@ function labelFor(item: Item, path: string): string {
   return path;
 }
 
-function setKeys(editor: Editor, item: Item, label: string, keyframes: KeyframeMap | undefined) {
-  editor.apply(label, p => updateItem(p, item.id, { keyframes } as Partial<Item>));
+function setKeys(editor: Editor, item: Item, label: string, keyframes: KeyframeMap | undefined, group?: string) {
+  editor.apply(label, p => updateItem(p, item.id, { keyframes } as Partial<Item>), group);
 }
 
 /** Previous and next keyframe, and the easing of whatever is under the playhead. */
@@ -84,35 +86,48 @@ function shown(path: string, v: number): string {
 /** Every keyframe on the clip, for checking and for changing easing precisely. */
 export function KeyframeList({ editor, item }: { editor: Editor; item: Item }) {
   const entries = Object.entries(item.keyframes ?? {}).filter(([, k]) => k.length);
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <Section title="Keyframes" fold="keyframes">
       {!entries.length && <p className="insp-note">Click the diamond beside any value to add a keyframe at the playhead. Change the value somewhere else on the clip and it animates between them.</p>}
       {entries.map(([path, keys]) => (
         <div key={path} className="kflist">
           <div className="kflist-name">{labelFor(item, path)}</div>
-          {keys.map(k => (
-            <div key={k.t} className="kfrow">
-              <button className="kfrow-time num" title="Go to this keyframe" onClick={() => editor.seek(item.start + k.t)}>
-                {shortTime(k.t)}
-              </button>
-              <span className="kfrow-value num">{shown(path, k.v)}</span>
-              <select
-                className="kfrow-ease"
-                value={k.ease}
-                aria-label="Easing to the next keyframe"
-                onChange={e => setKeys(editor, item, "Keyframe easing", setEase(item.keyframes, path, k.t, e.target.value as Easing))}
-              >
-                {EASINGS.map(e => (
-                  <option key={e.value} value={e.value}>
-                    {e.label}
-                  </option>
-                ))}
-              </select>
-              <button className="iconbtn" title="Delete keyframe" onClick={() => setKeys(editor, item, "Delete keyframe", removeKey(item.keyframes, path, k.t))}>
-                <Icon name="close" size={13} />
-              </button>
-            </div>
-          ))}
+          {keys.map(k => {
+            const id = `${path}@${k.t}`;
+            const custom = typeof k.ease !== "string";
+            const setCurve = (ease: Ease) => setKeys(editor, item, "Keyframe easing", setEase(item.keyframes, path, k.t, ease), `${item.id}:ease:${id}`);
+            return (
+              <div key={k.t} className="kfcell">
+                <div className="kfrow">
+                  <button className="kfrow-time num" title="Go to this keyframe" onClick={() => editor.seek(item.start + k.t)}>
+                    {shortTime(k.t)}
+                  </button>
+                  <span className="kfrow-value num">{shown(path, k.v)}</span>
+                  <select
+                    className="kfrow-ease"
+                    value={custom ? "custom" : (k.ease as string)}
+                    aria-label="Easing to the next keyframe"
+                    onChange={e => setCurve(e.target.value as Ease)}
+                  >
+                    {custom && <option value="custom">Custom</option>}
+                    {EASINGS.map(e => (
+                      <option key={e.value} value={e.value}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button className={"iconbtn" + (open === id ? " on" : "")} title="Edit the curve" aria-expanded={open === id} onClick={() => setOpen(open === id ? null : id)}>
+                    <Icon name="curve" size={13} />
+                  </button>
+                  <button className="iconbtn" title="Delete keyframe" onClick={() => setKeys(editor, item, "Delete keyframe", removeKey(item.keyframes, path, k.t))}>
+                    <Icon name="close" size={13} />
+                  </button>
+                </div>
+                {open === id && <BezierEditor label="Easing curve" value={k.ease} onChange={setCurve} onCommit={() => editor.endGroup()} />}
+              </div>
+            );
+          })}
         </div>
       ))}
     </Section>

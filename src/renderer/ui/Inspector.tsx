@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { setSpeed, updateItem } from "../../core/edit";
-import { findItem, type CaptionItem, type Item, type MediaItem, type Project, type TextItem } from "../../core/project";
+import { findItem, type CaptionItem, type Item, type MediaItem, type MediaRef, type Project, type TextItem } from "../../core/project";
 import { useEditor } from "../lib/hooks";
 import { span } from "../lib/format";
 import type { Editor } from "../state/editor";
@@ -17,6 +17,7 @@ import { LayoutSection } from "./inspector/LayoutSection";
 import { LookTab } from "./inspector/LookTab";
 import { AiSpeedSections, AiVideoSections } from "./ai/AiSections";
 import { ShapeInspector } from "./inspector/ShapeInspector";
+import { SpeedCurve } from "./inspector/SpeedCurve";
 
 type Tab = "video" | "look" | "audio" | "speed" | "animate" | "text" | "shape";
 
@@ -100,7 +101,7 @@ function ItemInspector({ editor, item, project }: { editor: Editor; item: Item; 
 
         {active === "speed" && item.type === "media" && (
           <>
-            <SpeedSection editor={editor} item={item} />
+            <SpeedSection editor={editor} item={item} media={media} />
             <AiSpeedSections editor={editor} item={item} />
           </>
         )}
@@ -152,14 +153,14 @@ function fillEveryClip(editor: Editor, from: MediaItem): void {
 
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 3, 5];
 
-function SpeedSection({ editor, item }: { editor: Editor; item: MediaItem }) {
+function SpeedSection({ editor, item, media }: { editor: Editor; item: MediaItem; media?: MediaRef }) {
   const setTo = (s: number, group?: string) => editor.apply(`Speed ${s}×`, p => setSpeed(p, item.id, s), group);
   return (
     <>
       <Section title="Speed">
         <div className="chips">
           {SPEEDS.map(s => (
-            <button key={s} className={"chip" + (Math.abs(item.speed - s) < 0.001 ? " on" : "")} onClick={() => setTo(s)}>
+            <button key={s} className={"chip" + (!item.ramp && Math.abs(item.speed - s) < 0.001 ? " on" : "")} onClick={() => setTo(s)}>
               {s}×
             </button>
           ))}
@@ -177,9 +178,10 @@ function SpeedSection({ editor, item }: { editor: Editor; item: MediaItem }) {
         />
         <p className="insp-note">The clip gets longer or shorter to match. Audio changes pitch for now.</p>
       </Section>
+      <SpeedCurve editor={editor} item={item} media={media} />
       <Section title="Playback">
         <Toggle label="Reverse" value={!!item.reversed} onChange={v => editor.apply(v ? "Reverse" : "Play forward", p => updateItem(p, item.id, { reversed: v }))} />
-        <Toggle label="Freeze on first frame" value={!!item.freeze} onChange={v => editor.apply(v ? "Freeze frame" : "Unfreeze", p => updateItem(p, item.id, { freeze: v }))} />
+        <Toggle label="Freeze on first frame" value={!!item.freeze} onChange={v => editor.apply(v ? "Freeze frame" : "Unfreeze", p => updateItem(p, item.id, v ? { freeze: true, ramp: undefined } : { freeze: false }))} />
       </Section>
     </>
   );

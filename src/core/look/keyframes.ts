@@ -1,7 +1,7 @@
 // Keyframe edits as pure functions on an item's KeyframeMap. Times are relative to the
 // item start, the same space `valueAt` reads in.
 
-import type { Easing, Item, Keyframe, KeyframeMap, Micros } from "../project";
+import type { Ease, Easing, Item, Keyframe, KeyframeMap, Micros } from "../project";
 
 /** Two keys closer than this are the same key. Under half a frame at any sane rate. */
 export const KEY_EPS: Micros = 8_000;
@@ -31,7 +31,7 @@ function put(map: KeyframeMap | undefined, path: string, keys: Keyframe[]): Keyf
 }
 
 /** Add or overwrite the key at `t`. An existing key keeps its easing. */
-export function setKey(map: KeyframeMap | undefined, path: string, t: Micros, v: number, ease: Easing = "ease"): KeyframeMap | undefined {
+export function setKey(map: KeyframeMap | undefined, path: string, t: Micros, v: number, ease: Ease = "ease"): KeyframeMap | undefined {
   const keys = map?.[path] ?? [];
   const at = keyIndexAt(keys, t);
   const kept = at >= 0 ? keys[at].ease : ease;
@@ -48,7 +48,7 @@ export function removeKey(map: KeyframeMap | undefined, path: string, t: Micros)
   return put(map, path, keys.filter((_, i) => i !== at));
 }
 
-export function setEase(map: KeyframeMap | undefined, path: string, t: Micros, ease: Easing): KeyframeMap | undefined {
+export function setEase(map: KeyframeMap | undefined, path: string, t: Micros, ease: Ease): KeyframeMap | undefined {
   const keys = map?.[path];
   const at = keyIndexAt(keys, t);
   if (!keys || at < 0) return map;

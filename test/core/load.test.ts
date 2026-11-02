@@ -138,7 +138,7 @@ describe("readProject", () => {
       const { p, item } = base();
       const keyframes = { "transform.scale": [{ t: 500, v: 2, ease: "bounce" }, { t: 0, v: 1, ease: "linear" }, { t: "x", v: 1 }, null], "transform.x": "no", "adjust.exposure": [] };
       const r = load({ ...p, tracks: [{ ...p.tracks[0], items: [{ ...item, keyframes }] }, p.tracks[1]] });
-      expect(first(r)?.keyframes).toEqual({ "transform.scale": [{ t: 0, v: 1, ease: "linear" }, { t: 500, v: 2, ease: "linear" }] });
+      expect(first(r)?.keyframes).toEqual({ "transform.scale": [{ t: 0, v: 1, ease: "linear" }, { t: 500, v: 2, ease: "ease" }] });
     });
 
     it("sorts a track, moves overlapping clips to their own lane and keeps every clip", () => {

@@ -3,7 +3,9 @@
 // assumes a field exists. What can be repaired is repaired and listed; what cannot is refused.
 
 import { DEFAULT_FONT, isKnownFont } from "./fonts";
-import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type Track, type Transform } from "./project";
+import { isEase } from "./easing";
+import { IDENTITY, newId, type Item, type MediaKind, type MediaRef, type Project, type SpeedRamp, type Track, type Transform } from "./project";
+import { normalizeKeys } from "./speed";
 
 export const CURRENT_VERSION = 1;
 
@@ -218,7 +220,6 @@ function settleTrack(track: Track, repairs: string[], unique: (id: unknown, pref
   });
 }
 
-const EASES = ["linear", "ease", "easeIn", "easeOut", "hold"];
 const BLENDS = ["normal", "screen", "multiply", "overlay", "add", "lighten", "darken"];
 const VOICE_FX = ["pitchUp", "pitchDown", "robot", "radio", "echo", "bigRoom"];
 const SHAPE_KINDS = ["rect", "ellipse", "line", "sticker"];
@@ -250,7 +251,7 @@ function repairKeyframes(raw: unknown): Item["keyframes"] {
     if (path === "__proto__" || !Array.isArray(list)) continue;
     const keys = list
       .filter((k): k is Obj => isObj(k) && between(k.t, -MAX_TIME, MAX_TIME) && num(k.v))
-      .map(k => ({ ...k, t: k.t as number, v: k.v as number, ease: EASES.includes(k.ease as string) ? (k.ease as "linear") : ("linear" as const) }));
+      .map(k => ({ ...k, t: k.t as number, v: k.v as number, ease: isEase(k.ease) ? k.ease : ("ease" as const) }));
     if (keys.length) out[path] = keys.sort((a, b) => a.t - b.t);
   }
   return Object.keys(out).length ? out : undefined;
@@ -301,7 +302,7 @@ function repairItem(raw: unknown, media: Record<string, MediaRef>, repairs: stri
       item = {
         ...base,
         in: between(raw.in, 0, MAX_TIME) ? Math.round(raw.in) : 0,
-        speed: between(raw.speed, 0.1, 100) ? raw.speed : 1,
+        ...repairSpeed(raw, base.duration as number, repairs),
         volume: between(raw.volume, 0, 100) ? raw.volume : 1,
         fadeIn: between(raw.fadeIn, 0, MAX_TIME) ? raw.fadeIn : 0,
         fadeOut: between(raw.fadeOut, 0, MAX_TIME) ? raw.fadeOut : 0,
@@ -378,6 +379,22 @@ function repairFont(style: Obj, repairs: string[]): Obj {
   if (isKnownFont(style.font)) return style;
   if (style.font !== undefined) repairs.push("font");
   return { ...style, font: DEFAULT_FONT };
+}
+
+/** Speed and the optional curve together, since the item keeps its average speed in step with the curve. */
+function repairSpeed(raw: Obj, duration: number, repairs: string[]): { speed: number; ramp?: SpeedRamp } {
+  const speed = num(raw.speed) && raw.speed > 0 ? raw.speed : 1;
+  if (raw.ramp === undefined) return { speed };
+  const r = raw.ramp;
+  const keys = isObj(r) && Array.isArray(r.keys) ? r.keys.filter((k): k is Obj => isObj(k) && num(k.x) && num(k.v)) : [];
+  const norm = normalizeKeys(keys.map(k => ({ x: k.x as number, v: k.v as number, ...(isEase(k.ease) ? { ease: k.ease } : {}) })));
+  if (!isObj(r) || !norm || !num(r.span) || r.span < 1 || r.span > MAX_TIME) {
+    repairs.push("speed curve");
+    return { speed, ramp: undefined };
+  }
+  const span = Math.round(r.span);
+  const ramp: SpeedRamp = { keys: norm, span, ...(typeof r.preset === "string" && r.preset.length <= 40 ? { preset: r.preset } : {}) };
+  return { speed: span / duration, ramp };
 }
 
 function repairMarkers(raw: unknown, repairs: string[]): Project["markers"] {

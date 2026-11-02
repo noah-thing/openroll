@@ -2,7 +2,8 @@ import { ALL_FORMATS, AudioBufferSink, Input, UrlSource, type InputAudioTrack } 
 import type { MediaItem, MediaRef, Micros, Project } from "../core/project";
 import { itemEnd } from "../core/project";
 import { audible } from "../core/audio-plan";
-import { buildChain, createBus, loadWorklet, type ItemChain } from "./audio-graph";
+import { localAtPlayed, playedOffset, speedNow } from "../core/speed";
+import { buildChain, createBus, loadWorklet, setRate, type ItemChain } from "./audio-graph";
 
 /** Seconds of audio scheduled ahead of what is playing. */
 const LEAD = 1.2;
@@ -166,13 +167,13 @@ export class AudioEngine {
     if (!track || voice.cancelled) return;
     const sink = new AudioBufferSink(track);
     const from = Math.max(this.startT, item.start);
-    const srcStart = (item.in + (from - item.start) * item.speed) / 1e6;
-    const srcEnd = (item.in + item.duration * item.speed) / 1e6;
+    const srcStart = (item.in + playedOffset(item, from - item.start)) / 1e6;
+    const srcEnd = (item.in + playedOffset(item, item.duration)) / 1e6;
 
     for await (const { buffer, timestamp } of sink.buffers(srcStart, srcEnd)) {
       if (voice.cancelled) break;
       // timeline position of this buffer's first sample
-      const tl = item.start + ((timestamp * 1e6 - item.in) / item.speed);
+      const tl = item.start + localAtPlayed(item, timestamp * 1e6 - item.in);
       const lead = voice.chain.latency;
       let when = this.ctxTimeFor(tl) - lead;
       let offset = 0;
@@ -184,21 +185,24 @@ export class AudioEngine {
       const duration = Math.min(buffer.duration - offset, remaining);
       if (duration <= 0) continue;
       const late = this.ctx.currentTime - when;
+      let skipped = 0;
       if (late > 0) {
         // decoder fell behind: skip what we missed rather than play it late and drift
-        offset += late * item.speed;
+        skipped = item.ramp ? sourceSkipped(item, timestamp + offset, late) : late * item.speed;
+        offset += skipped;
         when = this.ctx.currentTime;
         if (offset >= buffer.duration) continue;
       }
       const node = this.ctx.createBufferSource();
       node.buffer = buffer;
-      node.playbackRate.value = item.speed;
+      const length = Math.max(0, duration - skipped);
+      setRate(node, item, when, timestamp + offset, timestamp + offset + length);
       node.connect(voice.chain.input);
       node.onended = () => {
         voice.nodes.delete(node);
         this.retire(voice);
       };
-      node.start(when, offset, Math.max(0, duration - (late > 0 ? late * item.speed : 0)));
+      node.start(when, offset, length);
       voice.nodes.add(node);
 
       const ahead = when - this.ctx.currentTime;
@@ -250,8 +254,8 @@ export class AudioEngine {
       sink = new AudioBufferSink(track);
       this.scrubSinks.set(media.id, sink);
     }
-    const local = (t - item.start) * item.speed;
-    const src = (item.reversed ? item.in + item.duration * item.speed - local : item.in + local) / 1e6;
+    const played = playedOffset(item, t - item.start);
+    const src = (item.reversed ? item.in + (item.ramp ? item.ramp.span : item.duration * item.speed) - played : item.in + played) / 1e6;
     const wrapped = await sink.getBuffer(src);
     if (!wrapped) return;
     const offset = Math.max(0, src - wrapped.timestamp);
@@ -272,7 +276,7 @@ export class AudioEngine {
     gain.connect(this.master);
     const node = this.ctx.createBufferSource();
     node.buffer = wrapped.buffer;
-    node.playbackRate.value = item.reversed ? 1 : item.speed;
+    node.playbackRate.value = item.reversed ? 1 : item.ramp ? Math.min(4, Math.max(0.25, speedNow(item, t - item.start))) : item.speed;
     node.connect(gain);
     node.onended = () => gain.disconnect();
     node.start(now, offset, length);
@@ -283,6 +287,12 @@ export class AudioEngine {
     this.stop();
     if (this.ctx.state !== "closed") void this.ctx.close().catch(() => {});
   }
+}
+
+/** Source seconds a ramped clip gets through in `late` seconds of timeline, starting from source second `from`. */
+function sourceSkipped(item: MediaItem, from: number, late: number): number {
+  const l = localAtPlayed(item, from * 1e6 - item.in);
+  return (playedOffset(item, l + late * 1e6) - playedOffset(item, l)) / 1e6;
 }
 
 function sleep(ms: number): Promise<void> {

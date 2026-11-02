@@ -1,6 +1,7 @@
 import type { TimedWord } from "../../core/captions";
 import { cutsFromDifferences, energyForClip, findHighlights, type Highlight, type Series } from "../../core/highlights";
 import { findItem, itemEnd, type MediaItem, type MediaRef, type Micros, type Project } from "../../core/project";
+import { localAtPlayed } from "../../core/speed";
 import { buildShort, reframeHook } from "../../core/shorts";
 import { PEAKS_PER_SECOND } from "../../engine/media-protocol";
 import { recall } from "../ui/captions/CaptionsPanel";
@@ -20,7 +21,7 @@ export function shortsSources(p: Project): ShortsSource[] {
   for (const t of p.tracks) {
     if (t.kind !== "video") continue;
     for (const item of t.items) {
-      if (item.type !== "media" || item.reversed || item.freeze) continue;
+      if (item.type !== "media" || item.reversed || item.freeze || item.ramp) continue;
       const media = p.media[item.mediaId];
       if (media?.kind === "video" && media.hasAudio && item.duration >= 20_000_000) out.push({ item, media });
     }
@@ -96,7 +97,7 @@ export function filmstripDifferences(strip: Filmstrip): Float32Array | null {
 export function sceneCuts(strip: Filmstrip, diffs: Float32Array, item: MediaItem): Micros[] {
   const step = Math.round(strip.step * 1e6);
   return cutsFromDifferences(diffs, step, 0)
-    .map(s => item.start + Math.round((s - item.in) / item.speed))
+    .map(s => item.start + Math.round(localAtPlayed(item, s - item.in)))
     .filter(t => t > item.start && t < itemEnd(item));
 }
 

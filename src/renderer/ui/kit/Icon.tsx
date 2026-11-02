@@ -45,6 +45,7 @@ const PATHS = {
   duplicate: '<rect x="8.5" y="8.5" width="11" height="11" rx="1.5"/><path d="M15.5 8.5V6A1.5 1.5 0 0 0 14 4.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
   detach: '<path d="M3.5 7h17M3.5 17h7"/><path d="M14 14l6 6M20 14l-6 6"/>',
   keyframe: '<path d="M12 4.5 19.5 12 12 19.5 4.5 12z"/>',
+  curve: '<path d="M4.5 19.5C4.5 8 9 5 19.5 4.5"/><circle cx="4.5" cy="19.5" r="1.3"/><circle cx="19.5" cy="4.5" r="1.3"/>',
   play: '<path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/>',
   pause: '<path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z" fill="currentColor" stroke="none"/>',
   prev: '<path d="M7 5h2v14H7zM19 5v14l-9-7z" fill="currentColor" stroke="none"/>',
