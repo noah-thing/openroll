@@ -33,15 +33,18 @@ dmg:
 
 win:
   target:
-    - { target: nsis, arch: [x64] }
-    - { target: portable, arch: [x64] }
+    - { target: nsis, arch: [x64, arm64] }
+    - { target: portable, arch: [x64, arm64] }
   icon: build/icon.ico
 nsis:
+  # one installer per chip; the combined one would double the download for everyone
+  buildUniversalInstaller: false
   oneClick: true
   perMachine: false
   deleteAppDataOnUninstall: false
   artifactName: ${productName}-Setup-${version}-${os}-${arch}.${ext}
 portable:
+  buildUniversalInstaller: false
   artifactName: ${productName}-${version}-${os}-${arch}-portable.${ext}
 
 linux:

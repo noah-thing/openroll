@@ -78,6 +78,7 @@ Prefer the files? Get them from [Releases](https://github.com/noah-thing/openrol
 | macOS, Apple silicon | `OpenRoll-<version>-mac-arm64.dmg` |
 | macOS, Intel | `OpenRoll-<version>-mac-x64.dmg` |
 | Windows | `OpenRoll-Setup-<version>-win-x64.exe`, or the portable `.exe` |
+| Windows on Arm | `OpenRoll-Setup-<version>-win-arm64.exe`, or the portable `.exe` |
 | Linux | `.AppImage`, or `.deb` for Debian and Ubuntu |
 
 If your computer shows a popup the first time you open OpenRoll, that's only because the app isn't code signed yet. The setup command above skips it. All of the code is in this repository, and every release lists the checksum of each file in `SHA256SUMS.txt`. To open it past the popup:

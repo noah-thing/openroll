@@ -20,7 +20,13 @@ try {
 
 		Write-Host 'Finding the latest OpenRoll release' -ForegroundColor White
 		$release = Invoke-RestMethod $api -Headers $headers
-		$asset = @($release.assets) | Where-Object { $_.name -like 'OpenRoll-Setup-*-win-x64.exe' } | Select-Object -First 1
+		# A 32 bit PowerShell on Arm Windows reports x86 in PROCESSOR_ARCHITECTURE and the real chip in PROCESSOR_ARCHITEW6432
+		$chip = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+		$arch = if ($chip -eq 'ARM64') { 'arm64' } else { 'x64' }
+		$assets = @($release.assets)
+		$asset = $assets | Where-Object { $_.name -like "OpenRoll-Setup-*-win-$arch.exe" } | Select-Object -First 1
+		# Releases from before the Arm build have only x64, which Windows on Arm runs through emulation
+		if (-not $asset -and $arch -eq 'arm64') { $asset = $assets | Where-Object { $_.name -like 'OpenRoll-Setup-*-win-x64.exe' } | Select-Object -First 1 }
 		$sums = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
 		if ($release.draft -or -not $asset) { throw 'This release has no build for Windows yet.' }
 		if (-not $sums) { throw 'This release has no SHA256SUMS.txt, so its files cannot be checked.' }

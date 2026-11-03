@@ -2,7 +2,7 @@
 // electron-builder picks them up as extra resources and dev runs find them.
 //
 //   node scripts/fetch-ffmpeg.mjs              this machine
-//   node scripts/fetch-ffmpeg.mjs --os mac     both mac architectures
+//   node scripts/fetch-ffmpeg.mjs --os mac     both mac architectures (--os win likewise)
 //   node scripts/fetch-ffmpeg.mjs --all        every target
 //   node scripts/fetch-ffmpeg.mjs --force      download again even if the stamp matches
 //   node scripts/fetch-ffmpeg.mjs --probe      also ffprobe, which the QA scenarios use to check exports
@@ -25,6 +25,7 @@ const outRoot = join(root, "resources", "ffmpeg");
 const RIEDL = "https://ffmpeg.martin-riedl.de/download";
 const BTBN = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59";
 const BTBN_WIN = "ffmpeg-n9.0.2-39-g7adfbe40dc-win64-gpl-shared-9.0";
+const BTBN_WIN_ARM64 = "ffmpeg-n9.0.2-39-g7adfbe40dc-winarm64-gpl-shared-9.0";
 
 // Both providers build FFmpeg 9.0.x with --enable-gpl and --enable-version3, which fits
 // an app that is GPL-3.0-or-later. Source and licence details live in THIRD_PARTY_NOTICES.md.
@@ -61,6 +62,19 @@ const TARGETS = {
         toolPick: ["ffprobe.exe"],
         inside: `${BTBN_WIN}/bin`,
         extra: { [`${BTBN_WIN}/LICENSE.txt`]: "LICENSE.txt" },
+      },
+    ],
+  },
+  "win-arm64": {
+    version: "9.0.2",
+    archives: [
+      {
+        url: `${BTBN}/${BTBN_WIN_ARM64}.zip`,
+        sha256: "f6b7927191e11fe20b88785e5549703f58326d2ab1b35291d94e21f7cead7a17",
+        pick: [/\.dll$/, "ffmpeg.exe"],
+        toolPick: ["ffprobe.exe"],
+        inside: `${BTBN_WIN_ARM64}/bin`,
+        extra: { [`${BTBN_WIN_ARM64}/LICENSE.txt`]: "LICENSE.txt" },
       },
     ],
   },
