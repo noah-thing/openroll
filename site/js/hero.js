@@ -61,6 +61,13 @@ function build() {
   // on a phone the moon hangs above the title instead of beside it
   const R = tall ? Math.round(SW * .085) : Math.round(Math.min(SW, SH * 1.6) * .058) + 5;
   moon = { R, cx: tall ? Math.round(SW * .8) : SW - R - Math.round(SW * .07), cy: tall ? Math.round(SH * .14) : R + Math.round(SH * .1) };
+  // if the title is wide enough to reach the moon, the moon moves up into the corner and shrinks until it clears
+  const hr = hero.getBoundingClientRect(), tr = titleCanvas.getBoundingClientRect();
+  const tx1 = (tr.right - hr.left) / P + 2, ty0 = (tr.top - hr.top) / P - 2;
+  while (moon.R > 5 && moon.cx - moon.R < tx1 && moon.cy + moon.R > ty0) {
+    moon.cx = SW - moon.R - 3; moon.cy = moon.R + 2;
+    if (moon.cx - moon.R < tx1 && moon.cy + moon.R > ty0) moon.R--;
+  }
   drawSub();
 }
 
@@ -206,6 +213,7 @@ function frame(t) {
 }
 
 export function startHero() {
+  drawTitle(0);
   build();
   new IntersectionObserver(([e]) => {
     visible = e.isIntersecting;

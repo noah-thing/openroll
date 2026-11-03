@@ -38,7 +38,9 @@ export const bayer = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
 // One art pixel is this many CSS pixels everywhere on the page.
 export let P = 6;
 export function pixelSize() {
-  P = Math.max(3, Math.min(8, Math.round(innerWidth / 240)));
+  // ?p= forces a pixel size, used to render the share card
+  const forced = +new URLSearchParams(location.search).get("p");
+  P = forced || Math.max(3, Math.min(8, Math.round(innerWidth / 240)));
   document.documentElement.style.setProperty("--p", P + "px");
   return P;
 }
