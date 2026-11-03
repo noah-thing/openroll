@@ -59,7 +59,7 @@
         <code id="cmd"></code>
         <button class="copy notch" id="copy" type="button">Copy</button>
       </div>
-      <p class="note"><span id="how"></span><span id="file"></span></p>
+      <p class="note"><span id="how"></span><span id="file"></span><span id="send" hidden></span></p>
     </div>
   </main>
 </section>
@@ -73,7 +73,10 @@
       <p>Captions, background removal, beat cuts and vertical reframing all happen on your machine. Projects are plain files you keep, and exports never carry a watermark.</p>
     </div>
     <figure class="window notch" data-solid>
-      <img src="img/app.webp" alt="The OpenRoll editor with a title selected on the timeline, text styles on the left and its size, weight and colour on the right." width="2400" height="1308" loading="lazy">
+      <picture>
+        <source media="(max-width: 760px)" srcset="img/app-phone.webp" width="1420" height="1180">
+        <img src="img/app.webp" alt="The OpenRoll editor with a title selected on the timeline, text styles on the left and its size, weight and colour on the right." width="2400" height="1308" loading="lazy">
+      </picture>
     </figure>
   </section>
 
@@ -94,7 +97,7 @@
 
   <section class="block" id="free">
     <h2 data-solid>What you don't get</h2>
-    <div class="zeros">
+    <div class="zeros" data-solid>
       <div class="z" data-solid><canvas class="zero px"></canvas><b>accounts</b><span>Open it and start editing. There is nothing to sign in to.</span></div>
       <div class="z" data-solid><canvas class="zero px"></canvas><b>watermarks</b><span>Exports come out clean, every time.</span></div>
       <div class="z" data-solid><canvas class="zero px"></canvas><b>files sent anywhere</b><span>Your footage and projects stay on your computer.</span></div>
