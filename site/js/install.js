@@ -72,6 +72,9 @@ export function setupInstall() {
     const main = FILES.find(f => f.os === os);
     file.innerHTML = `Prefer a file? ${fileLink(main)}`;
   };
+  // this computer's system goes first, so the tab you need is the one already under your cursor
+  const row = tabs[0].parentElement, own = tabs.find(b => b.dataset.os === mine);
+  if (own) row.prepend(own);
   tabs.forEach(b => b.addEventListener("click", () => choose(b.dataset.os)));
   document.getElementById("copy").addEventListener("click", e => copy(e.currentTarget, COMMANDS[current].raw));
   choose(mine);
