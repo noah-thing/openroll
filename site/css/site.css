@@ -21,7 +21,9 @@
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* the page only ever moves up and down, and stops at its own top and bottom */
+html, body { overflow-x: hidden; overflow-x: clip; overscroll-behavior: none; }
+html { scroll-behavior: smooth; background: #020a18; }
 body {
   margin: 0; background: #020a18; color: var(--text); overflow-x: hidden;
   font: 16.5px/1.5 var(--mono); -webkit-font-smoothing: none;
@@ -39,7 +41,7 @@ canvas.px { image-rendering: pixelated; display: block; }
 }
 
 /* ---------- hero ---------- */
-.hero { position: relative; height: 100vh; min-height: 640px; background: var(--space); overflow: hidden; }
+.hero { position: relative; height: 100vh; height: 100svh; min-height: 640px; background: var(--space); overflow: hidden; }
 #sky { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 .top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 22px 32px; }
@@ -97,7 +99,7 @@ h1 { margin: 0; line-height: 0; margin-top: calc(var(--p) * -4); }
 .note a:hover, .sys a:hover, .faq a:hover { color: var(--cyan); box-shadow: inset 0 -1px 0 var(--cyan); }
 
 /* ---------- under the sea ---------- */
-.deep { position: relative; padding: 260px 0 0; }
+.deep { position: relative; padding: 260px 0 0; overflow: hidden; }
 #deep { position: absolute; left: 0; top: 0; }
 .block { position: relative; z-index: 1; width: min(1080px, calc(100% - 48px)); margin: 0 auto 170px; }
 .block h2 { margin: 0 0 28px; font: 400 33px/1.2 var(--mono); color: #f2fbff; width: fit-content; }
@@ -182,6 +184,7 @@ h1 { margin: 0; line-height: 0; margin-top: calc(var(--p) * -4); }
   .systems { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
+  .all { display: none; }
   .top { padding: 14px 16px; }
   .xme span, .xme .vb, .gh > span:not(.n) { display: none; }
   .lift { padding: 15vh 16px 0; }

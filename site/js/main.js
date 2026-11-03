@@ -17,9 +17,11 @@ let timer = 0, lastWidth = innerWidth;
 addEventListener("resize", () => {
   clearTimeout(timer);
   timer = setTimeout(() => {
+    // phones resize the window whenever the address bar slides away; only a new width needs a redraw
+    if (innerWidth === lastWidth) return;
     pixelSize();
     resizeHero();
-    if (innerWidth !== lastWidth) { drawSprites(); drawZeros(); labels(); }
+    drawSprites(); drawZeros(); labels();
     lastWidth = innerWidth;
     drawDeep();
   }, 120);
