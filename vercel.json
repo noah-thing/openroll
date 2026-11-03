@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "true",
+  "buildCommand": "rm -rf _site && mkdir _site && cp -R site/. _site/ && cp install.sh _site/install && cp install.ps1 _site/install.ps1",
+  "outputDirectory": "_site",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- site install.sh install.ps1 vercel.json",
+  "headers": [
+    { "source": "/install", "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }] },
+    { "source": "/install.ps1", "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }] },
+    { "source": "/(.*)", "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }] }
+  ]
+}
