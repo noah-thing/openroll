@@ -37,7 +37,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/readme/screenshot.webp" width="100%" alt="The OpenRoll editor: a title selected on the timeline, text styles on the left, its size, weight and colour on the right, and a voice track under the clips.">
+  <img src=".github/readme/screenshot.webp" width="100%" alt="The OpenRoll editor: a title selected on the timeline, text styles on the left, its font, size, weight and colour on the right, and a voice track under the clips.">
 </p>
 
 OpenRoll is built for the edits people make every day: cutting a vlog, captioning a short, putting music under a trip. It has the tools of a paid editor, captions, background removal, beat cuts, vertical reframing, and runs all of them on your own machine. Projects are plain files you own. Exports never carry a watermark.
