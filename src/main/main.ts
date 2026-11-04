@@ -43,6 +43,12 @@ if (process.env.OPENROLL_QA) {
 // its software renderer keeps the editor working there, slower but whole.
 app.commandLine.appendSwitch("enable-unsafe-swiftshader");
 
+// Chromium's cookie key lives in the system keychain. An unsigned app looks like a new app after every
+// update, so macOS asks for the login password again, and quitting waits on that box. Nothing here
+// stores a secret in Chromium, so it never needs the real key.
+if (process.platform === "darwin") app.commandLine.appendSwitch("use-mock-keychain");
+if (process.platform === "linux") app.commandLine.appendSwitch("password-store", "basic");
+
 if (process.platform === "linux") {
   // Hardware video decode on Linux is opt in for Chromium. These are harmless where VA-API is absent.
   app.commandLine.appendSwitch("enable-features", "AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiVideoDecoder");
